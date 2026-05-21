@@ -1382,13 +1382,14 @@ static void make_bxfer_sched(struct oh_state* state, const int trans,
     int d, ps, du;
     int(*vph)[2][2] = (int(*)[2][2])VPlaneHead;
     int nsendib = 0, nrecveb = 0, vpidx = 0;
+    int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
 
     for (d = OH_DIM_X; d <= OH_DIM_Y; d++) {
         for (ps = 0; ps < 2; ps++) {
             const int psor2 = ps ? trans + 1 : 0;
             struct S_commlist* rl;
             int* ri;
-            if (ps > psnew || ZBound[ps][OH_UPPER] == 0) {
+            if (ps > psnew || z_bound[ps][OH_UPPER] == 0) {
                 vph[d][ps][0] = vph[d][ps][1] = vpidx;
                 continue;
             }
@@ -1435,10 +1436,12 @@ static void make_bsend_sched(struct oh_state* state, const int psor2,
     struct S_commlist* rl = rlist;
     int rlz = rl->region;
     int nsend = *nsendptr, nsendsave = nsend, vpidx = *vpptr;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     int xl, xu, yl, yu;
-    const int zbl = ZBound[ps][OH_LOWER];
-    const int zbu = ZBound[ps][OH_UPPER] - GridDesc[psor2].z;
-    const int zmax = ZBound[ps][OH_UPPER] - 1;
+    const int zbl = z_bound[ps][OH_LOWER];
+    const int zbu = z_bound[ps][OH_UPPER] - GridDesc[psor2].z;
+    const int zmax = z_bound[ps][OH_UPPER] - 1;
     const int xtop = GridDesc[psor2].x;
     int s;
     Decl_For_All_Grid();
@@ -1458,8 +1461,8 @@ static void make_bsend_sched(struct oh_state* state, const int psor2,
     For_All_Grid_Z(psor2, xl, yl, zbl, xu, yu, zbu) {
         const int z = Grid_Z();
         for (s = 0; s < ns; s++) {
-            dint* npg = NOfPGrid[ps][s];
-            int* npgo = NOfPGridOut[ps][s];
+            dint* npg = state->level4_particle_grid[ps][s];
+            int* npgo = state->level4_particle_grid_out[ps][s];
             For_All_Grid_XY(psor2, xl, yl, xu, yu) {
                 const int g = The_Grid();
                 const dint dst = npg[g];
@@ -1494,10 +1497,12 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
     int nrecv = *nrecvptr, nrecvsave = nrecv;
     struct S_commlist* rl = rlist;
     int rlz = rl->region;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     int xl, xu, yl, yu;
-    const int zbl = ZBound[ps][OH_LOWER];
-    const int zbu = ZBound[ps][OH_UPPER] - GridDesc[psor2].z;
-    const int zmax = ZBound[ps][OH_UPPER] - 1;
+    const int zbl = z_bound[ps][OH_LOWER];
+    const int zbu = z_bound[ps][OH_UPPER] - GridDesc[psor2].z;
+    const int zmax = z_bound[ps][OH_UPPER] - 1;
     int s;
     Decl_For_All_Grid();
 
@@ -1513,7 +1518,7 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
     For_All_Grid_Z(psor2, xl, yl, zbl, xu, yu, zbu) {
         const int z = Grid_Z();
         for (s = 0; s < ns; s++) {
-            int* npgo = NOfPGridOut[ps][s];
+            int* npgo = state->level4_particle_grid_out[ps][s];
             For_All_Grid_XY(psor2, xl, yl, zu, yu)
                 nrecv += npgo[The_Grid()];
         }

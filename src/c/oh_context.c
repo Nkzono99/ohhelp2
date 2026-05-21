@@ -42,6 +42,11 @@ oh1_sync_default_state(void) {
   OhDefaultState.dst_neighbors = DstNeighbors;
   OhDefaultState.src_neighbors = SrcNeighbors;
   OhDefaultState.comm_list = CommList;
+  OhDefaultState.world_group = GroupWorld;
+  OhDefaultState.communicators = &Comms;
+  OhDefaultState.my_comm = MyComm;
+  OhDefaultState.my_comm_c = MyCommC;
+  OhDefaultState.my_comm_f = MyCommF;
 }
 
 struct oh_state*

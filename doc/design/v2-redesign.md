@@ -54,6 +54,9 @@ The current code now has this first migration layer:
   communicator, node arrays, node queue, scratch buffer, and region id updates.
   The communicator container and user-facing `MyComm` mirrors still need to move
   into context-owned storage.
+- The communicator container now has a named type and is reachable from
+  `oh_state`, along with `MyComm` C/Fortran mirrors. Rebuild writes through the
+  context fields; collective wrappers still need to read from the context.
 
 ## Particle Layout
 

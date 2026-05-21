@@ -1154,11 +1154,15 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
   int *region_id=state->region_id, *subdomain_id=state->subdomain_id;
   struct S_node *nodes=state->nodes, *nodes_next=state->nodes_next;
   struct S_node **node_queue=state->node_queue;
+  struct S_comms *comms=state->communicators;
+  struct S_mycommc *mycomm=state->my_comm;
+  struct S_mycommc *mycommc=state->my_comm_c;
+  struct S_mycommf *mycommf=state->my_comm_f;
   struct S_node *node, *ch;
   struct S_node *mynode=nodes_next+me, *root=node_queue[bot];
   int oldparent=Mode_PS(currmode) ? nodes[me].parentid : -1;
   int i, j;
-  MPI_Group grpw=GroupWorld, grp;
+  MPI_Group grpw=state->world_group, grp;
 
   node = nodes;
   Nodes = nodes_next;
@@ -1169,9 +1173,9 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
   nodes_next = state->nodes_next;
 
   if (stats) oh1_stats_time(STATS_REB_COMM, 0);
-  for (i=0; i<Comms.n; i++) {
-    if (Comms.body[i] != MPI_COMM_NULL)
-      MPI_Comm_free(Comms.body+i);
+  for (i=0; i<comms->n; i++) {
+    if (comms->body[i] != MPI_COMM_NULL)
+      MPI_Comm_free(comms->body+i);
   }
   root->comm.black = 0;  root->comm.sec = -1;
   for (i=0; bot>=0; bot--) {
@@ -1190,11 +1194,11 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
     }
     MPI_Group_incl(grpw, j, temp, &grp);
     MPI_Group_translate_ranks(grpw, 1, &rid, grp, &(node->comm.rank));
-    MPI_Comm_create(state->comm, grp, Comms.body+i);
+    MPI_Comm_create(state->comm, grp, comms->body+i);
     MPI_Group_free(&grp);
     i++;
   }
-  Comms.n = i;
+  comms->n = i;
 
   if (FamIndex) {
     int *fidx = FamIndex,  *fmem = FamMembers;
@@ -1205,21 +1209,21 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
     }
     fidx[nn] = j;  fmem[j] = root->id;
   }
-  MyComm->prime =
-    mynode->comm.prime<0 ? MPI_COMM_NULL : Comms.body[mynode->comm.prime];
-  MyComm->sec =
-    mynode->comm.sec<0 ? MPI_COMM_NULL : Comms.body[mynode->comm.sec];
-  MyComm->rank = mynode->comm.prime<0 ? -1 : mynode->comm.rank;
-  MyComm->black = mynode->comm.black;
-  if ((node=mynode->parent))  MyComm->root = node->comm.rank;
-  else MyComm->root = -1;
-  if (MyCommC) *MyCommC = *MyComm;
-  if (MyCommF) {
-    MyCommF->prime = MPI_Comm_c2f(MyComm->prime);
-    MyCommF->sec   = MPI_Comm_c2f(MyComm->sec);
-    MyCommF->rank  = MyComm->rank;
-    MyCommF->root  = MyComm->root;
-    MyCommF->black = MyComm->black;
+  mycomm->prime =
+    mynode->comm.prime<0 ? MPI_COMM_NULL : comms->body[mynode->comm.prime];
+  mycomm->sec =
+    mynode->comm.sec<0 ? MPI_COMM_NULL : comms->body[mynode->comm.sec];
+  mycomm->rank = mynode->comm.prime<0 ? -1 : mynode->comm.rank;
+  mycomm->black = mynode->comm.black;
+  if ((node=mynode->parent))  mycomm->root = node->comm.rank;
+  else mycomm->root = -1;
+  if (mycommc) *mycommc = *mycomm;
+  if (mycommf) {
+    mycommf->prime = MPI_Comm_c2f(mycomm->prime);
+    mycommf->sec   = MPI_Comm_c2f(mycomm->sec);
+    mycommf->rank  = mycomm->rank;
+    mycommf->root  = mycomm->root;
+    mycommf->black = mycomm->black;
   }
   oh1_broadcast(Neighbors[0], Neighbors[nbridx], OH_NEIGHBORS, OH_NEIGHBORS,
                 MPI_INT, MPI_INT);

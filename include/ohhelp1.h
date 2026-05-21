@@ -52,6 +52,9 @@ typedef long long int dint;     /* shorthand of 64-bit integer */
 
 struct S_node;
 struct S_commlist;
+struct S_comms;
+struct S_mycommc;
+struct S_mycommf;
 
 struct oh_state {
   MPI_Comm comm;
@@ -87,6 +90,11 @@ struct oh_state {
   int *dst_neighbors;
   int *src_neighbors;
   struct S_commlist *comm_list;
+  MPI_Group world_group;
+  struct S_comms *communicators;
+  struct S_mycommc *my_comm;
+  struct S_mycommc *my_comm_c;
+  struct S_mycommf *my_comm_f;
 };
 extern struct oh_state OhDefaultState;
 
@@ -162,10 +170,11 @@ struct S_commsched_context {
 
 /* Structured variables for MPI communicator */
 EXTERN MPI_Group GroupWorld;
-EXTERN struct {
+struct S_comms {
   int n;
   MPI_Comm *body;       /* [nOfNodes] */
-} Comms;
+};
+EXTERN struct S_comms Comms;
 struct S_mycommc {
   MPI_Comm prime, sec;
   int rank, root, black;

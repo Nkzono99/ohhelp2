@@ -154,6 +154,8 @@ struct oh_state {
   dint **level4_particle_grid_total[2];
   int **level4_particle_grid_out[2];
   int **level4_particle_grid_index[2];
+  int **level4_particle_grid_out_shadow[2];
+  int **level4_particle_grid_index_shadow[2];
   dint *level4_particle_grid_z;
   int **level4_hotspot_recv;
   int *level4_hotspot_send;

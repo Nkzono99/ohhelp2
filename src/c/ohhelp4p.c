@@ -134,6 +134,10 @@ oh4p_state(void) {
     state->level4_particle_grid_out[1] = NOfPGridOut[1];
     state->level4_particle_grid_index[0] = NULL;
     state->level4_particle_grid_index[1] = NULL;
+    state->level4_particle_grid_out_shadow[0] = NULL;
+    state->level4_particle_grid_out_shadow[1] = NULL;
+    state->level4_particle_grid_index_shadow[0] = NULL;
+    state->level4_particle_grid_index_shadow[1] = NULL;
     state->level4_particle_grid_z = NULL;
     state->level4_hotspot_recv = HSRecv;
     state->level4_hotspot_send = HSSend;

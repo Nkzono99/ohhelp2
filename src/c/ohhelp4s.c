@@ -130,6 +130,10 @@ oh4s_state(void) {
     state->level4_particle_grid_out[1] = NOfPGridOut[1];
     state->level4_particle_grid_index[0] = NOfPGridIndex[0];
     state->level4_particle_grid_index[1] = NOfPGridIndex[1];
+    state->level4_particle_grid_out_shadow[0] = NOfPGridOutShadow[0];
+    state->level4_particle_grid_out_shadow[1] = NOfPGridOutShadow[1];
+    state->level4_particle_grid_index_shadow[0] = NOfPGridIndexShadow[0];
+    state->level4_particle_grid_index_shadow[1] = NOfPGridIndexShadow[1];
     state->level4_particle_grid_z = NOfPGridZ;
     state->level4_hotspot_recv = NULL;
     state->level4_hotspot_send = NULL;
@@ -683,9 +687,9 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
         for (s = 0; s < ns; s++) {
             dint* npgt = state->level4_particle_grid_total[ps][s];
             int* npgo = state->level4_particle_grid_out[ps][s],
-                * npgos = NOfPGridOutShadow[ps][s];
+                * npgos = state->level4_particle_grid_out_shadow[ps][s];
             int* npgi = state->level4_particle_grid_index[ps][s],
-                * npgis = NOfPGridIndexShadow[ps][s];
+                * npgis = state->level4_particle_grid_index_shadow[ps][s];
             For_All_Grid(psor2, -exti, -exti, -exti, exti, exti, exti) {
                 const int g = The_Grid(), np = npgo[g];
                 npgos[g] = np;  npgt[g] = npgi[g] = tp;  npgis[g] = tp + sb;  tp += np;

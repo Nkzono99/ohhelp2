@@ -55,22 +55,25 @@ static void make_send_sched_body(const int psor2, const int n, const int sdid,
                                  const int self, const int sender,
                                  struct S_commlist* rlist, int* maxhs,
                                  int* naccs, int* nsendptr);
-static int  gather_hspot_recv(const int currmode, const int reb,
-                              const struct S_hotspot* hs);
-static void gather_hspot_send(const int hsidx, const int pcode, const int rreq,
+static int  gather_hspot_recv(struct oh_state* state, const int currmode,
+                              const int reb, const struct S_hotspot* hs);
+static void gather_hspot_send(struct oh_state* state, const int hsidx,
+                              const int pcode, const int rreq,
                               const int nfrom, const int nto,
                               struct S_commlist** hslist, int* sreqptr);
-static void gather_hspot_send_body(const int hsidx, const int psor2,
-                                   const int n, int dst, const int sender,
-                                   struct S_commlist** hslist,
+static void gather_hspot_send_body(struct oh_state* state, const int hsidx,
+                                   const int psor2, const int n, int dst,
+                                   const int sender, struct S_commlist** hslist,
                                    MPI_Request* reqs, int* sreqptr);
-static void scatter_hspot_send(const int rreq, int* nacc,
+static void scatter_hspot_send(struct oh_state* state, const int rreq, int* nacc,
                                struct S_commlist** hslist);
-static int  scatter_hspot_recv(const int hsidx, const int pcode,
-                               const int rreq, const int sreq, const int nfrom,
-                               const int nto, int* nacc, int* nsend);
-static void scatter_hspot_recv_body(const int hsidx, const int psor2,
-                                    const int n, int* naccptr, int* nsendptr);
+static void scatter_hspot_recv(struct oh_state* state, const int hsidx,
+                               const int pcode, const int rreq,
+                               const int sreq, const int nfrom, const int nto,
+                               int* nacc, int* nsend);
+static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
+                                    const int psor2, const int n,
+                                    int* naccptr, int* nsendptr);
 static void update_descriptors(const int oldp, const int newp);
 static void update_neighbors(const int ps);
 static void set_grid_descriptor(const int idx, const int nid);
@@ -829,11 +832,12 @@ static void sched_recv(const int currmode, const int reb, const int get, const i
 static void make_send_sched(const int currmode, const int reb, const int pcode,
                             const int oldp, const int newp, struct S_commlist* hslist,
                             int* nacc, int* nsend) {
+    struct oh_state* state = oh4p_state();
     const int psold = Parent_Old(pcode) ? 1 : 0;
-    const int ns2 = nOfSpecies << 1, nn = nOfNodes;
+    const int ns2 = state->n_of_species << 1, nn = state->n_of_nodes;
     int s, ps, n, h, maxhs = -1;
     int nfrom, nto;
-    struct S_commlist* rlist[2] = { CommList,SecRList };
+    struct S_commlist* rlist[2] = { state->comm_list,SecRList };
     int* rlidx[2] = { RLIndex,SecRLIndex };
 
     for (s = 0; s < ns2; s++)  TotalPNext[s] = 0;
@@ -844,10 +848,10 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
         nfrom = 0;  nto = OH_NEIGHBORS;
     }
     for (ps = 0; ps <= psold; ps++) {
-        const int root = ps ? oldp : myRank;
+        const int root = ps ? oldp : state->my_rank;
         for (n = nfrom; n < nto; n++) {
             int nrev = OH_NEIGHBORS - 1 - n;
-            int sdid = Neighbors[ps][n];
+            int sdid = state->neighbors[ps][n];
             const int self = n == OH_NBR_SELF && (ps == 0 || Parent_New_Same(pcode));
             struct S_hotspot* hs = HotSpotTop++;
             hs->comm = NULL;  hs->next = NULL;  hs->g = 0;  hs->lev = INT_MAX;
@@ -869,10 +873,10 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
         int rreq = 0, sreq;
         struct S_hotspot* hs = HotSpot[0][OH_NBR_SELF].head;
         const int self = hs->lev == h;
-        if (self)  rreq = gather_hspot_recv(currmode, reb, hs);
-        gather_hspot_send(h, pcode, rreq, nfrom, nto, &hslist, &sreq);
-        if (self)  scatter_hspot_send(rreq, nacc, &hslist);
-        scatter_hspot_recv(h, pcode, rreq, sreq, nfrom, nto, nacc, nsend);
+        if (self)  rreq = gather_hspot_recv(state, currmode, reb, hs);
+        gather_hspot_send(state, h, pcode, rreq, nfrom, nto, &hslist, &sreq);
+        if (self)  scatter_hspot_send(state, rreq, nacc, &hslist);
+        scatter_hspot_recv(state, h, pcode, rreq, sreq, nfrom, nto, nacc, nsend);
     }
 }
 
@@ -955,13 +959,14 @@ static void make_send_sched_body(const int psor2, const int n, const int sdid,
 #define Is_Boundary(P, B)  (P<OH_PGRID_EXT ? -1 :\
                            (P>=B-OH_PGRID_EXT ? 1 : 0))
 
-static int gather_hspot_recv(const int currmode, const int reb,
-                             const struct S_hotspot* hs) {
-    const int me = myRank, ns = nOfSpecies, nn = nOfNodes;
+static int gather_hspot_recv(struct oh_state* state, const int currmode,
+                             const int reb, const struct S_hotspot* hs) {
+    const int me = state->my_rank, ns = state->n_of_species;
+    const int nn = state->n_of_nodes;
     const int g = hs->g, psold = Mode_PS(currmode) || Mode_Acc(currmode);
     int rreq = 0, nbx, nby, nbz, nx, ny, nz;
-    const struct S_node* nodes = reb ? NodesNext : Nodes;
-    MPI_Request* reqs = Requests;
+    const struct S_node* nodes = reb ? state->nodes_next : state->nodes;
+    MPI_Request* reqs = state->requests;
 
     if (Mode_Acc(currmode))
         nbx = nby = nbz = 0;
@@ -984,8 +989,8 @@ static int gather_hspot_recv(const int currmode, const int reb,
                 if (nid < 0)  nid = -(nid + 1);
                 if (nid >= nn)  continue;
                 if (nid != me)
-                    MPI_Irecv(HSRecv[nbr] + nid * ns, ns, MPI_INT, nid, nbr, MCW,
-                              reqs + rreq++);
+                    MPI_Irecv(HSRecv[nbr] + nid * ns, ns, MPI_INT, nid, nbr,
+                              state->comm, reqs + rreq++);
                 if (nbr == OH_NBR_SELF) {
                     int s, * hsr = HSRecv[OH_NBR_SELF] + me * ns;
                     for (s = 0; s < ns; s++)  hsr[s] = NOfPGrid[0][s][g];
@@ -993,8 +998,8 @@ static int gather_hspot_recv(const int currmode, const int reb,
                 if (psold && (nid != me || nbr == OH_NBR_SELF)) {
                     for (ch = nodes[nid].child; ch; ch = ch->sibling) {
                         const int chid = ch->id;
-                        MPI_Irecv(HSRecv[nbr] + chid * ns, ns, MPI_INT, chid, nbr, MCW,
-                                  reqs + rreq++);
+                        MPI_Irecv(HSRecv[nbr] + chid * ns, ns, MPI_INT, chid,
+                                  nbr, state->comm, reqs + rreq++);
                     }
                 }
             }
@@ -1003,29 +1008,31 @@ static int gather_hspot_recv(const int currmode, const int reb,
     return(rreq);
 }
 
-static void gather_hspot_send(const int hsidx, const int pcode, const int rreq,
-                              const int nfrom, const int nto, struct S_commlist** hslist,
+static void gather_hspot_send(struct oh_state* state, const int hsidx,
+                              const int pcode, const int rreq, const int nfrom,
+                              const int nto, struct S_commlist** hslist,
                               int* sreqptr) {
     const int psold = Parent_Old(pcode) ? 1 : 0;
-    MPI_Request* reqs = Requests + rreq;
+    MPI_Request* reqs = state->requests + rreq;
     int ps, n;
 
     *sreqptr = 0;
     for (ps = 0; ps <= psold; ps++) {
         for (n = nfrom; n < nto; n++)
-            gather_hspot_send_body(hsidx, ps, n, Neighbors[ps][n], 1, hslist, reqs,
-                                   sreqptr);
+            gather_hspot_send_body(state, hsidx, ps, n, state->neighbors[ps][n],
+                                   1, hslist, reqs, sreqptr);
     }
     if (Parent_New_Diff(pcode))
-        gather_hspot_send_body(hsidx, 2, OH_NBR_SELF, RegionId[1], 0, hslist, reqs,
-                               sreqptr);
+        gather_hspot_send_body(state, hsidx, 2, OH_NBR_SELF,
+                               state->region_id[1], 0, hslist, reqs, sreqptr);
 }
 
-static void gather_hspot_send_body(const int hsidx, const int psor2, const int n, int dst,
+static void gather_hspot_send_body(struct oh_state* state, const int hsidx,
+                                   const int psor2, const int n, int dst,
                                    const int sender, struct S_commlist** hslist,
                                    MPI_Request* reqs, int* sreqptr) {
     struct S_hotspot* hs = HotSpot[psor2][n].head;
-    const int ns = nOfSpecies, g = hs->g, nrec = hs->n * ns;
+    const int ns = state->n_of_species, g = hs->g, nrec = hs->n * ns;
     const int ps = psor2 == 2 ? 1 : psor2;
     const int nrev = OH_NEIGHBORS - 1 - n;
     struct S_commlist* hsl = *hslist;
@@ -1035,32 +1042,34 @@ static void gather_hspot_send_body(const int hsidx, const int psor2, const int n
     if (hs->lev != hsidx || (ps == 0 && n == OH_NBR_SELF))  return;
     if (dst < 0)  dst = -(dst + 1);
     if (hs->self)
-        MPI_Irecv(HSRecvFromParent, ns, MPI_INT, dst, OH_NEIGHBORS << 1, MCW,
-                  reqs + sreq++);
+        MPI_Irecv(HSRecvFromParent, ns, MPI_INT, dst, OH_NEIGHBORS << 1,
+                  state->comm, reqs + sreq++);
     hs->comm = NULL;
     if (sender) {
         for (s = 0, np = 0; s < ns; s++)  np += (HSSend[s] = NOfPGrid[ps][s][g]);
-        MPI_Send(HSSend, ns, MPI_INT, dst, nrev, MCW);
+        MPI_Send(HSSend, ns, MPI_INT, dst, nrev, state->comm);
         if (np) {
-            MPI_Irecv(hsl, nrec, T_Commlist, dst, OH_NEIGHBORS + nrev, MCW,
-                      reqs + sreq++);
+            MPI_Irecv(hsl, nrec, T_Commlist, dst, OH_NEIGHBORS + nrev,
+                      state->comm, reqs + sreq++);
             hs->comm = hsl;  hsl += nrec;
         }
     }
     *hslist = hsl;  *sreqptr = sreq;
 }
 
-static void scatter_hspot_send(const int rreq, int* nacc, struct S_commlist** hslist) {
+static void scatter_hspot_send(struct oh_state* state, const int rreq, int* nacc,
+                               struct S_commlist** hslist) {
     struct S_hotspot* hs = HotSpot[0][OH_NBR_SELF].head;
     const struct S_commlist* rl = hs->comm;
     struct S_commlist* slhead = *hslist, * sl;
-    const int ns = nOfSpecies, nn = nOfNodes, me = myRank, g = hs->g, nr = hs->n;
+    const int ns = state->n_of_species, nn = state->n_of_nodes;
+    const int me = state->my_rank, g = hs->g, nr = hs->n;
     int r, ri, s, sinc, * hsr, * nofr;
     dint hst;
 
-    if (rreq)  MPI_Waitall(rreq, Requests, Statuses);
+    if (rreq)  MPI_Waitall(rreq, state->requests, state->statuses);
     for (s = 0, hst = 0; s < ns; s++)  hst += NOfPGridTotal[0][s][g];
-    for (ri = 0, sinc = 0, nofr = NOfRecv; ri < nr; ri++, nofr += ns) {
+    for (ri = 0, sinc = 0, nofr = state->n_of_recv; ri < nr; ri++, nofr += ns) {
         const int count = rl[ri].count, rid = rl[ri].rid;
         int nget = 0;
         for (s = 0; s < ns; s++) {
@@ -1081,20 +1090,21 @@ static void scatter_hspot_send(const int rreq, int* nacc, struct S_commlist** hs
             }
             *nacc += count;
         } else {
-            MPI_Send(nofr, ns, MPI_INT, rid, OH_NEIGHBORS << 1, MCW);
+            MPI_Send(nofr, ns, MPI_INT, rid, OH_NEIGHBORS << 1, state->comm);
         }
     }
     for (s = 0; s < ns; s++)  HSReceiver[s] = 0;
     for (r = 0; r <= rreq; r++) {
-        const int dst = r == rreq ? me : Statuses[r].MPI_SOURCE;
-        const int nbr = r == rreq ? OH_NBR_SELF : Statuses[r].MPI_TAG;
+        const int dst = r == rreq ? me : state->statuses[r].MPI_SOURCE;
+        const int nbr = r == rreq ? OH_NBR_SELF : state->statuses[r].MPI_TAG;
         struct S_commlist* slsave;
         int tag;
         hsr = HSRecv[nbr] + dst * ns;
         for (s = 0, sl = slsave = slhead, tag = 0; s < ns; s++, tag += nn) {
             int nput = hsr[s], nget = 0;
             if (nput == 0) continue;
-            for (ri = HSReceiver[s], nofr = NOfRecv + ri * ns; ; ri++, nofr += ns) {
+            for (ri = HSReceiver[s], nofr = state->n_of_recv + ri * ns; ;
+                 ri++, nofr += ns) {
                 const int ng = nofr[s], ngetsave = nget;
                 if (ng) {
                     nget += ng;  *sl = rl[ri];  sl->tag += tag;
@@ -1111,32 +1121,35 @@ static void scatter_hspot_send(const int rreq, int* nacc, struct S_commlist** hs
         if (r == rreq) {
             hs->comm = sl > slhead ? slhead : NULL;  *hslist = sl;
         } else if (sl > slhead) {
-            MPI_Send(slhead, sl - slhead, T_Commlist, dst, OH_NEIGHBORS + nbr, MCW);
+            MPI_Send(slhead, sl - slhead, T_Commlist, dst, OH_NEIGHBORS + nbr,
+                     state->comm);
         }
     }
 }
 
-static int scatter_hspot_recv(const int hsidx, const int pcode, const int rreq,
-                              const int sreq, const int nfrom, const int nto, int* nacc,
-                              int* nsend) {
+static void scatter_hspot_recv(struct oh_state* state, const int hsidx,
+                               const int pcode, const int rreq, const int sreq,
+                               const int nfrom, const int nto, int* nacc,
+                               int* nsend) {
     const int psold = Parent_Old(pcode) ? 1 : 0;
     int ps, n;
-    MPI_Status* st = Statuses + rreq;
+    MPI_Status* st = state->statuses + rreq;
 
-    if (sreq > 0)  MPI_Waitall(sreq, Requests + rreq, st);
+    if (sreq > 0)  MPI_Waitall(sreq, state->requests + rreq, st);
     for (ps = 0; ps <= psold; ps++) {
         for (n = nfrom; n < nto; n++) {
-            scatter_hspot_recv_body(hsidx, ps, n, nacc + ps, nsend);
+            scatter_hspot_recv_body(state, hsidx, ps, n, nacc + ps, nsend);
         }
     }
     if (Parent_New_Diff(pcode)) {
-        scatter_hspot_recv_body(hsidx, 2, OH_NBR_SELF, nacc + 1, nsend);
+        scatter_hspot_recv_body(state, hsidx, 2, OH_NBR_SELF, nacc + 1, nsend);
     }
 }
 
-static void scatter_hspot_recv_body(const int hsidx, const int psor2, const int n,
+static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
+                                    const int psor2, const int n,
                                     int* naccptr, int* nsendptr) {
-    const int ns = nOfSpecies, me = myRank;
+    const int ns = state->n_of_species, me = state->my_rank;
     const int ps = psor2 == 2 ? 1 : psor2;
     const struct S_hotspot* hs = HotSpot[psor2][n].head;
     struct S_commlist* sl = hs->comm;
@@ -1155,7 +1168,7 @@ static void scatter_hspot_recv_body(const int hsidx, const int psor2, const int 
         *naccptr = nacc;
     }
     if (!sl)  return;
-    slidx = -(sl - CommList + 1);
+    slidx = -(sl - state->comm_list + 1);
     for (s = 0, si = 0; s < ns; s++) {
         int mysi = -1, r;
         const int nr = sl[si].sid;
@@ -1166,7 +1179,7 @@ static void scatter_hspot_recv_body(const int hsidx, const int psor2, const int 
             sl[si].sid = nr;
             if (rid == me && self)  mysi = si;
             else {
-                NOfSend[sl[si].tag + rid] += count;  nsend += count;
+                state->n_of_send[sl[si].tag + rid] += count;  nsend += count;
             }
         }
         if (mysi >= 0) {

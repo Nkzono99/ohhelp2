@@ -175,6 +175,10 @@ The current code now has this first migration layer:
   construction and uses the context mirror for rank/node/species counts,
   communicator, communication-list storage, node-tree pointers, and Level-4
   first-neighbor routing.
+- Level-4p hotspot gather/scatter scheduling now threads `oh_state` through the
+  hotspot communication helpers for communicator, requests/statuses,
+  rank/node/species counts, neighbor/region mirrors, receive counts, and send
+  count accumulation.
 
 ## Particle Layout
 

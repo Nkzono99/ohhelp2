@@ -59,6 +59,7 @@ static void state_allreduce_field(struct oh_state *state, void *pfld,
                                   void *sfld, int ftype);
 static void state_exchange_borders(struct oh_state *state, void *pfld,
                                    void *sfld, int ctype, int bcast);
+static void state_grid_size(struct oh_state *state, double size[OH_DIMENSION]);
 
 void
 oh3_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -754,24 +755,28 @@ oh3_grid_size_(double size[OH_DIMENSION]) {
 }
 void
 oh3_grid_size(double size[OH_DIMENSION]) {
-  int d, n, nn=nOfNodes;
+  state_grid_size(oh1_state(), size);
+}
+static void
+state_grid_size(struct oh_state *state, double size[OH_DIMENSION]) {
+  int d, n, nn=state->n_of_nodes;
   for (d=0; d<OH_DIMENSION; d++) {
-    double s = (Grid[d].gsize = size[d]);
-    Grid[d].rgsize = 1 / s;
+    double s = (state->grid[d].gsize = size[d]);
+    state->grid[d].rgsize = 1 / s;
     for (n=0; n<nn; n++) {
-      SubDomainsFloat[n][d][OH_LOWER] *= s;
-      SubDomainsFloat[n][d][OH_UPPER] *= s;
+      state->subdomains_float[n][d][OH_LOWER] *= s;
+      state->subdomains_float[n][d][OH_UPPER] *= s;
     }
-    Grid[d].fcoord[OH_LOWER] *= s;
-    Grid[d].fcoord[OH_UPPER] *= s;
-    Grid[d].fsize *= s;
-    Grid[d].light.rfsize /= s;
-    Grid[d].light.rfsizeplus /= s;
-    Grid[d].light.fthresh *= s;
-    if (SubDomainDesc) {
+    state->grid[d].fcoord[OH_LOWER] *= s;
+    state->grid[d].fcoord[OH_UPPER] *= s;
+    state->grid[d].fsize *= s;
+    state->grid[d].light.rfsize /= s;
+    state->grid[d].light.rfsizeplus /= s;
+    state->grid[d].light.fthresh *= s;
+    if (state->subdomain_desc) {
       for (n=0; n<nn; n++) {
-        SubDomainDesc[n].coord[d].fc[OH_LOWER] *= s;
-        SubDomainDesc[n].coord[d].fc[OH_UPPER] *= s;
+        state->subdomain_desc[n].coord[d].fc[OH_LOWER] *= s;
+        state->subdomain_desc[n].coord[d].fc[OH_UPPER] *= s;
       }
     }
   }

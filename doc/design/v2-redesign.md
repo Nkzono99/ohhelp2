@@ -121,6 +121,8 @@ The current code now has this first migration layer:
   delegate to state-backed helpers. They still call the existing Level-1
   collective wrappers, but field descriptors, communicator, adjacency, current
   mode, region ids, and border-exchange descriptors are read through `oh_state`.
+- Level-3 grid-size scaling now updates grid geometry, floating subdomain
+  bounds, and irregular subdomain descriptors through a state-backed helper.
 
 ## Particle Layout
 

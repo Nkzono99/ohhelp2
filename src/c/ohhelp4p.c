@@ -893,10 +893,10 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
     const int ns2 = state->n_of_species << 1, nn = state->n_of_nodes;
     int s, ps, n, h, maxhs = -1;
     int nfrom, nto;
-    struct S_commlist* rlist[2] = { state->comm_list,SecRList };
-    int* rlidx[2] = { RLIndex,SecRLIndex };
+    struct S_commlist* rlist[2] = { state->comm_list, state->sec_recv_list };
+    int* rlidx[2] = { state->rl_index, SecRLIndex };
 
-    for (s = 0; s < ns2; s++)  TotalPNext[s] = 0;
+    for (s = 0; s < ns2; s++)  state->total_particles_next[s] = 0;
     HotSpotTop = HotSpotList;
     if (Mode_Acc(currmode)) {
         nfrom = OH_NBR_SELF;  nto = nfrom + 1;
@@ -955,6 +955,8 @@ static void make_send_sched_body(struct oh_state* state, const int psor2,
     const int ps = psor2 == 2 ? 1 : psor2;
     const int nsor0 = ps ? ns : 0;
     const int nx = n % 3, ny = n / 3 % 3, nz = n / 9;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
     int xl, xu, yl, yu, zl, zu, xoff, yoff, zoff, ngoff;
     int rlg = rlist->region;
     int nacc = *naccptr, nsend = *nsendptr;
@@ -986,26 +988,30 @@ static void make_send_sched_body(struct oh_state* state, const int psor2,
             hs->n = rlist - rl;  rlg = rlist->region;
             hs->self = self && involved;
             if (self && !involved)
-                for (s = 0; s < ns; s++)  NOfPGridOut[ps][s][g] = 0;
+                for (s = 0; s < ns; s++)
+                    state->level4_particle_grid_out[ps][s][g] = 0;
             if (lev > *maxhs)  *maxhs = lev;
         } else {
             const int rid = rlist->rid;
             int s;
             if (rid == me && self) {
                 for (s = 0; s < ns; s++) {
-                    int naccinc = NOfPGridOut[ps][s][g] = NOfPGridTotal[ps][s][g];
-                    nacc += naccinc;  TotalPNext[nsor0 + s] += naccinc;
-                    if (sender)  NOfPGrid[ps][s][g] = 0;
+                    int naccinc = state->level4_particle_grid_out[ps][s][g] =
+                        state->level4_particle_grid_total[ps][s][g];
+                    nacc += naccinc;
+                    state->total_particles_next[nsor0 + s] += naccinc;
+                    if (sender)  state->level4_particle_grid[ps][s][g] = 0;
                 }
             } else {
                 if (self)
-                    for (s = 0; s < ns; s++)  NOfPGridOut[ps][s][g] = 0;
+                    for (s = 0; s < ns; s++)
+                        state->level4_particle_grid_out[ps][s][g] = 0;
                 if (sender) {
                     int nofsidx = rlist->tag + rid;               /* [ps][0][rid] */
                     for (s = 0; s < ns; s++, nofsidx += nn) {
-                        int nsendinc = NOfPGrid[ps][s][g];
+                        int nsendinc = state->level4_particle_grid[ps][s][g];
                         nsend += nsendinc;  state->n_of_send[nofsidx] += nsendinc;
-                        NOfPGrid[ps][s][g] = nofsidx + 1;
+                        state->level4_particle_grid[ps][s][g] = nofsidx + 1;
                     }
                 }
             }

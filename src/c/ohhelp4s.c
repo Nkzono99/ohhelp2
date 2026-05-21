@@ -908,8 +908,9 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
     const int tag1 = OH_NEIGHBORS * ns;
     int s, ps, n;
     int nsend = 0;
+    int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
 
-    for (s = 0; s < ns2; s++)  TotalPNext[s] = 0;
+    for (s = 0; s < ns2; s++)  state->total_particles_next[s] = 0;
     for (ps = 0; ps <= psold; ps++) {
         const int root = ps ? oldp : state->my_rank;
         for (n = 0; n < OH_NEIGHBORS; n++) {
@@ -935,7 +936,7 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
             rl = rlist[ps];  ri = rlidx[ps];
         }
         make_send_sched_self(state, psor2, rl + ri[OH_NBR_SELF], nacc + ps);
-        if (ZBound[ps][OH_UPPER] == 0)  continue;
+        if (z_bound[ps][OH_UPPER] == 0)  continue;
         if (hp[OH_LOWER].nbor == nn) {
             int sdid = nbors[OH_NBR_BCC];
             if (sdid < 0)  sdid = -(sdid + 1);
@@ -998,7 +999,7 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
 #define Make_Send_Sched_Body(MYSELF) {\
   int s, nofsidx=nofsbase;\
   for (s=0; s<ns; s++,nofsidx+=nn) {\
-    dint *npg = NOfPGrid[ps][s];\
+    dint *npg = state->level4_particle_grid[ps][s];\
     int nsendofs=0;\
     For_All_Grid_XY(ps, xl, yl, xu, yu) {\
       const int g = The_Grid();\
@@ -1017,6 +1018,8 @@ static int make_send_sched_body(struct oh_state* state, const int ps,
     const int me = state->my_rank, ns = state->n_of_species;
     const int nn = state->n_of_nodes;
     const int nx = n % 3, ny = n / 3 % 3, nz = n / 9;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
     int xl, xu, yl, yu, zl, zu, zn;
     int rlz = rlist->region, rid, ridp = -1, ridn = -1, nofsbase;
     int nsend = 0;

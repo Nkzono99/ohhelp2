@@ -14,6 +14,7 @@
 #define EXTERN
 #include "ohhelp4s.h"
 
+static struct oh_state* oh4s_state(void);
 static void init4s(int** sdid, const int nspec, const int maxfrac,
                    const dint npmax, const int minmargin, const int maxdensity,
                    int** totalp, int** pbase, int* maxlocalp, int* cbufsize,
@@ -99,6 +100,29 @@ static void exchange_border_data_v(void* buf, void* sbuf, void* rbuf,
                                    const int d);
 static void exchange_border_data_h(void* buf, MPI_Datatype type,
                                    const MPI_Aint esize);
+
+static struct oh_state*
+oh4s_state(void) {
+    struct oh_state* state = oh1_state();
+    state->level4_grid_desc = GridDesc;
+    state->level4_pbuf_index = PbufIndex;
+    state->level4_particle_grid[0] = NOfPGrid[0];
+    state->level4_particle_grid[1] = NOfPGrid[1];
+    state->level4_particle_grid_total[0] = NOfPGridTotal[0];
+    state->level4_particle_grid_total[1] = NOfPGridTotal[1];
+    state->level4_particle_grid_out[0] = NOfPGridOut[0];
+    state->level4_particle_grid_out[1] = NOfPGridOut[1];
+    state->level4_particle_grid_index[0] = NOfPGridIndex[0];
+    state->level4_particle_grid_index[1] = NOfPGridIndex[1];
+    state->level4_particle_grid_z = NOfPGridZ;
+    state->level4_first_neighbor = FirstNeighbor;
+    state->level4_grid_offset = &GridOffset[0][0];
+    state->level4_real_dst_neighbors = RealDstNeighbors;
+    state->level4_real_src_neighbors = RealSrcNeighbors;
+    state->level4_boundary_condition = &BoundaryCondition[0][0];
+    state->level4_z_bound = &ZBound[0][0];
+    return state;
+}
 
 #define If_Dim(D, ET, EF)  (ET)
 #define For_Y(LINIT, LCONT, LNEXT) for(LINIT; LCONT; LNEXT)
@@ -384,6 +408,7 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
 
     if (!SubDomainDesc)
         memcpy(BoundaryCondition, bcond, sizeof(int) * OH_DIMENSION * 2);
+    oh4s_state();
 }
 
 void oh4s_particle_buffer_(const int* maxlocalp, struct S_particle* pbuf) {
@@ -421,6 +446,7 @@ void oh4s_per_grid_histogram(int** pghgram, int** pgindex) {
     Allocate_NOfPGrid(npgi, NOfPGridIndex, int, size, "NOfPGridIndex");
     Allocate_NOfPGrid(*pgindex, NOfPGridIndexShadow, int, size,
                       "NOfPGridIndexShadow");
+    oh4s_state();
 }
 
 int oh4s_transbound_(int* currmode, int* stats) {
@@ -1640,7 +1666,7 @@ static void set_sendbuf_disps4s(const int nextmode, const int trans) {
 
 static void xfer_particles(const int trans, const int psnew, const int nextmode,
                            struct S_particle* sbuf) {
-    state_xfer_particles4s(oh1_state(), trans, psnew, nextmode, sbuf);
+    state_xfer_particles4s(oh4s_state(), trans, psnew, nextmode, sbuf);
 }
 
 static void state_xfer_particles4s(struct oh_state* state, const int trans,
@@ -1686,7 +1712,7 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
 }
 
 static void xfer_boundary_particles_v(const int psnew, const int trans, const int d) {
-    struct oh_state* state = oh1_state();
+    struct oh_state* state = oh4s_state();
     const int ns = state->n_of_species;
     int vphi = d * 2 * 2;
     const int vphead = VPlaneHead[vphi], vptail = VPlaneHead[vphi + 2 * 2];
@@ -1756,7 +1782,7 @@ static void xfer_boundary_particles_v(const int psnew, const int trans, const in
 }
 
 static void xfer_boundary_particles_h(const int psnew) {
-    struct oh_state* state = oh1_state();
+    struct oh_state* state = oh4s_state();
     const int ns = state->n_of_species;
     int ps, ud, s, req = 0;
 

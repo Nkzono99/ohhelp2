@@ -157,6 +157,10 @@ The current code now has this first migration layer:
 - Level-4s boundary particle exchange now uses `oh_state` for species count,
   particle/send buffers, particle MPI datatype, communicator, requests, and
   statuses. The boundary-plane descriptors remain Level-4s-owned globals.
+- Level-4 grid histogram/routing state is now mirrored into `oh_state` by
+  Level-4p/4s-local sync helpers. `src/c/oh_context.c` deliberately does not
+  include Level-4 headers because the Level-4p and Level-4s headers carry
+  overlapping implementation-private type and global names.
 
 ## Particle Layout
 

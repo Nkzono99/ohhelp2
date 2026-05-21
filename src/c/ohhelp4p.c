@@ -14,6 +14,7 @@
 #define EXTERN
 #include "ohhelp4p.h"
 
+static struct oh_state* oh4p_state(void);
 static void init4p(int** sdid, const int nspec, const int maxfrac,
                    int** totalp, struct S_particle** pbuf, int** pbase,
                    int maxlocalp, struct S_mycommc* mycommc,
@@ -103,6 +104,29 @@ static void xfer_particles(const int trans, const int psnew,
                            struct S_particle* sbuf);
 static void state_xfer_particles4p(struct oh_state* state, const int trans,
                                    const int psnew, struct S_particle* sbuf);
+
+static struct oh_state*
+oh4p_state(void) {
+    struct oh_state* state = oh1_state();
+    state->level4_grid_desc = GridDesc;
+    state->level4_pbuf_index = PbufIndex;
+    state->level4_particle_grid[0] = NOfPGrid[0];
+    state->level4_particle_grid[1] = NOfPGrid[1];
+    state->level4_particle_grid_total[0] = NOfPGridTotal[0];
+    state->level4_particle_grid_total[1] = NOfPGridTotal[1];
+    state->level4_particle_grid_out[0] = NOfPGridOut[0];
+    state->level4_particle_grid_out[1] = NOfPGridOut[1];
+    state->level4_particle_grid_index[0] = NULL;
+    state->level4_particle_grid_index[1] = NULL;
+    state->level4_particle_grid_z = NULL;
+    state->level4_first_neighbor = FirstNeighbor;
+    state->level4_grid_offset = &GridOffset[0][0];
+    state->level4_real_dst_neighbors = RealDstNeighbors;
+    state->level4_real_src_neighbors = RealSrcNeighbors;
+    state->level4_boundary_condition = &BoundaryCondition[0][0];
+    state->level4_z_bound = NULL;
+    return state;
+}
 
 #define If_Dim(D, ET, EF)  (OH_DIMENSION>D ? (ET) : (EF))
 #define For_Y(LINIT, LCONT, LNEXT) LINIT;
@@ -355,6 +379,7 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
 
     if (!SubDomainDesc)
         memcpy(BoundaryCondition, bcond, sizeof(int) * OH_DIMENSION * 2);
+    oh4p_state();
 }
 
 int oh4p_max_local_particles_(const dint* npmax, const int* maxfrac,
@@ -379,6 +404,7 @@ void oh4p_per_grid_histogram_(int* pghgram) {
 void oh4p_per_grid_histogram(int** pghgram) {
     Allocate_NOfPGrid(*pghgram, NOfPGridOut, int, GridDesc[0].dw * GridDesc[0].h,
                       "NOfPGridOut");
+    oh4p_state();
 }
 
 int oh4p_transbound_(int* currmode, int* stats) {
@@ -1636,7 +1662,7 @@ static void set_sendbuf_disps4p(const int trans) {
 }
 
 static void xfer_particles(const int trans, const int psnew, struct S_particle* sbuf) {
-    state_xfer_particles4p(oh1_state(), trans, psnew, sbuf);
+    state_xfer_particles4p(oh4p_state(), trans, psnew, sbuf);
 }
 
 static void state_xfer_particles4p(struct oh_state* state, const int trans,

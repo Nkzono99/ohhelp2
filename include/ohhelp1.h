@@ -60,6 +60,7 @@ struct S_grid;
 struct S_subdomdesc;
 struct S_flddesc;
 struct S_borderexc;
+struct S_griddesc;
 typedef struct oh_particle_adapter oh_particle_adapter;
 
 struct oh_state {
@@ -141,6 +142,19 @@ struct oh_state {
   int *boundary_comm_fields;
   int *boundary_comm_types;
   struct S_borderexc *border_exchange;
+  struct S_griddesc *level4_grid_desc;
+  int *level4_pbuf_index;
+  dint **level4_particle_grid[2];
+  dint **level4_particle_grid_total[2];
+  int **level4_particle_grid_out[2];
+  int **level4_particle_grid_index[2];
+  dint *level4_particle_grid_z;
+  int *level4_first_neighbor;
+  int *level4_grid_offset;
+  void *level4_real_dst_neighbors;
+  void *level4_real_src_neighbors;
+  int *level4_boundary_condition;
+  int *level4_z_bound;
 };
 extern struct oh_state OhDefaultState;
 

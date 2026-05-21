@@ -104,6 +104,9 @@ The current code now has this first migration layer:
 - Level-2 initialization now separates particle-adapter selection, particle
   storage allocation, base-counter allocation, and communication work-buffer
   allocation, then synchronizes the default `oh_state` mirror explicitly.
+- `oh_context_set_particle_adapter()` exposes the Level-2 particle adapter hook
+  through the context facade. It still targets the default context only, matching
+  the current migration stage.
 
 ## Particle Layout
 

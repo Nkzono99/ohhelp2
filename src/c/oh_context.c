@@ -93,6 +93,15 @@ oh_context_set_region_weights(struct oh_state *context, const double *weights) {
 }
 
 void
+oh_context_set_particle_adapter(struct oh_state *context,
+                                const oh_particle_adapter *adapter) {
+  if (context && context!=&OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
+  oh2_set_particle_adapter(adapter);
+  oh1_sync_default_state();
+}
+
+void
 oh1_state_(struct oh_state **state) {
   *state = oh1_state();
 }

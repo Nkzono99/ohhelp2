@@ -185,6 +185,9 @@ The current code now has this first migration layer:
 - Level-4s vertical boundary transfer scheduling now receives `oh_state` for
   node/species counts and neighbor mirrors before building the vertical-plane
   send/receive schedule descriptors.
+- Level-4p secondary particle movement now threads `oh_state` through the
+  movement helpers so the shared move macro updates send counters and resolves
+  hotspot communication-list entries through the context mirror.
 
 ## Particle Layout
 

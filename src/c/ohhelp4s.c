@@ -1673,11 +1673,15 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
                                    const int psnew, const int nextmode,
                                    struct S_particle* sbuf) {
     const int nn = state->n_of_nodes, ns = state->n_of_species;
+    struct S_realneighbor (*real_dst)[2] =
+        (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
+    struct S_realneighbor (*real_src)[2] =
+        (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
     int ps, s, t, i, req, sdisp, * nofr, * nofs;
 
     for (ps = 0, t = 0, nofr = state->n_of_recv, req = 0; ps <= psnew; ps++) {
-        const int n = RealSrcNeighbors[trans][ps].n;
-        const int* nbor = RealSrcNeighbors[trans][ps].nbor;
+        const int n = real_src[trans][ps].n;
+        const int* nbor = real_src[trans][ps].nbor;
         for (s = 0; s < ns; s++, t++, nofr += nn) {
             struct S_particle* rbuf = state->recv_buffer_bases[t];
             for (i = 0; i < n; i++) {
@@ -1692,8 +1696,8 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
         }
     }
     for (ps = 0, t = 0, sdisp = 0, nofs = state->n_of_send; ps <= nextmode; ps++) {
-        const int n = RealDstNeighbors[trans][ps].n;
-        const int* nbor = RealDstNeighbors[trans][ps].nbor;
+        const int n = real_dst[trans][ps].n;
+        const int* nbor = real_dst[trans][ps].nbor;
         for (s = 0; s < ns; s++, t++, nofs += nn) {
             for (i = 0; i < n; i++) {
                 const int nid = nbor[i];

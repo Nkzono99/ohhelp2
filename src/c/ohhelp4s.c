@@ -2031,6 +2031,8 @@ static void exchange_border_data_v(struct oh_state* state, void* buf,
     const int pscurr = state->region_id[1] < 0 ? 0 : 1;
     const int vphi = d * 2 * 2;
     const int vphead = VPlaneHead[vphi], vptail = VPlaneHead[vphi + 2 * 2];
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     struct S_vplane* vp;
     int ps, s, i, req = 0;
     Decl_For_All_Grid();
@@ -2039,8 +2041,8 @@ static void exchange_border_data_v(struct oh_state* state, void* buf,
 
     for (ps = 0, i = vphi; ps <= pscurr; ps++) {
         int du;
-        const int zl = ZBound[ps][OH_LOWER];
-        const int zu = ZBound[ps][OH_UPPER] - GridDesc[ps].z;
+        const int zl = z_bound[ps][OH_LOWER];
+        const int zu = z_bound[ps][OH_UPPER] - GridDesc[ps].z;
         for (du = OH_LOWER; du <= OH_UPPER; du++, i++) {
             int ny;
             int xl, yl, xu, yu;
@@ -2055,7 +2057,8 @@ static void exchange_border_data_v(struct oh_state* state, void* buf,
             Grid_Interior_Boundary(ny, GridDesc[ps].y, yl, yu);
             For_All_Grid_Z(ps, xl, yl, zl, xu, yu, zu) {
                 for (s = 0; s < ns; s++) {
-                    int* npgo = NOfPGridOut[ps][s], * npgi = NOfPGridIndex[ps][s];
+                    int* npgo = state->level4_particle_grid_out[ps][s],
+                        * npgi = state->level4_particle_grid_index[ps][s];
                     For_All_Grid_XY(ps, xl, yl, xu, yu) {
                         const int g = The_Grid(), nbyte = npgo[g] * esize;
                         memcpy(sb, b + npgi[g] * esize, nbyte);
@@ -2084,8 +2087,8 @@ static void exchange_border_data_v(struct oh_state* state, void* buf,
 
     rb = (char*)rbuf;
     for (ps = 0, i = vphi; ps <= pscurr; ps++) {
-        const int zl = ZBound[ps][OH_LOWER];
-        const int zu = ZBound[ps][OH_UPPER] - GridDesc[ps].z;
+        const int zl = z_bound[ps][OH_LOWER];
+        const int zu = z_bound[ps][OH_UPPER] - GridDesc[ps].z;
         int du;
         for (du = OH_LOWER; du <= OH_UPPER; du++, i++) {
             int ny;
@@ -2101,7 +2104,8 @@ static void exchange_border_data_v(struct oh_state* state, void* buf,
             Grid_Exterior_Boundary(ny, GridDesc[ps].y, yl, yu);
             For_All_Grid_Z(ps, xl, yl, zl, xu, yu, zu) {
                 for (s = 0; s < ns; s++) {
-                    int* npgo = NOfPGridOut[ps][s], * npgi = NOfPGridIndex[ps][s];
+                    int* npgo = state->level4_particle_grid_out[ps][s],
+                        * npgi = state->level4_particle_grid_index[ps][s];
                     For_All_Grid_XY(ps, xl, yl, xu, yu) {
                         const int g = The_Grid(), nbyte = npgo[g] * esize;
                         memcpy(b + npgi[g] * esize, rb, nbyte);

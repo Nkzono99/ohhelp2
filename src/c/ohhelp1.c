@@ -14,8 +14,8 @@
 
 /* Prototypes for private functions. */
 static void  count_stay_state(struct oh_state *state);
-static dint  assign_particles(dint npr, dint npt, struct S_node *ch, int incgp,
-                              int *nget);
+static dint  assign_particles_state(struct oh_state *state, dint npr, dint npt,
+                                    struct S_node *ch, int incgp, int *nget);
 static int   compare_int(const void* x, const void* y);
 static void  schedule_particle_exchange(int reb);
 static int   count_real_stay(int *np);
@@ -489,6 +489,8 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
   int nlpmax=state->n_of_local_particles_max;
   dint *totalp_global=state->total_particles_global;
   dint *nofp_to_stay=state->n_of_particles_to_stay;
+  struct S_node *nodes=state->nodes;
+  struct S_node **node_queue=state->node_queue;
   struct S_node *node, *ch;
   int i;
 
@@ -501,7 +503,7 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
     int nid, stayprime, staysec;
     dint putprimemax, floating, putprime, room, getsec=0;
     struct S_node *parent;
-    node = NodeQueue[i];
+    node = node_queue[i];
     nid = node->id;
     putprimemax = node->get.prime;      /* 0 for leaf, or max number of p's
                                            children can accommodate for non
@@ -536,7 +538,7 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
   for (i=nn-1; i>=0; i--) {             /* top down traversal of node tree */
     int nid, k, npfrac, incgp;
     dint nproot, floating, nptotal, npave;
-    node = NodeQueue[i];
+    node = node_queue[i];
     if (!(ch=node->child))  continue;   /* a leaf may reside below some non-
                                            leaves in NodeQueue when its number
                                            of primaries is equal to the
@@ -556,11 +558,13 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
     }
     if (floating==0)  continue;
     incgp = 0;
-    if ((nptotal=assign_particles(nproot, floating, ch, 0, &k))<0) {
+    if ((nptotal=assign_particles_state(state, nproot, floating,
+                                        ch, 0, &k))<0) {
                                         /* try to avoid moving primaries of
                                            children to their children */
       incgp = 1;
-      if ((nptotal=assign_particles(nproot, floating, ch, 1, &k))<0)
+      if ((nptotal=assign_particles_state(state, nproot, floating,
+                                          ch, 1, &k))<0)
                                         /* allow moving primaries of
                                            children to their children */
         errstop("SECONDARY PARTICLE ASSIGNMENT STABILITY CHECK ERROR");
@@ -586,7 +590,7 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
   }
   if (Special_Pexc_Sched(level)) return(TRUE);
   schedule_particle_exchange(currmode==MODE_NORM_SEC ? 0 : -1);
-  make_comm_count(currmode, level, 0, Nodes[myRank].parentid, stats);
+  make_comm_count(currmode, level, 0, nodes[state->my_rank].parentid, stats);
   return(TRUE);
 }
 static void
@@ -623,10 +627,11 @@ count_stay_state(struct oh_state *state) {
   }
 }
 static dint
-assign_particles(dint npr, dint npt, struct S_node *ch, int incgp, int *nget) {
-  int *np=TempArray;            /* used just for temporary sorting buffer */
+assign_particles_state(struct oh_state *state, dint npr, dint npt,
+                       struct S_node *ch, int incgp, int *nget) {
+  int *np=state->temp_array;    /* used just for temporary sorting buffer */
   int n, i;
-  dint nlpmax = nOfLocalPMax;
+  dint nlpmax = state->n_of_local_particles_max;
 
   np[0] = npr;
   for (n=1; ch; ch=ch->sibling, n++) {

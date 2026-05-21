@@ -39,6 +39,9 @@ The current code now has this first migration layer:
   from `oh_state` instead of reading the balancing mode from globals.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
+- Stable-secondary particle assignment now receives `oh_state`, including the
+  local particle limit, node queue, and scratch buffer, instead of reaching into
+  the legacy globals directly.
 
 ## Particle Layout
 

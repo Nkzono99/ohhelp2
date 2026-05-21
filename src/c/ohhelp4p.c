@@ -441,28 +441,39 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
     for (n = 0; n < nnns2; n++)  NOfSend[n] = 0;
 
     {
-        struct oh_state* state = oh4p_state();
+        int* first_neighbor;
+        state = oh4p_state();
+        first_neighbor = state->level4_first_neighbor;
         for (n = 0; n < OH_NEIGHBORS; n++) {
             const int snbr = state->src_neighbors[n];
             if (snbr >= 0)
-                FirstNeighbor[n] = state->temp_array[snbr] = n;
+                first_neighbor[n] = state->temp_array[snbr] = n;
             else if (snbr < -nn)
-                FirstNeighbor[n] = n;
+                first_neighbor[n] = n;
             else
-                FirstNeighbor[n] = state->temp_array[-(snbr + 1)];
+                first_neighbor[n] = state->temp_array[-(snbr + 1)];
         }
         update_neighbors(state, 0);
     }
     rnbr = (int*)mem_alloc(sizeof(int), nn * 2 * 2 * 2, "RealNeighbors");
-    for (tr = 0; tr < 2; tr++)  for (ps = 0; ps < 2; ps++, rnbr += nn) {
-        RealDstNeighbors[tr][ps].n = RealSrcNeighbors[tr][ps].n = 0;
-        RealDstNeighbors[tr][ps].nbor = rnbr;
-        RealSrcNeighbors[tr][ps].nbor = rnbr + nn * 2 * 2;
+    {
+        struct S_realneighbor (*real_dst_neighbors)[2] =
+            (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
+        struct S_realneighbor (*real_src_neighbors)[2] =
+            (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
+        for (tr = 0; tr < 2; tr++)  for (ps = 0; ps < 2; ps++, rnbr += nn) {
+            real_dst_neighbors[tr][ps].n = real_src_neighbors[tr][ps].n = 0;
+            real_dst_neighbors[tr][ps].nbor = rnbr;
+            real_src_neighbors[tr][ps].nbor = rnbr + nn * 2 * 2;
+        }
     }
-    update_real_neighbors(oh4p_state(), URN_PRI, 0, -1, -1);
+    update_real_neighbors(state, URN_PRI, 0, -1, -1);
 
-    if (!SubDomainDesc)
-        memcpy(BoundaryCondition, bcond, sizeof(int) * OH_DIMENSION * 2);
+    if (!SubDomainDesc) {
+        int (*boundary_condition)[2] =
+            (int (*)[2])state->level4_boundary_condition;
+        memcpy(boundary_condition, bcond, sizeof(int) * OH_DIMENSION * 2);
+    }
     oh4p_state();
 }
 

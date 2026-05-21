@@ -462,37 +462,50 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
             }
         }
         for (i = 0; i < nn; i++)  temp_array[i] = 0;
-        for (n = 0; n < OH_NEIGHBORS; n++) {
-            const int dnbr = dst_neighbors[n], snbr = src_neighbors[n];
+        {
+            int* first_neighbor = state->level4_first_neighbor;
+            int* primary_rl_index = state->level4_primary_rl_index;
             int* sfirst = temp_array + nn;
-            if (dnbr >= 0) {
-                if (temp_array[dnbr] & 1)  dst_neighbors[n] = -(dnbr + 1);
-                else                    temp_array[dnbr] |= 1;
-            }
-            if (snbr >= 0) {
-                if (temp_array[snbr] & 2) {
-                    src_neighbors[n] = -(snbr + 1);
-                    FirstNeighbor[n] = sfirst[snbr];
-                } else {
-                    FirstNeighbor[n] = sfirst[snbr] = n;
-                    temp_array[snbr] |= 2;
+            for (n = 0; n < OH_NEIGHBORS; n++) {
+                const int dnbr = dst_neighbors[n], snbr = src_neighbors[n];
+                if (dnbr >= 0) {
+                    if (temp_array[dnbr] & 1)  dst_neighbors[n] = -(dnbr + 1);
+                    else                    temp_array[dnbr] |= 1;
                 }
-            } else
-                FirstNeighbor[n] = n;
-            PrimaryRLIndex[n] = n;
+                if (snbr >= 0) {
+                    if (temp_array[snbr] & 2) {
+                        src_neighbors[n] = -(snbr + 1);
+                        first_neighbor[n] = sfirst[snbr];
+                    } else {
+                        first_neighbor[n] = sfirst[snbr] = n;
+                        temp_array[snbr] |= 2;
+                    }
+                } else
+                    first_neighbor[n] = n;
+                primary_rl_index[n] = n;
+            }
         }
         update_neighbors(state, 0);
     }
     rnbr = (int*)mem_alloc(sizeof(int), nn * 2 * 2 * 2, "RealNeighbors");
-    for (tr = 0; tr < 2; tr++)  for (ps = 0; ps < 2; ps++, rnbr += nn) {
-        RealDstNeighbors[tr][ps].n = RealSrcNeighbors[tr][ps].n = 0;
-        RealDstNeighbors[tr][ps].nbor = rnbr;
-        RealSrcNeighbors[tr][ps].nbor = rnbr + nn * 2 * 2;
+    {
+        struct S_realneighbor (*real_dst_neighbors)[2] =
+            (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
+        struct S_realneighbor (*real_src_neighbors)[2] =
+            (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
+        for (tr = 0; tr < 2; tr++)  for (ps = 0; ps < 2; ps++, rnbr += nn) {
+            real_dst_neighbors[tr][ps].n = real_src_neighbors[tr][ps].n = 0;
+            real_dst_neighbors[tr][ps].nbor = rnbr;
+            real_src_neighbors[tr][ps].nbor = rnbr + nn * 2 * 2;
+        }
     }
-    update_real_neighbors(oh4s_state(), URN_PRI, 0, -1, -1);
+    update_real_neighbors(state, URN_PRI, 0, -1, -1);
 
-    if (!SubDomainDesc)
-        memcpy(BoundaryCondition, bcond, sizeof(int) * OH_DIMENSION * 2);
+    if (!SubDomainDesc) {
+        int (*boundary_condition)[2] =
+            (int (*)[2])state->level4_boundary_condition;
+        memcpy(boundary_condition, bcond, sizeof(int) * OH_DIMENSION * 2);
+    }
     oh4s_state();
 }
 

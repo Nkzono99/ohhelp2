@@ -378,6 +378,9 @@ through the mirrored state pointer instead of shadowing the global
 `BoundaryCondition` array locally.
 The Level-4 grid iteration macros (`For_All_Grid*`) now read grid descriptors
 through `oh_state`, reducing their dependency on local `GridDesc` aliases.
+Level-4 initialization now writes first-neighbor tables, real-neighbor
+descriptors, primary receive-list indexes, and boundary conditions through
+their mirrored `oh_state` fields after allocation-time synchronization.
 
 ## Weighted Balancing
 

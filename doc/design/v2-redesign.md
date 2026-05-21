@@ -174,16 +174,21 @@ The current code now has this first migration layer:
 - Level-4p/4s receive-list exchange now synchronizes `oh_state` before schedule
   construction and uses the context mirror for rank/node/species counts,
   communicator, communication-list storage, node-tree pointers, and Level-4
-  first-neighbor routing.
+  first-neighbor routing. The receive-list builders and `sched_recv()` now also
+  read receive-list indices, field descriptors, grid descriptors, and Level-4
+  population histograms through the context mirror.
 - Level-4p hotspot gather/scatter scheduling now threads `oh_state` through the
   hotspot communication helpers for communicator, requests/statuses,
   rank/node/species counts, neighbor/region mirrors, receive counts, and send
   count accumulation.
 - Level-4p send-schedule body now receives `oh_state` and updates send counters
-  through the context mirror for hotspot and direct send regions.
+  through the context mirror for hotspot and direct send regions. It also reads
+  grid descriptors, subdomain tables, Level-4 histograms, outgoing grid counts,
+  and next-total counters from `oh_state`.
 - Level-4s primary send-schedule construction now synchronizes `oh_state` and
   threads it through the regular and horizontal-plane scheduling helpers for
-  rank/node/species counts, neighbor mirrors, and send-count accumulation.
+  rank/node/species counts, neighbor mirrors, send-count accumulation,
+  z-boundaries, Level-4 histograms, and next-total counters.
 - Level-4s vertical boundary transfer scheduling now receives `oh_state` for
   node/species counts and neighbor mirrors before building the vertical-plane
   send/receive schedule descriptors.

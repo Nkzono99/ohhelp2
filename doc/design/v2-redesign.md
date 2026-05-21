@@ -175,6 +175,11 @@ The current code now has this first migration layer:
   now have state-backed helpers for communicator, requests/statuses,
   receive/send histograms, node/species counts, and real-neighbor routing
   tables.
+- Level-4p/4s transfer-count exchange now also reads the Level-4 half-histogram
+  MPI datatype through `oh_state`. Level-4p overflow splitting reads its
+  threshold from the context mirror, and Level-4s interior-particle scratch
+  descriptors are mirrored so movement and sorting no longer read
+  `InteriorParts` directly.
 - Level-4s user border-data exchange now synchronizes `oh_state` at the public
   entry point and passes it through the vertical/horizontal exchange helpers for
   communicator, request/status buffers, species count, active region reads,

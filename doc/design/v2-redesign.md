@@ -199,6 +199,10 @@ The current code now has this first migration layer:
 - Level-4p/4s transfer setup now consumes destination/source neighbor arrays
   through `oh_state`; the active Level-4 translation units no longer read the
   legacy `Neighbors`, `DstNeighbors`, or `SrcNeighbors` globals directly.
+- Level-4p/4s population recount now receives `oh_state` and walks particle,
+  total-count, species-count, and per-grid population mirrors. Legacy scalar
+  counters are synchronized in both places until the callers stop reading the
+  global names directly.
 
 ## Particle Layout
 

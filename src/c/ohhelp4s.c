@@ -32,8 +32,8 @@ static void rebalance4s(const int currmode, const int level, const int stats);
 static void exchange_particles4s(int currmode, const int nextmode,
                                  const int level, int reb, int oldp, int newp,
                                  const int stats);
-static void count_population(const int nextmode, const int psnew,
-                             const int stats);
+static void count_population(struct oh_state* state, const int nextmode,
+                             const int psnew, const int stats);
 static void exchange_population(const int currmode);
 static void reduce_population();
 static void add_population(dint* npd, const int xl, const int xu,
@@ -608,7 +608,8 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
             move_to_sendbuf_primary(Mode_PS(currmode), stats);
             exchange_primary_particles(currmode, stats);
         }
-        count_population(nextmode, (Parent_New(pcode) ? 1 : 0), 0);
+        count_population(oh4s_state(), nextmode,
+                         (Parent_New(pcode) ? 1 : 0), 0);
         currmode = Mode_Set_Any(nextmode);
         reb = 0;  oldp = newp;  pcode = newp >= 0 ? 7 : 0;
     }
@@ -656,29 +657,32 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
     xfer_boundary_particles_h(psnew);
 }
 
-static void count_population(const int nextmode, const int psnew, const int stats) {
+static void count_population(struct oh_state* state, const int nextmode,
+                             const int psnew, const int stats) {
     int ps, s, t, i, j, tp;
-    const int ns = nOfSpecies, exti = OH_PGRID_EXT;
+    const int ns = state->n_of_species, exti = OH_PGRID_EXT;
     Decl_For_All_Grid();
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);
     for (ps = 0, t = 0, j = 0, tp = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, t++) {
-            dint* npgs = NOfPGrid[ps][s];
-            const int tpn = TotalP[t] = TotalPNext[t];
+            dint* npgs = state->level4_particle_grid[ps][s];
+            const int tpn = state->total_particles[t] =
+                state->total_particles_next[t];
             tp += tpn;
             For_All_Grid(ps, -exti, -exti, -exti, exti, exti, exti)
                 npgs[The_Grid()] = 0;
             for (i = 0; i < tpn; i++, j++) {
-                const int g = Grid_Position(Particles[j].nid);
+                const int g = Grid_Position(state->particles[j].nid);
                 npgs[g]++;
-                Particles[j].nid = Combine_Subdom_Pos(OH_NBR_SELF, g);
+                state->particles[j].nid = Combine_Subdom_Pos(OH_NBR_SELF, g);
             }
         }
-        if (ps == 0)  primaryParts = tp;
+        if (ps == 0)  primaryParts = state->primary_parts = tp;
     }
-    totalParts = tp;  nOfInjections = 0;
+    totalParts = state->total_parts = tp;
+    nOfInjections = state->n_of_injections = 0;
 }
 
 static void exchange_population(const int currmode) {

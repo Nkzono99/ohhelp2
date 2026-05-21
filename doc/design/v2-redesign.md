@@ -209,6 +209,9 @@ The current code now has this first migration layer:
 - Level-4p primary move-and-sort now receives `oh_state` and updates primary
   receive bases, particle counts, injection counts, send displacements, and
   sorted particle writes through the context mirror.
+- Level-4p secondary move-and-sort now uses its existing `oh_state` for
+  particle traversal, receive bases, send-buffer writes, Level-4 grid mirrors,
+  transfer counts, and final primary/secondary-base synchronization.
 
 ## Particle Layout
 

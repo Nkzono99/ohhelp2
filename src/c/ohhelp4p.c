@@ -430,13 +430,19 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
     state->log_grid = loggrid;  state->grid_mask = gridMask;
     adjust_field_descriptor(state, 0);
 
-    HotSpotList = (struct S_hotspot*)mem_alloc(sizeof(struct S_hotspot),
-                                               2 * nn + 2 * OH_NEIGHBORS + 1,
-                                               "HotSpotList");
+    state->level4_hotspot_list =
+        HotSpotList = (struct S_hotspot*)
+        mem_alloc(sizeof(struct S_hotspot),
+                  2 * nn + 2 * OH_NEIGHBORS + 1, "HotSpotList");
     hsr = (int*)mem_alloc(sizeof(int), OH_NEIGHBORS * nn * nspec, "HSRecv");
-    for (n = 0; n < OH_NEIGHBORS; n++, hsr += nnns)  HSRecv[n] = hsr;
-    HSSend = (int*)mem_alloc(sizeof(int), nspec * 3, "HSSend");
-    HSRecvFromParent = HSSend + nspec;  HSReceiver = HSRecvFromParent + nspec;
+    for (n = 0; n < OH_NEIGHBORS; n++, hsr += nnns)
+        state->level4_hotspot_recv[n] = hsr;
+    state->level4_hotspot_send =
+        HSSend = (int*)mem_alloc(sizeof(int), nspec * 3, "HSSend");
+    state->level4_hotspot_recv_from_parent =
+        HSRecvFromParent = state->level4_hotspot_send + nspec;
+    state->level4_hotspot_receiver =
+        HSReceiver = state->level4_hotspot_recv_from_parent + nspec;
     MPI_Type_vector(nspec, 1, nn, MPI_INT, &T_Hgramhalf);
     MPI_Type_commit(&T_Hgramhalf);
     for (n = 0; n < nnns2; n++)  NOfSend[n] = 0;
@@ -1038,8 +1044,7 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
         if (self)  scatter_hspot_send(state, rreq, nacc, &hslist);
         scatter_hspot_recv(state, h, pcode, rreq, sreq, nfrom, nto, nacc, nsend);
     }
-    state->level4_hotspot_top = hotspot_top;
-    HotSpotTop = hotspot_top;
+    HotSpotTop = state->level4_hotspot_top = hotspot_top;
 }
 
 #define Grid_Boundary(N, GS, SD, DIM, PL, PU, OFF) {\

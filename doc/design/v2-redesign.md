@@ -209,7 +209,9 @@ The current code now has this first migration layer:
 - Level-4p hotspot descriptor storage (`HotSpotList`, `HotSpotTop`, and
   `HotSpot`) is now mirrored into `oh_state`. The existing allocation still
   owns the arrays, but send-schedule construction and hotspot gather/scatter
-  helpers advance and read descriptor state through the context mirror.
+  helpers advance and read descriptor state through the context mirror. The
+  initialization path also populates the hotspot descriptor and scratch mirrors
+  before the next full synchronization.
 - Level-4p send-schedule body now receives `oh_state` and updates send counters
   through the context mirror for hotspot and direct send regions. It also reads
   grid descriptors, subdomain tables, Level-4 histograms, outgoing grid counts,

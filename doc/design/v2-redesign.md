@@ -85,6 +85,9 @@ The current code now has this first migration layer:
 - Level-2 local upward/downward particle movement now receives `oh_state` and
   uses context-owned particle buffers, send-buffer displacements, receive-buffer
   bases, and node/species counts for the core copy/routing loops.
+- State-backed Level-2 movement paths now use the particle adapter pointer from
+  `oh_state` for buffer element addressing and byte-wise copies, rather than
+  relying on the process-global adapter in those loops.
 
 ## Particle Layout
 

@@ -48,11 +48,20 @@ static int   particle_subdomain(const struct S_particle *part,
 static int   map_injected_particle_to_subdomain(struct S_particle *part);
 static size_t particle_stride(void);
 static struct S_particle *particle_at(struct S_particle *base, int index);
+static struct S_particle *state_particle_at(struct oh_state *state,
+                                            struct S_particle *base,
+                                            int index);
 static int   particle_buffer_index(const struct S_particle *part);
 static void  copy_particle(struct S_particle *dst,
                            const struct S_particle *src);
+static void  state_copy_particle(struct oh_state *state,
+                                 struct S_particle *dst,
+                                 const struct S_particle *src);
 static void  copy_particles(struct S_particle *dst,
                             const struct S_particle *src, int count);
+static void  state_copy_particles(struct oh_state *state,
+                                  struct S_particle *dst,
+                                  const struct S_particle *src, int count);
 
 void
 oh2_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -217,15 +226,15 @@ exchange_primary_particles_state(struct oh_state *state, int currmode,
         if (src>=0) {
           rc = rnp[src];                /* NOfPrimaries[0][s][src] */
           if (dst>=0)
-            MPI_Sendrecv(particle_at(sendbuf, sbd[dst]), np[dst],
+            MPI_Sendrecv(state_particle_at(state, sendbuf, sbd[dst]), np[dst],
                          particle_type, dst, 0,
                          rb, rc, particle_type, src, 0, comm, &st);
           else
             MPI_Recv(rb, rc, particle_type, src, 0, comm, &st);
-          rb = particle_at(rb, rc);
+          rb = state_particle_at(state, rb, rc);
         } else if (dst>=0)
-          MPI_Send(particle_at(sendbuf, sbd[dst]), np[dst], particle_type,
-                   dst, 0, comm);
+          MPI_Send(state_particle_at(state, sendbuf, sbd[dst]), np[dst],
+                   particle_type, dst, 0, comm);
       }
     }
   } else {
@@ -362,10 +371,12 @@ move_to_sendbuf_secondary(int secondary, int stats) {
     move_to_sendbuf_dw(state, 1, sec, mynp[1], totalParts, TotalP+ns,
                        pnext[0]+pnext[1], TotalPNext+ns);
   } else {
-    struct S_particle *rbb=particle_at(state->particles, pnext[0]);
+    struct S_particle *rbb=state_particle_at(state, state->particles,
+                                             pnext[0]);
     for (s=0; s<ns; s++) {
       state->recv_buffer_bases[ns+s] = rbb;     /* RecvBufBases[1][s] */
-      rbb = particle_at(rbb, TotalPNext[ns+s]); /* TotalPNext[1][s] */
+      rbb = state_particle_at(state, rbb, TotalPNext[ns+s]);
+                                                /* TotalPNext[1][s] */
     }
   }
   move_to_sendbuf_dw(state, 0, me, mynp[0], primaryParts, TotalP, pnext[0],
@@ -495,51 +506,65 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
     in = i + ctp[s];  jn = j + ntp[s];
     if (j<=i) {                         /* upward move only */
       for (; putme>0; i++) {            /* throw my particles to send buf */
-        struct S_particle *part=particle_at(particles, i);
+        struct S_particle *part=state_particle_at(state, particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        copy_particle(particle_at(sendbuf, sbd[dst]++), part);
+        state_copy_particle(state, state_particle_at(state, sendbuf,
+                                                     sbd[dst]++), part);
         if (dst==me) putme--;
       }
       for (; i<in; i++) {               /* move upward */
-        struct S_particle *part=particle_at(particles, i);
+        struct S_particle *part=state_particle_at(state, particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        if (dst==me) copy_particle(particle_at(particles, j++), part);
-        else         copy_particle(particle_at(sendbuf, sbd[dst]++), part);
+        if (dst==me)
+          state_copy_particle(state, state_particle_at(state, particles, j++),
+                              part);
+        else
+          state_copy_particle(state, state_particle_at(state, sendbuf,
+                                                       sbd[dst]++), part);
       }
-      rbb[s] = particle_at(particles, j);        /* receive to bottom */
+      rbb[s] = state_particle_at(state, particles, j); /* receive to bottom */
     } else if (jn>in) {                 /* downward only and thus skip */
-      rbb[s] = particle_at(particles, j);        /* receive to top */
+      rbb[s] = state_particle_at(state, particles, j); /* receive to top */
     } else {                            /* downward and upward */
       int ib, im, jm;
       for (; putme>0; i++) {            /* throw my particles to send buf */
-        struct S_particle *part=particle_at(particles, i);
+        struct S_particle *part=state_particle_at(state, particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        copy_particle(particle_at(sendbuf, sbd[dst]++), part);
+        state_copy_particle(state, state_particle_at(state, sendbuf,
+                                                     sbd[dst]++), part);
         if (dst==me) putme--;
       }
       ib = i;
       for (; i<j; i++) {                 /* skip downward movers if any */
-        int dst=particle_subdomain(particle_at(particles, i), ps);
+        int dst=particle_subdomain(state_particle_at(state, particles, i), ps);
         if (dst==me && dst>=0)  j++;
       }
       im = i-1; jm = j-1;
       for (; i<in; i++) {               /* move remainders upward */
-        struct S_particle *part=particle_at(particles, i);
+        struct S_particle *part=state_particle_at(state, particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        if (dst==me) copy_particle(particle_at(particles, j++), part);
-        else         copy_particle(particle_at(sendbuf, sbd[dst]++), part);
+        if (dst==me)
+          state_copy_particle(state, state_particle_at(state, particles, j++),
+                              part);
+        else
+          state_copy_particle(state, state_particle_at(state, sendbuf,
+                                                       sbd[dst]++), part);
       }
-      rbb[s] = particle_at(particles, j);        /* receive to bottom */
+      rbb[s] = state_particle_at(state, particles, j); /* receive to bottom */
       for (i=im,j=jm; i>=ib; i--) {     /* move first half downward if any */
-        struct S_particle *part=particle_at(particles, i);
+        struct S_particle *part=state_particle_at(state, particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        if (dst==me) copy_particle(particle_at(particles, j--), part);
-        else         copy_particle(particle_at(sendbuf, sbd[dst]++), part);
+        if (dst==me)
+          state_copy_particle(state, state_particle_at(state, particles, j--),
+                              part);
+        else
+          state_copy_particle(state, state_particle_at(state, sendbuf,
+                                                       sbd[dst]++), part);
       }
     }
   }
@@ -559,34 +584,44 @@ move_to_sendbuf_dw(struct oh_state *state, int ps, int me, int *putmes,
     in -= ctp[s];  jn -= ntp[s];
     if (i>=j || in>=jn) continue;       /* not downward only and thus skip */
     for (; putme>0; i--) {              /* throw my particles to send buf */
-      struct S_particle *part=particle_at(particles, i);
+      struct S_particle *part=state_particle_at(state, particles, i);
       int dst=particle_subdomain(part, ps);
       if (dst<0) continue;
-      copy_particle(particle_at(sendbuf, sbd[dst]++), part);
+      state_copy_particle(state,
+                          state_particle_at(state, sendbuf, sbd[dst]++),
+                          part);
       if (dst==me) putme--;
     }
     for (; i>=in; i--) {                /* move downward */
-      struct S_particle *part=particle_at(particles, i);
+      struct S_particle *part=state_particle_at(state, particles, i);
       int dst=particle_subdomain(part, ps);
       if (dst<0) continue;
-      if (dst==me) copy_particle(particle_at(particles, j--), part);
-      else         copy_particle(particle_at(sendbuf, sbd[dst]++), part);
+      if (dst==me)
+        state_copy_particle(state, state_particle_at(state, particles, j--),
+                            part);
+      else
+        state_copy_particle(state,
+                            state_particle_at(state, sendbuf, sbd[dst]++),
+                            part);
     }
   }
 }
 static void
 move_injected_to_sendbuf(struct oh_state *state) {
-  struct S_particle *pbuf=particle_at(state->particles, state->total_parts);
+  struct S_particle *pbuf=state_particle_at(state, state->particles,
+                                            state->total_parts);
   int ninj=state->n_of_injections, nn=state->n_of_nodes;
   int i;
 
   for (i=0; i<ninj; i++) {
-    struct S_particle *part=particle_at(pbuf, i);
+    struct S_particle *part=state_particle_at(state, pbuf, i);
     int dst = map_injected_particle_to_subdomain(part);
     int s = particle_species(part);
     if (dst<0) continue;
-    copy_particle(particle_at(state->send_buffer,
-                              state->send_buffer_disps[dst+s*nn]++), part);
+    state_copy_particle(state,
+                        state_particle_at(
+                          state, state->send_buffer,
+                          state->send_buffer_disps[dst+s*nn]++), part);
   }
 }
 static void
@@ -598,10 +633,11 @@ move_injected_from_sendbuf(struct oh_state *state, int *injected, int mysd,
 
   for (s=0; s<ns; s++,sdisp+=nn) {
     struct S_particle *rbuf=rbb[s];
-    struct S_particle *sbuf=particle_at(state->send_buffer, *sdisp);
+    struct S_particle *sbuf=state_particle_at(state, state->send_buffer,
+                                              *sdisp);
     int inj=injected[s];
-    copy_particles(rbuf, sbuf, inj);
-    rbb[s] = particle_at(rbb[s], inj);  *sdisp += inj;
+    state_copy_particles(state, rbuf, sbuf, inj);
+    rbb[s] = state_particle_at(state, rbb[s], inj);  *sdisp += inj;
   }
 }
 static void
@@ -615,7 +651,7 @@ receive_particles(struct oh_state *state, struct S_commlist *rlist,
     if (rlist[i].rid==me) {
       int count=rlist[i].count, tag=rlist[i].tag;
       rbuf = state->recv_buffer_bases[tag];
-      state->recv_buffer_bases[tag] = particle_at(rbuf, count);
+      state->recv_buffer_bases[tag] = state_particle_at(state, rbuf, count);
       MPI_Irecv(rbuf, count, state->particle_mpi_type, rlist[i].sid, tag,
                 state->comm, state->requests+(r++));
     }
@@ -625,7 +661,7 @@ receive_particles(struct oh_state *state, struct S_commlist *rlist,
       sdisp = state->send_buffer_disps[region];
       state->send_buffer_disps[region] = sdisp + count;
                                                 /* SendBufDisps[s][region] */
-      MPI_Isend(particle_at(state->send_buffer, sdisp), count,
+      MPI_Isend(state_particle_at(state, state->send_buffer, sdisp), count,
                 state->particle_mpi_type, rlist[i].rid, tag, state->comm,
                 state->requests+(r++));
     }
@@ -646,7 +682,7 @@ send_particles(struct oh_state *state, struct S_commlist *slist, int slsize,
       sdisp = state->send_buffer_disps[region];
       state->send_buffer_disps[region] = sdisp + count;
                                                 /* SendBufDisps[s][region] */
-      MPI_Isend(particle_at(state->send_buffer, sdisp), count,
+      MPI_Isend(state_particle_at(state, state->send_buffer, sdisp), count,
                 state->particle_mpi_type, slist[i].rid, tag, state->comm,
                 state->requests+(r++));
     }
@@ -789,6 +825,10 @@ static struct S_particle *
 particle_at(struct S_particle *base, int index) {
   return oh_particle_buffer_at(&ParticleAdapter, base, index);
 }
+static struct S_particle *
+state_particle_at(struct oh_state *state, struct S_particle *base, int index) {
+  return oh_particle_buffer_at(state->particle_adapter, base, index);
+}
 static int
 particle_buffer_index(const struct S_particle *part) {
   return oh_particle_buffer_index(&ParticleAdapter, Particles, part);
@@ -798,8 +838,18 @@ copy_particle(struct S_particle *dst, const struct S_particle *src) {
   oh_particle_buffer_copy(&ParticleAdapter, dst, src);
 }
 static void
+state_copy_particle(struct oh_state *state, struct S_particle *dst,
+                    const struct S_particle *src) {
+  oh_particle_buffer_copy(state->particle_adapter, dst, src);
+}
+static void
 copy_particles(struct S_particle *dst, const struct S_particle *src, int count) {
   oh_particle_buffer_copy_n(&ParticleAdapter, dst, src, count);
+}
+static void
+state_copy_particles(struct oh_state *state, struct S_particle *dst,
+                     const struct S_particle *src, int count) {
+  oh_particle_buffer_copy_n(state->particle_adapter, dst, src, count);
 }
 void
 oh2_set_total_particles_() {

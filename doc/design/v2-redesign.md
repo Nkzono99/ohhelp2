@@ -129,6 +129,11 @@ The current code now has this first migration layer:
 - Level-3 secondary border-exchange clearing now reads exchange counts and
   descriptors through `oh_state`, including the transbound path that invalidates
   stale secondary datatypes after the secondary region changes.
+- Level-3 field descriptor sizing and border datatype construction now have
+  state-backed internal helpers. The legacy `set_field_descriptors()` and
+  `set_border_exchange()` entry points remain as wrappers, while the core
+  descriptor, boundary-communication, subdomain, and field-size reads flow
+  through `oh_state`.
 
 ## Particle Layout
 

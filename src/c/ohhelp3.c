@@ -27,7 +27,10 @@ static void init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid,
                         int (*ct)[2][OH_CTYPE_N], int nb,
                         int sd[OH_DIMENSION][2], int **fsizes);
 static void set_border_exchange(int e, int ps, MPI_Datatype type);
+static void state_set_border_exchange(struct oh_state *state, int e, int ps,
+                                      MPI_Datatype type);
 static void set_border_comm(int esize, int f, int *xyz, int *wdh,
+                            struct S_flddesc *field_desc,
                             int (*exti)[2], int (*exto)[2],
                             int (*off)[2], int (*size)[2],
                             int lu, int sr, MPI_Datatype basetype,
@@ -62,6 +65,9 @@ static void state_exchange_borders(struct oh_state *state, void *pfld,
                                    void *sfld, int ctype, int bcast);
 static void state_grid_size(struct oh_state *state, double size[OH_DIMENSION]);
 static void state_clear_border_exchange(struct oh_state *state);
+static void state_set_field_descriptors(struct oh_state *state,
+                                        int (*ft)[OH_FTYPE_N],
+                                        int sd[OH_DIMENSION][2], int ps);
 
 void
 oh3_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -420,16 +426,16 @@ comp_xyz(const void* aa, const void* bb) {
   return(a->id<b->id ? -1 : 1);
 }
 #if OH_DIMENSION==1
-#define Field_Disp(F,X,Y,Z) (FieldDesc[F].esize * (X))
+#define Field_Disp(FD,F,X,Y,Z) ((FD)[F].esize * (X))
 #elif OH_DIMENSION==2
-#define Field_Disp(F,X,Y,Z)\
-  (FieldDesc[F].esize *\
-   ((X) + FieldDesc[F].size[OH_DIM_X] * (Y)))
+#define Field_Disp(FD,F,X,Y,Z)\
+  ((FD)[F].esize *\
+   ((X) + (FD)[F].size[OH_DIM_X] * (Y)))
 #else
-#define Field_Disp(F,X,Y,Z)\
-  (FieldDesc[F].esize *\
-   ((X) + FieldDesc[F].size[OH_DIM_X] *\
-    ((Y) + FieldDesc[F].size[OH_DIM_Y] * (Z))))
+#define Field_Disp(FD,F,X,Y,Z)\
+  ((FD)[F].esize *\
+   ((X) + (FD)[F].size[OH_DIM_X] *\
+    ((Y) + (FD)[F].size[OH_DIM_Y] * (Z))))
 #endif
 static void
 init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
@@ -513,8 +519,8 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
   for (f=0; f<nf; f++) {
     int bl = ft[f][OH_FTYPE_BL];
     int rl = ft[f][OH_FTYPE_RL];
-    fd[f].bc.base  = Field_Disp(f, bl, bl, bl);
-    fd[f].red.base = Field_Disp(f, rl, rl, rl);
+    fd[f].bc.base  = Field_Disp(fd, f, bl, bl, bl);
+    fd[f].red.base = Field_Disp(fd, f, rl, rl, rl);
   }
   set_field_descriptors(ft, sd, 0);
 
@@ -537,9 +543,14 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
 }
 void
 set_field_descriptors(int (*ft)[OH_FTYPE_N], int sd[OH_DIMENSION][2], int ps) {
+  state_set_field_descriptors(oh1_state(), ft, sd, ps);
+}
+static void
+state_set_field_descriptors(struct oh_state *state, int (*ft)[OH_FTYPE_N],
+                            int sd[OH_DIMENSION][2], int ps) {
 
-  int nf=nOfFields;
-  struct S_flddesc *fd = FieldDesc;
+  int nf=state->n_of_fields;
+  struct S_flddesc *fd = state->field_desc;
   int size[3] = {0,0,0};
   int d, f;
 
@@ -549,22 +560,33 @@ set_field_descriptors(int (*ft)[OH_FTYPE_N], int sd[OH_DIMENSION][2], int ps) {
     int ru = ft[f][OH_FTYPE_RU] - 1;
     int es = ft[f][OH_FTYPE_ES];
     fd[f].bc.size[ps] =
-      Field_Disp(f, size[OH_DIM_X]+bu, size[OH_DIM_Y]+bu, size[OH_DIM_Z]+bu) -
+      Field_Disp(fd, f, size[OH_DIM_X]+bu, size[OH_DIM_Y]+bu,
+                 size[OH_DIM_Z]+bu) -
       fd[f].bc.base + es;
     fd[f].red.size[ps] =
-      Field_Disp(f, size[OH_DIM_X]+ru, size[OH_DIM_Y]+ru, size[OH_DIM_Z]+ru) -
+      Field_Disp(fd, f, size[OH_DIM_X]+ru, size[OH_DIM_Y]+ru,
+                 size[OH_DIM_Z]+ru) -
       fd[f].red.base + es;
   }
 }
 static void
 set_border_exchange(int e, int ps, MPI_Datatype type) {
-  struct S_borderexc (*bx)[2] = BorderExc[e][ps];
-  int f = BoundaryCommFields[e];
-  int nb = nOfBoundaries;
-  int (*bt)[2][OH_CTYPE_N] = &BoundaryCommTypes[e*nb];
-  int (*bd)[2] = Boundaries[RegionId[ps]];
-  int (*sd)[2] = SubDomains[RegionId[ps]];
-  struct S_flddesc *fd = &FieldDesc[f];
+  state_set_border_exchange(oh1_state(), e, ps, type);
+}
+static void
+state_set_border_exchange(struct oh_state *state, int e, int ps,
+                          MPI_Datatype type) {
+  struct S_borderexc (*border_exchange)[2][OH_DIMENSION][2] =
+    (struct S_borderexc(*)[2][OH_DIMENSION][2])state->border_exchange;
+  int (*boundary_comm_types)[2][OH_CTYPE_N] =
+    (int(*)[2][OH_CTYPE_N])state->boundary_comm_types;
+  struct S_borderexc (*bx)[2] = border_exchange[e][ps];
+  int f = state->boundary_comm_fields[e];
+  int nb = state->n_of_boundaries;
+  int (*bt)[2][OH_CTYPE_N] = &boundary_comm_types[e*nb];
+  int (*bd)[2] = state->boundaries[state->region_id[ps]];
+  int (*sd)[2] = state->subdomains[state->region_id[ps]];
+  struct S_flddesc *fd = &state->field_desc[f];
   int esize = fd->esize;
   int fext = fd->ext[OH_UPPER] - fd->ext[OH_LOWER];
   int xyz[3] = {
@@ -595,14 +617,15 @@ set_border_exchange(int e, int ps, MPI_Datatype type) {
     }
   }
   for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
-    set_border_comm(esize, f, xyz, wdh, exti, exto, soff, ssize, lu, 0, type,
-                    bx);
-    set_border_comm(esize, f, xyz, wdh, exti, exto, roff, rsize, lu, 1, type,
-                    bx);
+    set_border_comm(esize, f, xyz, wdh, state->field_desc, exti, exto, soff,
+                    ssize, lu, 0, type, bx);
+    set_border_comm(esize, f, xyz, wdh, state->field_desc, exti, exto, roff,
+                    rsize, lu, 1, type, bx);
   }
 }
 static void
 set_border_comm(int esize, int f, int *xyz, int *wdh,
+                struct S_flddesc *field_desc,
                 int exti[OH_DIMENSION][2], int exto[OH_DIMENSION][2],
                 int off[OH_DIMENSION][2], int size[OH_DIMENSION][2],
                 int lu, int sr, MPI_Datatype basetype,
@@ -641,7 +664,7 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
       bcx->type = basetype;
       bcx->count = s * esize;
       bcx->buf =
-        Field_Disp(f,
+        Field_Disp(field_desc, f,
                    lower ? off[OH_DIM_X][lu] : xyz[OH_DIM_X]+off[OH_DIM_X][lu],
                    0, 0);
     }
@@ -653,7 +676,7 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
       MPI_Type_commit(&(bcx->type));  bcx->deriv = 1;
       bcx->count = 1;
       bcx->buf =
-        Field_Disp(f,
+        Field_Disp(field_desc, f,
                    lower ? off[OH_DIM_X][lu] : xyz[OH_DIM_X]+off[OH_DIM_X][lu],
                    exti[OH_DIM_Y][OH_LOWER], 0);
     }
@@ -669,7 +692,7 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
         bcy->count = 1;
       }
       bcy->buf =
-        Field_Disp(f, exto[OH_DIM_X][OH_LOWER],
+        Field_Disp(field_desc, f, exto[OH_DIM_X][OH_LOWER],
                    lower ? off[OH_DIM_Y][lu] : xyz[OH_DIM_Y]+off[OH_DIM_Y][lu],
                    0);
     }
@@ -682,7 +705,7 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
       MPI_Type_commit(&(bcx->type));  bcx->deriv = 1;
       bcx->count = zexti;
       bcx->buf =
-        Field_Disp(f,
+        Field_Disp(field_desc, f,
                    lower ? off[OH_DIM_X][lu] : xyz[OH_DIM_X]+off[OH_DIM_X][lu],
                    exti[OH_DIM_Y][OH_LOWER], exti[OH_DIM_Z][OH_LOWER]);
     }
@@ -699,7 +722,7 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
       }
       MPI_Type_commit(&(bcy->type));  bcy->deriv = 1;
       bcy->buf =
-        Field_Disp(f, exto[OH_DIM_X][OH_LOWER],
+        Field_Disp(field_desc, f, exto[OH_DIM_X][OH_LOWER],
                    lower ? off[OH_DIM_Y][lu] : xyz[OH_DIM_Y]+off[OH_DIM_Y][lu],
                    exti[OH_DIM_Z][OH_LOWER]);
     }
@@ -724,7 +747,8 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
         MPI_Type_commit(&(bcz->type));  bcz->deriv = 1;
       }
       bcz->buf =
-        Field_Disp(f, exto[OH_DIM_X][OH_LOWER], exto[OH_DIM_Y][OH_LOWER],
+        Field_Disp(field_desc, f, exto[OH_DIM_X][OH_LOWER],
+                   exto[OH_DIM_Y][OH_LOWER],
                    lower ? off[OH_DIM_Z][lu] :
                            xyz[OH_DIM_Z]+off[OH_DIM_Z][lu]);
     }
@@ -1154,7 +1178,7 @@ state_exchange_borders(struct oh_state *state, void *pfld, void *sfld,
   if (Mode_PS(state->curr_mode) && bcast) {
     if (state->region_id[1]>=0 &&
         border_exchange[ctype][1][OH_DIM_X][OH_LOWER].send.count<0)
-      set_border_exchange(ctype, 1, MPI_DOUBLE);
+      state_set_border_exchange(state, ctype, 1, MPI_DOUBLE);
     for (d=0; d<OH_DIMENSION; d++) {
       for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
         struct S_borderexc *bxp=&border_exchange[ctype][0][d][lu];

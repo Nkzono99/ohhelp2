@@ -36,6 +36,10 @@ static int   particle_species(const struct S_particle *part);
 static int   particle_subdomain(const struct S_particle *part,
                                 int primary_or_secondary);
 static int   map_injected_particle_to_subdomain(struct S_particle *part);
+static void  copy_particle(struct S_particle *dst,
+                           const struct S_particle *src);
+static void  copy_particles(struct S_particle *dst,
+                            const struct S_particle *src, int count);
 
 void
 oh2_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -435,14 +439,14 @@ move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase, int *ctp,
       for (; putme>0; i++) {            /* throw my particles to send buf */
         int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
-        SendBuf[sbd[dst]++] = Particles[i];
+        copy_particle(SendBuf+sbd[dst]++, Particles+i);
         if (dst==me) putme--;
       }
       for (; i<in; i++) {               /* move upward */
         int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
-        if (dst==me) Particles[j++] = Particles[i];
-        else         SendBuf[sbd[dst]++] = Particles[i];
+        if (dst==me) copy_particle(Particles+j++, Particles+i);
+        else         copy_particle(SendBuf+sbd[dst]++, Particles+i);
       }
       rbb[s] = Particles + j;           /* receive to bottom */
     } else if (jn>in) {                 /* downward only and thus skip */
@@ -452,7 +456,7 @@ move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase, int *ctp,
       for (; putme>0; i++) {            /* throw my particles to send buf */
         int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
-        SendBuf[sbd[dst]++] = Particles[i];
+        copy_particle(SendBuf+sbd[dst]++, Particles+i);
         if (dst==me) putme--;
       }
       ib = i;
@@ -464,15 +468,15 @@ move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase, int *ctp,
       for (; i<in; i++) {               /* move remainders upward */
         int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
-        if (dst==me) Particles[j++] = Particles[i];
-        else         SendBuf[sbd[dst]++] = Particles[i];
+        if (dst==me) copy_particle(Particles+j++, Particles+i);
+        else         copy_particle(SendBuf+sbd[dst]++, Particles+i);
       }
       rbb[s] = Particles + j;           /* receive to bottom */
       for (i=im,j=jm; i>=ib; i--) {     /* move first half downward if any */
         int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
-        if (dst==me) Particles[j--] = Particles[i];
-        else         SendBuf[sbd[dst]++] = Particles[i];
+        if (dst==me) copy_particle(Particles+j--, Particles+i);
+        else         copy_particle(SendBuf+sbd[dst]++, Particles+i);
       }
     }
   }
@@ -491,14 +495,14 @@ move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail, int *ctp, int ntail,
     for (; putme>0; i--) {              /* throw my particles to send buf */
       int dst=particle_subdomain(Particles+i, ps);
       if (dst<0) continue;
-      SendBuf[sbd[dst]++] = Particles[i];
+      copy_particle(SendBuf+sbd[dst]++, Particles+i);
       if (dst==me) putme--;
     }
     for (; i>=in; i--) {                /* move downward */
       int dst=particle_subdomain(Particles+i, ps);
       if (dst<0) continue;
-      if (dst==me) Particles[j--] = Particles[i];
-      else         SendBuf[sbd[dst]++] = Particles[i];
+      if (dst==me) copy_particle(Particles+j--, Particles+i);
+      else         copy_particle(SendBuf+sbd[dst]++, Particles+i);
     }
   }
 }
@@ -512,7 +516,7 @@ move_injected_to_sendbuf() {
     int dst = map_injected_particle_to_subdomain(pbuf+i);
     int s = particle_species(pbuf+i);
     if (dst<0) continue;
-    SendBuf[SendBufDisps[dst+s*nn]++] = pbuf[i];
+    copy_particle(SendBuf+SendBufDisps[dst+s*nn]++, pbuf+i);
   }
 }
 static void
@@ -525,7 +529,7 @@ move_injected_from_sendbuf(int *injected, int mysd, struct S_particle **rbb) {
     struct S_particle *rbuf=rbb[s];
     struct S_particle *sbuf=SendBuf+*sdisp;
     int inj=injected[s];
-    for (i=0; i<inj; i++)  rbuf[i] = sbuf[i];
+    copy_particles(rbuf, sbuf, inj);
     rbb[s] += inj;  *sdisp += inj;
   }
 }
@@ -588,7 +592,7 @@ oh2_inject_particle(struct S_particle *part) {
 #endif
   if (inj>=nOfLocalPLimit)
     local_errstop("injection causes local particle buffer overflow");
-  Particles[inj] = *part;
+  copy_particle(Particles+inj, part);
   if (n<0)  return;
   if (n==RegionId[1]) {
     NOfPLocal[(ns+s)*nn+n]++;
@@ -697,6 +701,16 @@ map_injected_particle_to_subdomain(struct S_particle *part) {
   if (dst>=nOfNodes)  Primarize_Id(part, dst);
 #endif
   return dst;
+}
+static void
+copy_particle(struct S_particle *dst, const struct S_particle *src) {
+  *dst = *src;
+}
+static void
+copy_particles(struct S_particle *dst, const struct S_particle *src, int count) {
+  int i;
+
+  for (i=0; i<count; i++) copy_particle(dst+i, src+i);
 }
 void
 oh2_set_total_particles_() {

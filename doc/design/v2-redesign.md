@@ -77,10 +77,11 @@ Minimum C-side shape:
 struct oh_particle_ops {
   size_t stride;
   MPI_Datatype mpi_type;
-  int (*get_region)(const void *particle);
-  void (*set_region)(void *particle, int region);
+  int (*get_region)(const void *particle, int primary_or_secondary);
+  void (*set_region)(void *particle, int region, int primary_or_secondary);
   int (*get_species)(const void *particle);
   int (*map_to_neighbor)(void *particle, int primary_or_secondary);
+  int (*map_to_subdomain)(void *particle, int primary_or_secondary);
 };
 ```
 
@@ -99,17 +100,20 @@ using a raw contiguous byte type.
 
 Level 2 now also has `oh2_set_particle_adapter()` / `oh_set_particle_adapter()`.
 The first implementation stores the adapter and uses its MPI datatype during
-initialization; the movement and injection code still needs to be migrated from
-direct `S_particle` field access to adapter callbacks.
+initialization.
 
 The Level-2 injection/remap/remove path now reads region/species and marks a
-removed particle through the active adapter. Bulk movement paths still contain
-direct `S_particle` field reads and are the next migration target.
+removed particle through the active adapter.
 
 Level-2 bulk send-buffer construction now obtains particle destination regions
 through the active adapter. The default adapter preserves the old `nid`-based
 mapping, including the POS_AWARE primarization side effect for injected
 particles.
+
+Level-2 local/send/receive particle copies now go through small copy helpers
+rather than open-coded `S_particle` assignments. Storage is still
+`struct S_particle`-backed, so this is a staging step toward stride-based
+adapter storage rather than the final opaque-particle implementation.
 
 ## Weighted Balancing
 

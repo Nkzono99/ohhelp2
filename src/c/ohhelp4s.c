@@ -1240,6 +1240,8 @@ static void update_neighbors(struct oh_state* state, const int ps) {
     const int nn = state->n_of_nodes;
     int (*abs_neighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int* grid_offset = state->level4_grid_offset;
+    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
     struct S_commlist (*primary_comm_list)[OH_NEIGHBORS] =
         (struct S_commlist (*)[OH_NEIGHBORS])state->level4_primary_comm_list;
     struct S_commlist* cl = primary_comm_list[ps];

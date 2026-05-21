@@ -1356,6 +1356,8 @@ static void update_neighbors(struct oh_state* state, const int ps) {
     const int nn = state->n_of_nodes;
     int (*abs_neighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int* grid_offset = state->level4_grid_offset;
+    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
 
     Do_Z(for (nz = -1; nz < 2; nz++)) {
         Do_Y(for (ny = -1; ny < 2; ny++)) {

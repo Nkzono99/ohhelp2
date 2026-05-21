@@ -129,6 +129,7 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
       int *cfields, int cfid, int *ctypes, int **fsizes,
       int stats, int repiter, int verbose, int skip2) {
   int nn;
+  struct oh_state *state;
   int (*sd)[OH_DIMENSION][2]=(int(*)[OH_DIMENSION][2])*sdoms;
   double (*sdf)[OH_DIMENSION][2];
   int (*sc)[2]=(int(*)[2])scoord;
@@ -145,7 +146,8 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
     init2(sdid, nspec, maxfrac, nphgram, totalp, pbuf, pbase, maxlocalp,
           mycommc, mycommf, nbor, pcoord, stats, repiter, verbose);
   excludeLevel2 = skip2;
-  nn = nOfNodes;
+  state = oh1_state();
+  nn = state->n_of_nodes;
 
   if (!sd) {
     sd = (int(*)[OH_DIMENSION][2])
@@ -159,7 +161,7 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
                                     "Boundaries"));
 
   for (d=0,n=1,m=OH_NEIGHBORS>>1; d<OH_DIMENSION; d++,n*=3) {
-    int nl=DstNeighbors[m-n], nu=DstNeighbors[m+n];
+    int nl=state->dst_neighbors[m-n], nu=state->dst_neighbors[m+n];
     Adjacent[d][OH_LOWER] = nl<0 ? -(nl+1) : nl;
     Adjacent[d][OH_UPPER] = nu<0 ? -(nu+1) : nu;
   }
@@ -187,7 +189,8 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
       bd[n][d][OH_LOWER]--;  bd[n][d][OH_UPPER]--;
     }
   }
-  init_fields(ft, cfields, cfid, ct, nbound, sd[myRank], fsizes);
+  oh1_sync_default_state();
+  init_fields(ft, cfields, cfid, ct, nbound, sd[state->my_rank], fsizes);
   install_default_level3_particle_maps();
   oh1_sync_default_state();
 }

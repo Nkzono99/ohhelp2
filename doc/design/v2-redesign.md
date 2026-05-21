@@ -138,6 +138,9 @@ The current code now has this first migration layer:
   descriptor sizing and border datatype creation, then calls the state-backed
   descriptor/exchange helpers directly instead of routing through the legacy
   wrappers.
+- Level-3 top-level initialization now synchronizes `oh_state` immediately after
+  Level-1/2 initialization and uses it for node count, rank, and destination
+  neighbor reads before field initialization.
 
 ## Particle Layout
 

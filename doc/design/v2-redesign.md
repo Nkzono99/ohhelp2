@@ -221,6 +221,9 @@ The current code now has this first migration layer:
 - Level-4p secondary send-buffer staging now uses `oh_state` in the top-level
   staging routine and its up/down helpers for particle arrays, receive bases,
   send buffers, total-count mirrors, injection limits, and Level-4 grid mirrors.
+- Level-4p/4s population exchange and reduction now receive `oh_state` and use
+  context mirrors for species counts, Level-4 grid arrays, field descriptors,
+  exchange counts, communicator metadata, and the 4s z-population summary.
 
 ## Particle Layout
 

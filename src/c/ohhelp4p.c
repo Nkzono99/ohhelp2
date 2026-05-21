@@ -31,14 +31,16 @@ static void rebalance4p(const int currmode, const int level, const int stats);
 static void exchange_particles4p(const int currmode, const int level,
                                  int reb, int oldp, const int newp,
                                  const int stats);
-static void exchange_population(const int currmode, const int nextmode);
+static void exchange_population(struct oh_state* state, const int currmode,
+                                const int nextmode);
 static void add_population(dint* npd, const int xl, const int xu,
                            const int yl, const int yu, const int zl,
                            const int zu, const int src);
 static int  mpi_allreduce_wrapper(const void* sendbuf, void* recvbuf,
                                   const int count, MPI_Datatype datatype,
                                   MPI_Op op, const int root, MPI_Comm comm);
-static void reduce_population(int (*mpired)(const void*, void*, int,
+static void reduce_population(struct oh_state* state,
+                              int (*mpired)(const void*, void*, int,
                                             MPI_Datatype, MPI_Op, int,
                                             MPI_Comm));
 static struct S_commlist* make_recv_list(const int currmode,
@@ -481,7 +483,7 @@ static int try_primary4p(const int currmode, const int level, const int stats) {
         count_population(oh4p_state(), 0, 0, stats);
         sort_particles(oh4p_state(), NULL, 0, 0, 0);
     } else {
-        exchange_population(currmode, 0);
+        exchange_population(oh4p_state(), currmode, 0);
         for (s = 0, nsend = 0, np = NOfPLocal; s < ns; s++, np += nn) {
             for (i = 0; i < nn; i++)  nsend += np[i] + np[i + nnns];
             nsend -= np[me];
@@ -578,10 +580,10 @@ static void exchange_particles4p(const int currmode, const int level, int reb,
                                currmode, stats);
         for (i = 0; i < nnns2; i++)  NOfSend[i] = 0;
         count_population(oh4p_state(), 1, (Parent_New(pcode) ? 1 : 0), 0);
-        reduce_population(mpi_allreduce_wrapper);
+        reduce_population(oh4p_state(), mpi_allreduce_wrapper);
         reb = 0;  oldp = newp;  pcode = newp >= 0 ? 7 : 0;
     } else
-        exchange_population(currmode, 1);
+        exchange_population(oh4p_state(), currmode, 1);
 
     psold = Parent_Old(pcode) ? 1 : 0;
     psnew = Parent_New(pcode) ? 1 : 0;
@@ -600,22 +602,25 @@ static void exchange_particles4p(const int currmode, const int level, int reb,
     }
 }
 
-static void exchange_population(const int currmode, const int nextmode) {
-    const int ns = nOfSpecies;
+static void exchange_population(struct oh_state* state, const int currmode,
+                                const int nextmode) {
+    const int ns = state->n_of_species;
     int s;
-    dint** npg = NOfPGrid[0];
-    const int ct = nOfExc - 1;
+    dint** npg = state->level4_particle_grid[0];
+    const int ct = state->n_of_exchanges - 1;
     const int exti = OH_PGRID_EXT, exto = exti << 1;
-    const int x = GridDesc[0].x, y = GridDesc[0].y, z = GridDesc[0].z;
-    const int w = GridDesc[0].w, dw = GridDesc[0].dw;
+    const struct S_griddesc* gd = state->level4_grid_desc;
+    const int x = gd[0].x, y = gd[0].y, z = gd[0].z;
+    const int w = gd[0].w, dw = gd[0].dw;
     Decl_For_All_Grid();
 
     if (Mode_PS(currmode)) {
-        reduce_population(MPI_Reduce);  npg = NOfPGridTotal[0];
+        reduce_population(state, MPI_Reduce);
+        npg = state->level4_particle_grid_total[0];
     } else if (nextmode) {
-        npg = NOfPGridTotal[0];
+        npg = state->level4_particle_grid_total[0];
         for (s = 0; s < ns; s++) {
-            dint* npgs = NOfPGrid[0][s], * npgt = npg[s];
+            dint* npgs = state->level4_particle_grid[0][s], * npgt = npg[s];
             For_All_Grid(0, -exti, -exti, -exti, exti, exti, exti)
                 npgt[The_Grid()] = npgs[The_Grid()];
         }
@@ -651,29 +656,37 @@ static int mpi_allreduce_wrapper(const void* sendbuf, void* recvbuf, int count,
     return(MPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm));
 }
 
-static void reduce_population(int (*mpired)(const void*, void*, int, MPI_Datatype, MPI_Op, int,
+static void reduce_population(struct oh_state* state,
+                              int (*mpired)(const void*, void*, int,
+                                            MPI_Datatype, MPI_Op, int,
                                             MPI_Comm)) {
-    const int ft = nOfFields - 1;
-    const int base = FieldDesc[ft].red.base;
-    const int* size = FieldDesc[ft].red.size;
+    const int ft = state->n_of_fields - 1;
+    const int base = state->field_desc[ft].red.base;
+    const int* size = state->field_desc[ft].red.size;
+    struct S_mycommc* mycomm = state->my_comm;
 
-    if (MyComm->black) {
-        if (MyComm->prime != MPI_COMM_NULL)
-            mpired(NOfPGrid[0][0] + base, NOfPGridTotal[0][0] + base, size[0],
-                   MPI_LONG_LONG_INT, MPI_SUM, MyComm->rank, MyComm->prime);
-        if (MyComm->sec != MPI_COMM_NULL)
-            mpired(NOfPGrid[1][0] + base, NOfPGridTotal[1][0] + base, size[1],
-                   MPI_LONG_LONG_INT, MPI_SUM, MyComm->root, MyComm->sec);
+    if (mycomm->black) {
+        if (mycomm->prime != MPI_COMM_NULL)
+            mpired(state->level4_particle_grid[0][0] + base,
+                   state->level4_particle_grid_total[0][0] + base, size[0],
+                   MPI_LONG_LONG_INT, MPI_SUM, mycomm->rank, mycomm->prime);
+        if (mycomm->sec != MPI_COMM_NULL)
+            mpired(state->level4_particle_grid[1][0] + base,
+                   state->level4_particle_grid_total[1][0] + base, size[1],
+                   MPI_LONG_LONG_INT, MPI_SUM, mycomm->root, mycomm->sec);
     } else {
-        if (MyComm->sec != MPI_COMM_NULL)
-            mpired(NOfPGrid[1][0] + base, NOfPGridTotal[1][0] + base, size[1],
-                   MPI_LONG_LONG_INT, MPI_SUM, MyComm->root, MyComm->sec);
-        if (MyComm->prime != MPI_COMM_NULL)
-            mpired(NOfPGrid[0][0] + base, NOfPGridTotal[0][0] + base, size[0],
-                   MPI_LONG_LONG_INT, MPI_SUM, MyComm->rank, MyComm->prime);
+        if (mycomm->sec != MPI_COMM_NULL)
+            mpired(state->level4_particle_grid[1][0] + base,
+                   state->level4_particle_grid_total[1][0] + base, size[1],
+                   MPI_LONG_LONG_INT, MPI_SUM, mycomm->root, mycomm->sec);
+        if (mycomm->prime != MPI_COMM_NULL)
+            mpired(state->level4_particle_grid[0][0] + base,
+                   state->level4_particle_grid_total[0][0] + base, size[0],
+                   MPI_LONG_LONG_INT, MPI_SUM, mycomm->rank, mycomm->prime);
     }
-    if (MyComm->prime == MPI_COMM_NULL)
-        memcpy(NOfPGridTotal[0][0] + base, NOfPGrid[0][0] + base,
+    if (mycomm->prime == MPI_COMM_NULL)
+        memcpy(state->level4_particle_grid_total[0][0] + base,
+               state->level4_particle_grid[0][0] + base,
                size[0] * sizeof(dint));
 }
 

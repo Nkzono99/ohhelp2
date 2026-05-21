@@ -232,6 +232,21 @@ The current code now has this first migration layer:
   subdomain tables, boundary tables, and boundary-condition tables from
   `oh_state` inside the mapping functions before invoking the legacy mapping
   macros.
+- Level-4p/4s absolute-neighbor tables are mirrored through `oh_state`; neighbor
+  refresh, map-to-neighbor, and particle sort/remove paths bind the legacy
+  macros to the context-owned table before resolving packed particle IDs.
+- Level-4p/4s rebalance entry points now synchronize `oh_state` around the
+  Level-1 rebalance call and use context mirrors for rank/species counts,
+  region IDs, node trees, injection counters, and particle buffers when
+  repairing secondary injection counts.
+- Level-4p/4s primary and stable transition entry points now read parent
+  regions, node/species counts, local particle histograms, particle limits, and
+  primary-part synchronization through the context mirror.
+- Level-4p/4s particle-exchange entry points now use `oh_state` for schedule
+  lists, send counters, particle limits, Level-4 grid arrays, send buffers, and
+  state-backed transfer-count and particle-transfer helpers. Shadow grid
+  descriptors and some Level-4-local schedule tables remain follow-up migration
+  targets.
 
 ## Particle Layout
 

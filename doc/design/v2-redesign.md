@@ -169,6 +169,10 @@ The current code now has this first migration layer:
   Level-4p/4s-local sync helpers. `src/c/oh_context.c` deliberately does not
   include Level-4 headers because the Level-4p and Level-4s headers carry
   overlapping implementation-private type and global names.
+- Level-4s user-facing per-grid histogram shadow arrays are now mirrored into
+  `oh_state`; the public histogram setup still owns the existing storage, but
+  particle exchange writes the shadow count/index arrays through the context
+  mirror.
 - Level-4p/4s particle transfer now reads real-neighbor routing tables through
   the Level-4 `oh_state` mirror, leaving the Level-4-specific casts local to
   the translation units that own those private types.

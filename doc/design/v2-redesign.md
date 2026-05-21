@@ -224,6 +224,10 @@ The current code now has this first migration layer:
 - Level-4p/4s population exchange and reduction now receive `oh_state` and use
   context mirrors for species counts, Level-4 grid arrays, field descriptors,
   exchange counts, communicator metadata, and the 4s z-population summary.
+- Level-4p/4s external map/inject/remove particle APIs now synchronize
+  `oh_state` at entry and use context mirrors for species counts, particle
+  buffers, local counts, injection counts, region IDs, current mode, and
+  Level-4 per-grid counts while preserving the existing public symbols.
 
 ## Particle Layout
 

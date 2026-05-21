@@ -2097,25 +2097,33 @@ static void exchange_border_data_h(struct oh_state* state, void* buf,
     if (req)  MPI_Waitall(req, state->requests, state->statuses);
 }
 
+static void check_particle_location4s(struct oh_state* state,
+                                      const struct S_particle* part,
+                                      const int ps, const int s,
+                                      const int inj) {
 #ifndef OH_NO_CHECK
-#define Check_Particle_Location(P, PS, S, NS, INJ) {\
-  const int t = (PS) ? (S)+(NS) : (S);\
-  const int pidx = (P) - Particles;\
-  if ((PS)<0 || (PS)>1 || (S)<0 || (S)>=(NS) ||\
-      (PbufIndex && ((INJ) ?\
-                     (((PS)&&RegionId[1]<0) ||\
-                         pidx>=totalParts+nOfInjections) :\
-                     (pidx<PbufIndex[t] || pidx>=PbufIndex[t+1]))))\
-    local_errstop("'part' argument pointing %c%d%c of the particle buffer is "\
-                  "inconsistent with 'ps'=%d and 's'=%d",\
-                  specBase?'(':'[', pidx+specBase,\
-                  specBase?')':']', PS, (S)+specBase);\
-}
+    const int ns = state->n_of_species;
+    const int t = ps ? s + ns : s;
+    const int pidx = part - state->particles;
+    if (ps < 0 || ps > 1 || s < 0 || s >= ns ||
+        (state->level4_pbuf_index &&
+         (inj ? ((ps && state->region_id[1] < 0) ||
+                 pidx >= state->total_parts + state->n_of_injections)
+              : (pidx < state->level4_pbuf_index[t] ||
+                 pidx >= state->level4_pbuf_index[t + 1])))) {
+        local_errstop("'part' argument pointing %c%d%c of the particle buffer is "
+                      "inconsistent with 'ps'=%d and 's'=%d",
+                      state->spec_base ? '(' : '[', pidx + state->spec_base,
+                      state->spec_base ? ')' : ']', ps, s + state->spec_base);
+    }
 #else
-
-#define Check_Particle_Location(P, PS, S, NS, INJ)
-
+    (void)state;
+    (void)part;
+    (void)ps;
+    (void)s;
+    (void)inj;
 #endif
+}
 
 #define Map_Particle_To_Neighbor(P, XYZ, DIM, MYSD, K, INC, UB, G, IDX) {\
   const double xyz = XYZ;\
@@ -2155,18 +2163,20 @@ int oh4s_map_particle_to_neighbor_(struct S_particle* part, const int* ps,
 
 int oh4s_map_particle_to_neighbor(struct S_particle* part, const int ps,
                                   const int s) {
-    const int ns = nOfSpecies, inj = part >= Particles + totalParts;
+    struct oh_state* state = oh4s_state();
+    const int ns = state->n_of_species, nn = state->n_of_nodes;
+    const int inj = part >= state->particles + state->total_parts;
     int x, y, z, w, d, dw, mysd;
-    const int psnn = ps ? (s + nOfSpecies) * nOfNodes : s * nOfNodes;
+    const int psnn = ps ? (s + ns) * nn : s * nn;
     int k = OH_NBR_SELF, idx = 0;
     int gz, gy, gx;
     int sd;
     Decl_Grid_Info();
 
-    Check_Particle_Location(part, ps, s, ns, inj);
+    check_particle_location4s(state, part, ps, s, inj);
     x = GridDesc[ps].x;  y = GridDesc[ps].y;  z = GridDesc[ps].z;
     w = GridDesc[ps].w;  d = GridDesc[ps].d;  dw = GridDesc[ps].dw;
-    mysd = RegionId[ps];
+    mysd = state->region_id[ps];
     Do_Z(Map_Particle_To_Neighbor(part, part->z, OH_DIM_Z, mysd, k, 9, z, gz,
                                   idx));
     Do_Z(idx *= d);
@@ -2176,35 +2186,35 @@ int oh4s_map_particle_to_neighbor(struct S_particle* part, const int ps,
     Map_Particle_To_Neighbor(part, part->x, OH_DIM_X, mysd, k, 1, x, gx, idx);
 
     if (k == OH_NBR_SELF) {
-        NOfPGrid[ps][s][idx]++;
-        NOfPLocal[psnn + mysd]++;
+        state->level4_particle_grid[ps][s][idx]++;
+        state->n_of_particles_local[psnn + mysd]++;
         part->nid = Combine_Subdom_Pos(k, idx);
         if (inj) {
             if (ps) {
-                InjectedParticles[ns + s]++;  Secondarize_Id(part);
+                state->injected_particles[ns + s]++;  Secondarize_Id(part);
             } else {
-                InjectedParticles[s]++;
+                state->injected_particles[s]++;
             }
         }
         return(mysd);
     } else if (k < 0)
         return(oh4s_map_particle_to_subdomain(part, ps, s));
     sd = AbsNeighbors[ps][k];
-    if (sd >= nOfNodes) {
+    if (sd >= nn) {
         part->nid = -1;  return(-1);
     }
     Adjust_Neighbor_Grid(gx, sd, OH_DIM_X);
     Do_Y(Adjust_Neighbor_Grid(gy, sd, OH_DIM_Y));
     Do_Z(Adjust_Neighbor_Grid(gz, sd, OH_DIM_Z));
-    NOfPLocal[psnn + sd]++;
+    state->n_of_particles_local[psnn + sd]++;
 
     if (sd == mysd) {
         idx = Coord_To_Index(gx, gy, gz, w, dw);
-        NOfPGrid[ps][s][idx]++;
+        state->level4_particle_grid[ps][s][idx]++;
         part->nid = Combine_Subdom_Pos(OH_NBR_SELF, idx);
-        if (inj)  InjectedParticles[ps ? ns + s : s]++;
+        if (inj)  state->injected_particles[ps ? ns + s : s]++;
     } else {
-        NOfPGrid[ps][s][idx]++;
+        state->level4_particle_grid[ps][s][idx]++;
         part->nid = Combine_Subdom_Pos(k, Coord_To_Index(gx, gy, gz, w, dw));
     }
     if (inj && ps)  Secondarize_Id(part);
@@ -2265,7 +2275,9 @@ int oh4s_map_particle_to_subdomain_(struct S_particle* part, const int* ps,
 
 int oh4s_map_particle_to_subdomain(struct S_particle* part, const int ps,
                                    const int s) {
-    const int ns = nOfSpecies, inj = part >= Particles + totalParts;
+    struct oh_state* state = oh4s_state();
+    const int ns = state->n_of_species, nn = state->n_of_nodes;
+    const int inj = part >= state->particles + state->total_parts;
     const int nx = Grid[OH_DIM_X].n;
     const int nxy = If_Dim(OH_DIM_Y, nx * Grid[OH_DIM_Y].n, 0);
     const int t = ps ? ns + s : s;
@@ -2278,8 +2290,8 @@ int oh4s_map_particle_to_subdomain(struct S_particle* part, const int ps,
     int k = OH_NBR_SELF, aacc = 0;
     Decl_Grid_Info();
 
-    Check_Particle_Location(part, ps, s, ns, inj);
-    w = GridDesc[ps].w;  dw = GridDesc[ps].dw;  mysd = RegionId[ps];
+    check_particle_location4s(state, part, ps, s, inj);
+    w = GridDesc[ps].w;  dw = GridDesc[ps].dw;  mysd = state->region_id[ps];
     Map_To_Grid(part, part->x, x, OH_DIM_X, gx, lx);
     Do_Y(Map_To_Grid(part, part->y, y, OH_DIM_Y, gy, ly));
     Do_Z(Map_To_Grid(part, part->z, z, OH_DIM_Z, gz, lz));
@@ -2296,17 +2308,17 @@ int oh4s_map_particle_to_subdomain(struct S_particle* part, const int ps,
     Local_Coordinate(sd, mysd, gx, lx, OH_DIM_X, k, 1, aacc);
     Do_Y(Local_Coordinate(sd, mysd, gy, ly, OH_DIM_Y, k, 3, aacc));
     Do_Z(Local_Coordinate(sd, mysd, gz, lz, OH_DIM_Z, k, 9, aacc));
-    NOfPLocal[t * nOfNodes + sd]++;
+    state->n_of_particles_local[t * nn + sd]++;
     if (aacc) {
-        currMode = Mode_Set_Any(currMode);
+        currMode = state->curr_mode = Mode_Set_Any(state->curr_mode);
         part->nid = Combine_Subdom_Pos(sd + OH_NEIGHBORS,
                                        Coord_To_Index(gx, gy, gz, w, dw));
     } else {
-        NOfPGrid[ps][s][Coord_To_Index(lx, ly, lz, w, dw)]++;
+        state->level4_particle_grid[ps][s][Coord_To_Index(lx, ly, lz, w, dw)]++;
         part->nid = Combine_Subdom_Pos(k, Coord_To_Index(gx, gy, gz, w, dw));
     }
     if (inj) {
-        if (sd == mysd)  InjectedParticles[t]++;
+        if (sd == mysd)  state->injected_particles[t]++;
         if (ps)  Secondarize_Id(part);
     }
     return(sd);
@@ -2317,10 +2329,11 @@ int oh4s_inject_particle_(const struct S_particle* part, const int* ps) {
 }
 
 int oh4s_inject_particle(const struct S_particle* part, const int ps) {
-    const int ns = nOfSpecies;
-    int inj = totalParts + nOfInjections++;
-    struct S_particle* p = Particles + inj;
-    int s = Particle_Spec(part->spec - specBase);
+    struct oh_state* state = oh4s_state();
+    const int ns = state->n_of_species;
+    int inj = state->total_parts + state->n_of_injections++;
+    struct S_particle* p = state->particles + inj;
+    int s = Particle_Spec(part->spec - state->spec_base);
     int sd;
 
 #ifndef OH_HAS_SPEC
@@ -2329,11 +2342,15 @@ int oh4s_inject_particle(const struct S_particle* part, const int ps) {
                       "have 'spec' element and you have two or more species");
 #endif
 
-    if (inj >= nOfLocalPLimit)
+    nOfInjections = state->n_of_injections;
+    if (inj >= state->n_of_local_particles_limit)
         local_errstop("injection causes local particle buffer overflow");
     *p = *part;
     sd = oh4s_map_particle_to_neighbor(p, ps, s);
-    if (sd < 0)  nOfInjections--;
+    if (sd < 0) {
+        state->n_of_injections--;
+        nOfInjections = state->n_of_injections;
+    }
     return(sd);
 }
 void oh4s_remove_mapped_particle_(struct S_particle* part, const int* ps,
@@ -2342,26 +2359,28 @@ void oh4s_remove_mapped_particle_(struct S_particle* part, const int* ps,
 }
 void oh4s_remove_mapped_particle(struct S_particle* part, const int ps,
                                  const int s) {
-    const int nn = nOfNodes, ns = nOfSpecies, inj = part >= Particles + totalParts;
+    struct oh_state* state = oh4s_state();
+    const int nn = state->n_of_nodes, ns = state->n_of_species;
+    const int inj = part >= state->particles + state->total_parts;
     OH_nid_t nid = part->nid;
     int sd, g, psreal = ps, mysd, t;
     Decl_Grid_Info();
 
-    Check_Particle_Location(part, psreal, s, ns, inj);
+    check_particle_location4s(state, part, psreal, s, inj);
     if (nid < 0)  return;
     sd = Subdomain_Id(nid, psreal);
     g = Grid_Position(nid);
     if (sd >= nn) {
         psreal = 1;  Primarize_Id(part, sd);  nid = part->nid;
     }
-    mysd = RegionId[psreal];
+    mysd = state->region_id[psreal];
     part->nid = -1;
     t = psreal ? ns + s : s;
-    NOfPLocal[t * nn + sd]--;
-    if (inj && sd == mysd)  InjectedParticles[t]--;
-    if (Mode_Acc(currMode))  return;
+    state->n_of_particles_local[t * nn + sd]--;
+    if (inj && sd == mysd)  state->injected_particles[t]--;
+    if (Mode_Acc(state->curr_mode))  return;
     if (sd != mysd)  g = Local_Grid_Position(g, nid, psreal);
-    NOfPGrid[psreal][s][g]--;
+    state->level4_particle_grid[psreal][s][g]--;
 }
 
 int oh4s_remap_particle_to_neighbor_(struct S_particle* part, const int* ps, const int* s) {

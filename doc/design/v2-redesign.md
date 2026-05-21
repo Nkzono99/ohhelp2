@@ -88,6 +88,10 @@ The current code now has this first migration layer:
 - State-backed Level-2 movement paths now use the particle adapter pointer from
   `oh_state` for buffer element addressing and byte-wise copies, rather than
   relying on the process-global adapter in those loops.
+- Level-2 particle region/species/subdomain helpers now have state-aware
+  variants, and injected-particle inject/remap/remove operations use `oh_state`
+  for adapter callbacks, particle counters, injection counters, region ids,
+  buffer limits, and buffer indexing.
 
 ## Particle Layout
 

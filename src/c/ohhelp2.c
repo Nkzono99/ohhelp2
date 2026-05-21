@@ -38,20 +38,41 @@ static void  receive_particles(struct oh_state *state,
 static void  send_particles(struct oh_state *state,
                             struct S_commlist *slist, int slsize,
                             int myregion, int parentregion, int *req);
+static void  oh2_inject_particle_state(struct oh_state *state,
+                                       struct S_particle *part);
+static void  oh2_remap_injected_particle_state(struct oh_state *state,
+                                               struct S_particle *part);
+static void  oh2_remove_injected_particle_state(struct oh_state *state,
+                                                struct S_particle *part);
 static int   particle_region(const struct S_particle *part,
                              int primary_or_secondary);
+static int   state_particle_region(struct oh_state *state,
+                                   const struct S_particle *part,
+                                   int primary_or_secondary);
 static void  set_particle_region(struct S_particle *part, int region,
                                  int primary_or_secondary);
+static void  state_set_particle_region(struct oh_state *state,
+                                       struct S_particle *part, int region,
+                                       int primary_or_secondary);
 static int   particle_species(const struct S_particle *part);
+static int   state_particle_species(struct oh_state *state,
+                                    const struct S_particle *part);
 static int   particle_subdomain(const struct S_particle *part,
                                 int primary_or_secondary);
+static int   state_particle_subdomain(struct oh_state *state,
+                                      const struct S_particle *part,
+                                      int primary_or_secondary);
 static int   map_injected_particle_to_subdomain(struct S_particle *part);
+static int   state_map_injected_particle_to_subdomain(struct oh_state *state,
+                                                      struct S_particle *part);
 static size_t particle_stride(void);
 static struct S_particle *particle_at(struct S_particle *base, int index);
 static struct S_particle *state_particle_at(struct oh_state *state,
                                             struct S_particle *base,
                                             int index);
 static int   particle_buffer_index(const struct S_particle *part);
+static int   state_particle_buffer_index(struct oh_state *state,
+                                         const struct S_particle *part);
 static void  copy_particle(struct S_particle *dst,
                            const struct S_particle *src);
 static void  state_copy_particle(struct oh_state *state,
@@ -507,7 +528,7 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
     if (j<=i) {                         /* upward move only */
       for (; putme>0; i++) {            /* throw my particles to send buf */
         struct S_particle *part=state_particle_at(state, particles, i);
-        int dst=particle_subdomain(part, ps);
+        int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         state_copy_particle(state, state_particle_at(state, sendbuf,
                                                      sbd[dst]++), part);
@@ -515,7 +536,7 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
       }
       for (; i<in; i++) {               /* move upward */
         struct S_particle *part=state_particle_at(state, particles, i);
-        int dst=particle_subdomain(part, ps);
+        int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         if (dst==me)
           state_copy_particle(state, state_particle_at(state, particles, j++),
@@ -531,7 +552,7 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
       int ib, im, jm;
       for (; putme>0; i++) {            /* throw my particles to send buf */
         struct S_particle *part=state_particle_at(state, particles, i);
-        int dst=particle_subdomain(part, ps);
+        int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         state_copy_particle(state, state_particle_at(state, sendbuf,
                                                      sbd[dst]++), part);
@@ -539,13 +560,14 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
       }
       ib = i;
       for (; i<j; i++) {                 /* skip downward movers if any */
-        int dst=particle_subdomain(state_particle_at(state, particles, i), ps);
+        int dst=state_particle_subdomain(
+          state, state_particle_at(state, particles, i), ps);
         if (dst==me && dst>=0)  j++;
       }
       im = i-1; jm = j-1;
       for (; i<in; i++) {               /* move remainders upward */
         struct S_particle *part=state_particle_at(state, particles, i);
-        int dst=particle_subdomain(part, ps);
+        int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         if (dst==me)
           state_copy_particle(state, state_particle_at(state, particles, j++),
@@ -557,7 +579,7 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
       rbb[s] = state_particle_at(state, particles, j); /* receive to bottom */
       for (i=im,j=jm; i>=ib; i--) {     /* move first half downward if any */
         struct S_particle *part=state_particle_at(state, particles, i);
-        int dst=particle_subdomain(part, ps);
+        int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         if (dst==me)
           state_copy_particle(state, state_particle_at(state, particles, j--),
@@ -585,7 +607,7 @@ move_to_sendbuf_dw(struct oh_state *state, int ps, int me, int *putmes,
     if (i>=j || in>=jn) continue;       /* not downward only and thus skip */
     for (; putme>0; i--) {              /* throw my particles to send buf */
       struct S_particle *part=state_particle_at(state, particles, i);
-      int dst=particle_subdomain(part, ps);
+      int dst=state_particle_subdomain(state, part, ps);
       if (dst<0) continue;
       state_copy_particle(state,
                           state_particle_at(state, sendbuf, sbd[dst]++),
@@ -594,7 +616,7 @@ move_to_sendbuf_dw(struct oh_state *state, int ps, int me, int *putmes,
     }
     for (; i>=in; i--) {                /* move downward */
       struct S_particle *part=state_particle_at(state, particles, i);
-      int dst=particle_subdomain(part, ps);
+      int dst=state_particle_subdomain(state, part, ps);
       if (dst<0) continue;
       if (dst==me)
         state_copy_particle(state, state_particle_at(state, particles, j--),
@@ -615,8 +637,8 @@ move_injected_to_sendbuf(struct oh_state *state) {
 
   for (i=0; i<ninj; i++) {
     struct S_particle *part=state_particle_at(state, pbuf, i);
-    int dst = map_injected_particle_to_subdomain(part);
-    int s = particle_species(part);
+    int dst = state_map_injected_particle_to_subdomain(state, part);
+    int s = state_particle_species(state, part);
     if (dst<0) continue;
     state_copy_particle(state,
                         state_particle_at(
@@ -695,26 +717,32 @@ oh2_inject_particle_(struct S_particle *part) {
 }
 void
 oh2_inject_particle(struct S_particle *part) {
-  const int ns=nOfSpecies, nn=nOfNodes;
-  int inj = totalParts + nOfInjections++;
-  int s = particle_species(part);
-  int n = particle_region(part, 0);
+  oh2_inject_particle_state(oh1_state(), part);
+}
+static void
+oh2_inject_particle_state(struct oh_state *state, struct S_particle *part) {
+  const int ns=state->n_of_species, nn=state->n_of_nodes;
+  int inj = state->total_parts + state->n_of_injections++;
+  int s = state_particle_species(state, part);
+  int n = state_particle_region(state, part, 0);
+  nOfInjections = state->n_of_injections;
 
 #ifndef OH_HAS_SPEC
-  if (!useCustomParticleAdapter && ns!=1)
+  if (!state->use_custom_particle_adapter && ns!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
-  if (inj>=nOfLocalPLimit)
+  if (inj>=state->n_of_local_particles_limit)
     local_errstop("injection causes local particle buffer overflow");
-  copy_particle(particle_at(Particles, inj), part);
+  state_copy_particle(state, state_particle_at(state, state->particles, inj),
+                      part);
   if (n<0)  return;
-  if (n==RegionId[1]) {
-    NOfPLocal[(ns+s)*nn+n]++;
-    InjectedParticles[ns+s]++;
+  if (n==state->region_id[1]) {
+    state->n_of_particles_local[(ns+s)*nn+n]++;
+    state->injected_particles[ns+s]++;
   } else {
-    NOfPLocal[nn*s+n]++;
-    if (n==myRank)  InjectedParticles[s]++;
+    state->n_of_particles_local[nn*s+n]++;
+    if (n==state->my_rank)  state->injected_particles[s]++;
   }
 }
 void
@@ -723,27 +751,35 @@ oh2_remap_injected_particle_(struct S_particle *part) {
 }
 void
 oh2_remap_injected_particle(struct S_particle *part) {
-  const int pidx = particle_buffer_index(part), ns=nOfSpecies, nn=nOfNodes;
+  oh2_remap_injected_particle_state(oh1_state(), part);
+}
+static void
+oh2_remap_injected_particle_state(struct oh_state *state,
+                                  struct S_particle *part) {
+  const int pidx = state_particle_buffer_index(state, part);
+  const int ns=state->n_of_species, nn=state->n_of_nodes;
   int s, n;
 
-  if (pidx<totalParts || pidx>=totalParts+nOfInjections)
+  if (pidx<state->total_parts ||
+      pidx>=state->total_parts+state->n_of_injections)
     local_errstop("'part' argument pointing %c%d%c of the particle buffer is "\
                   "not for injected particles",
-                  specBase?'(':'[', pidx+specBase, specBase?')':']');
+                  state->spec_base?'(':'[', pidx+state->spec_base,
+                  state->spec_base?')':']');
 #ifndef OH_HAS_SPEC
-  if (!useCustomParticleAdapter && ns!=1)
+  if (!state->use_custom_particle_adapter && ns!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
-  s = particle_species(part);
-  n = particle_region(part, 0);
+  s = state_particle_species(state, part);
+  n = state_particle_region(state, part, 0);
   if (n<0)  return;
-  if (n==RegionId[1]) {
-    NOfPLocal[(ns+s)*nn+n]++;
-    InjectedParticles[ns+s]++;
+  if (n==state->region_id[1]) {
+    state->n_of_particles_local[(ns+s)*nn+n]++;
+    state->injected_particles[ns+s]++;
   } else {
-    NOfPLocal[nn*s+n]++;
-    if (n==myRank)  InjectedParticles[s]++;
+    state->n_of_particles_local[nn*s+n]++;
+    if (n==state->my_rank)  state->injected_particles[s]++;
   }
 }
 void
@@ -752,68 +788,101 @@ oh2_remove_injected_particle_(struct S_particle *part) {
 }
 void
 oh2_remove_injected_particle(struct S_particle *part) {
-  const int pidx = particle_buffer_index(part), ns=nOfSpecies, nn=nOfNodes;
+  oh2_remove_injected_particle_state(oh1_state(), part);
+}
+static void
+oh2_remove_injected_particle_state(struct oh_state *state,
+                                   struct S_particle *part) {
+  const int pidx = state_particle_buffer_index(state, part);
+  const int ns=state->n_of_species, nn=state->n_of_nodes;
   int s, n;
 
-  if (pidx<totalParts || pidx>=totalParts+nOfInjections)
+  if (pidx<state->total_parts ||
+      pidx>=state->total_parts+state->n_of_injections)
     local_errstop("'part' argument pointing %c%d%c of the particle buffer is "\
                   "not for injected particles",
-                  specBase?'(':'[', pidx+specBase, specBase?')':']');
+                  state->spec_base?'(':'[', pidx+state->spec_base,
+                  state->spec_base?')':']');
 #ifndef OH_HAS_SPEC
-  if (!useCustomParticleAdapter && ns!=1)
+  if (!state->use_custom_particle_adapter && ns!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
-  s = particle_species(part);
-  n = particle_region(part, 0);
+  s = state_particle_species(state, part);
+  n = state_particle_region(state, part, 0);
   if (n<0)  return;
-  if (n==RegionId[1]) {
-    NOfPLocal[(ns+s)*nn+n]--;
-    InjectedParticles[ns+s]--;
+  if (n==state->region_id[1]) {
+    state->n_of_particles_local[(ns+s)*nn+n]--;
+    state->injected_particles[ns+s]--;
   } else {
-    NOfPLocal[nn*s+n]--;
-    if (n==myRank)  InjectedParticles[s]--;
+    state->n_of_particles_local[nn*s+n]--;
+    if (n==state->my_rank)  state->injected_particles[s]--;
   }
-  set_particle_region(part, -1, 0);
+  state_set_particle_region(state, part, -1, 0);
 }
 static int
 particle_region(const struct S_particle *part, int primary_or_secondary) {
-  return ParticleAdapter.get_region(part, primary_or_secondary);
+  return state_particle_region(oh1_state(), part, primary_or_secondary);
+}
+static int
+state_particle_region(struct oh_state *state, const struct S_particle *part,
+                      int primary_or_secondary) {
+  return state->particle_adapter->get_region(part, primary_or_secondary);
 }
 static void
 set_particle_region(struct S_particle *part, int region,
                     int primary_or_secondary) {
-  ParticleAdapter.set_region(part, region, primary_or_secondary);
+  state_set_particle_region(oh1_state(), part, region, primary_or_secondary);
+}
+static void
+state_set_particle_region(struct oh_state *state, struct S_particle *part,
+                          int region, int primary_or_secondary) {
+  state->particle_adapter->set_region(part, region, primary_or_secondary);
 }
 static int
 particle_species(const struct S_particle *part) {
-  int species = ParticleAdapter.get_species(part) - specBase;
+  return state_particle_species(oh1_state(), part);
+}
+static int
+state_particle_species(struct oh_state *state, const struct S_particle *part) {
+  int species = state->particle_adapter->get_species(part) - state->spec_base;
 
 #ifdef OH_HAS_SPEC
   return Particle_Spec(species);
 #else
-  return useCustomParticleAdapter ? species : 0;
+  return state->use_custom_particle_adapter ? species : 0;
 #endif
 }
 static int
 particle_subdomain(const struct S_particle *part, int primary_or_secondary) {
+  return state_particle_subdomain(oh1_state(), part, primary_or_secondary);
+}
+static int
+state_particle_subdomain(struct oh_state *state, const struct S_particle *part,
+                         int primary_or_secondary) {
   Decl_Grid_Info();
 
-  if (ParticleAdapter.map_to_subdomain)
-    return ParticleAdapter.map_to_subdomain((void*)part, primary_or_secondary);
-  return Subdomain_Id(particle_region(part, primary_or_secondary),
+  if (state->particle_adapter->map_to_subdomain)
+    return state->particle_adapter->map_to_subdomain(
+      (void*)part, primary_or_secondary);
+  return Subdomain_Id(state_particle_region(state, part, primary_or_secondary),
                       primary_or_secondary);
 }
 static int
 map_injected_particle_to_subdomain(struct S_particle *part) {
+  return state_map_injected_particle_to_subdomain(oh1_state(), part);
+}
+static int
+state_map_injected_particle_to_subdomain(struct oh_state *state,
+                                         struct S_particle *part) {
   int dst;
   Decl_Grid_Info();
 
-  if (ParticleAdapter.map_to_subdomain)
-    return ParticleAdapter.map_to_subdomain(part, 0);
-  dst = Subdomain_Id(particle_region(part, 0), 0);
+  if (state->particle_adapter->map_to_subdomain)
+    return state->particle_adapter->map_to_subdomain(part, 0);
+  dst = Subdomain_Id(state_particle_region(state, part, 0), 0);
 #ifdef OH_POS_AWARE
-  if (dst>=nOfNodes)  Primarize_Id(part, dst);
+  if (dst>=state->n_of_nodes)  Primarize_Id(part, dst);
 #endif
   return dst;
 }
@@ -831,7 +900,13 @@ state_particle_at(struct oh_state *state, struct S_particle *base, int index) {
 }
 static int
 particle_buffer_index(const struct S_particle *part) {
-  return oh_particle_buffer_index(&ParticleAdapter, Particles, part);
+  return state_particle_buffer_index(oh1_state(), part);
+}
+static int
+state_particle_buffer_index(struct oh_state *state,
+                            const struct S_particle *part) {
+  return oh_particle_buffer_index(state->particle_adapter, state->particles,
+                                  part);
 }
 static void
 copy_particle(struct S_particle *dst, const struct S_particle *src) {

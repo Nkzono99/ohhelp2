@@ -514,22 +514,27 @@ static int try_stable4p(const int currmode, const int level, const int stats) {
 }
 
 static void rebalance4p(const int currmode, const int level, const int stats) {
-    const int me = myRank, ns = nOfSpecies;
-    const int oldp = RegionId[1], amode = Mode_Acc(currmode);
-    const int ninj = nOfInjections;
+    struct oh_state* state = oh4p_state();
+    const int me = state->my_rank, ns = state->n_of_species;
+    const int oldp = state->region_id[1], amode = Mode_Acc(currmode);
+    const int ninj = state->n_of_injections;
+    const int nOfNodes = state->n_of_nodes;
+    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int s, n, newp;
 
     rebalance1(currmode, (amode ? level : -level), stats);
-    newp = amode ? Nodes[me].parentid : NodesNext[me].parentid;
+    state = oh4p_state();
+    newp = amode ? state->nodes[me].parentid : state->nodes_next[me].parentid;
     if (ninj && amode && oldp != newp) {
-        int* sinj = InjectedParticles + ns;
-        const int sbase = specBase;
+        int* sinj = state->injected_particles + ns;
+        const int sbase = state->spec_base;
         int i;
         struct S_particle* p;
         Decl_Grid_Info();
         for (s = 0; s < ns; s++)  sinj[s] = 0;
         if (newp >= 0) {
-            for (i = 0, p = Particles + totalParts; i < ninj; i++, p++) {
+            for (i = 0, p = state->particles + state->total_parts;
+                 i < ninj; i++, p++) {
                 const OH_nid_t nid = p->nid;
                 int sdid;
                 if (Secondary_Injected(nid)) {
@@ -541,7 +546,7 @@ static void rebalance4p(const int currmode, const int level, const int stats) {
     }
     exchange_particles4p(currmode, level, 1, oldp, newp, stats);
     if (!amode) {
-        struct oh_state* state = oh4p_state();
+        state = oh4p_state();
         set_grid_descriptor(1, newp);
         for (n = 0; n < OH_NEIGHBORS; n++)
             state->neighbors[1][n] = state->neighbors[2][n];

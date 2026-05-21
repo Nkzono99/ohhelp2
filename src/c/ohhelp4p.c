@@ -352,9 +352,12 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
                 "calculated by oh4p_max_local_particles() %d",
                 maxlocalp, nOfLocalPLimitShadow);
 
-    me = myRank;
     PbufIndex = NULL;
-    set_grid_descriptor(oh4p_state(), 0, me);
+    struct oh_state* state = oh4p_state();
+    struct S_grid* Grid = state->grid;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    me = state->my_rank;
+    set_grid_descriptor(state, 0, me);
     size = GridDesc[0].dw * GridDesc[0].h;
     Allocate_NOfPGrid(npgdummy, NOfPGrid, dint, size, "NOfPGrid");
     Allocate_NOfPGrid(npgtdummy, NOfPGridTotal, dint, size, "NOfPGridTotal");
@@ -388,7 +391,7 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
     }
 
     logGrid = loggrid;  gridMask = (1 << loggrid) - 1;
-    adjust_field_descriptor(oh4p_state(), 0);
+    adjust_field_descriptor(state, 0);
 
     HotSpotList = (struct S_hotspot*)mem_alloc(sizeof(struct S_hotspot),
                                                2 * nn + 2 * OH_NEIGHBORS + 1,
@@ -447,7 +450,10 @@ void oh4p_per_grid_histogram_(int* pghgram) {
 }
 
 void oh4p_per_grid_histogram(int** pghgram) {
-    Allocate_NOfPGrid(*pghgram, NOfPGridOut, int, GridDesc[0].dw * GridDesc[0].h,
+    struct oh_state* state = oh4p_state();
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    Allocate_NOfPGrid(*pghgram, NOfPGridOut, int,
+                      GridDesc[0].dw * GridDesc[0].h,
                       "NOfPGridOut");
     oh4p_state();
 }

@@ -317,6 +317,9 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
           pbase, 0, mycommc, mycommf, nbor, pcoord, sdoms, scoord, nbound,
           bcond, bounds, (int*)ft, cf, cfid, (int*)BoundaryCommTypes, fsizes,
           stats, repiter, verbose, 0);
+    struct oh_state* state = oh4s_state();
+    struct S_grid* Grid = state->grid;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
 
     size =
         ((Grid[OH_DIM_X].size + ext2) * (Grid[OH_DIM_Y].size + ext2) *
@@ -338,9 +341,9 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     if (size < Grid[OH_DIM_Y].size)  size = Grid[OH_DIM_Y].size;
     *cbufsize = 2 * maxdensity * Grid[OH_DIM_Z].size * size;
 
-    me = myRank;
     PbufIndex = NULL;
-    set_grid_descriptor(oh4s_state(), 0, me);
+    me = state->my_rank;
+    set_grid_descriptor(state, 0, me);
     size = GridDesc[0].dw * GridDesc[0].h;
     Allocate_NOfPGrid(npgdummy, NOfPGrid, dint, size, "NOfPGrid");
     Allocate_NOfPGrid(npgtdummy, NOfPGridTotal, dint, size, "NOfPGridTotal");
@@ -369,7 +372,7 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
 
     logGrid = loggrid;  gridMask = (1 << loggrid) - 1;
 
-    adjust_field_descriptor(oh4s_state(), 0);
+    adjust_field_descriptor(state, 0);
 
     iptr = (int*)mem_alloc(sizeof(int), 2 * 2 * 4 * nspec, "HPlane");
     for (ps = 0; ps < 2; ps++)  for (i = OH_LOWER; i <= OH_UPPER; i++) {
@@ -485,6 +488,8 @@ void oh4s_per_grid_histogram_(int* pghgram, int* pgindex) {
 
 void oh4s_per_grid_histogram(int** pghgram, int** pgindex) {
     int* npgo = NULL, * npgi = NULL;
+    struct oh_state* state = oh4s_state();
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
     const int size = GridDesc[0].dw * GridDesc[0].h;
     Allocate_NOfPGrid(npgo, NOfPGridOut, int, size, "NOfPGridOut");
     Allocate_NOfPGrid(*pghgram, NOfPGridOutShadow, int, size,

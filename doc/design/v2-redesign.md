@@ -180,7 +180,9 @@ The current code now has this first migration layer:
 - Level-4p hotspot gather/scatter scheduling now threads `oh_state` through the
   hotspot communication helpers for communicator, requests/statuses,
   rank/node/species counts, neighbor/region mirrors, receive counts, and send
-  count accumulation.
+  count accumulation. The Level-4p hotspot histogram scratch buffers are now
+  mirrored in `oh_state`, so gather/scatter no longer reads the `HSRecv`,
+  `HSSend`, `HSRecvFromParent`, or `HSReceiver` globals directly.
 - Level-4p send-schedule body now receives `oh_state` and updates send counters
   through the context mirror for hotspot and direct send regions. It also reads
   grid descriptors, subdomain tables, Level-4 histograms, outgoing grid counts,
@@ -201,6 +203,9 @@ The current code now has this first migration layer:
 - Level-4p/4s neighbor refresh now receives `oh_state`, so first-hop grid
   offsets and real-neighbor transfer lists read rank/node/neighborhood mirrors
   instead of the legacy process globals.
+- Level-4p/4s descriptor refresh now receives `oh_state`; field descriptor
+  adjustment and Level-4 grid descriptor rebuilds read field metadata, grid
+  geometry, and subdomain tables through the context mirror.
 - Level-4p/4s transfer setup now consumes destination/source neighbor arrays
   through `oh_state`; the active Level-4 translation units no longer read the
   legacy `Neighbors`, `DstNeighbors`, or `SrcNeighbors` globals directly.

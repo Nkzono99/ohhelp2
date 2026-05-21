@@ -1674,11 +1674,12 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
                           const int oldp, const int* nacc, const int stats) {
     struct oh_state* state = oh4s_state();
     const int me = state->my_rank, ns = state->n_of_species;
-    const int nn = state->n_of_nodes, sbase = specBase;
-    const int mysubdom[2] = { me, oldp }, ninj = nOfInjections;
+    const int nn = state->n_of_nodes, sbase = state->spec_base;
+    const int mysubdom[2] = { me, oldp }, ninj = state->n_of_injections;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
-    struct S_particle* p, * rbb, * sb = SendBuf + nacc[1];
+    struct S_particle* p, * rbb;
+    struct S_particle* sb = state->send_buffer + nacc[1];
     int* nofr;
     int ps, s, t, i;
     Decl_For_All_Grid();
@@ -1686,25 +1687,27 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
 
     if (stats) oh1_stats_time(STATS_TB_MOVE, nextmode);
     state_set_sendbuf_disps4s(state, nextmode, 0);
-    for (ps = 0, t = 0, nofr = state->n_of_recv, rbb = Particles;
+    for (ps = 0, t = 0, nofr = state->n_of_recv, rbb = state->particles;
          ps <= psnew; ps++) {
         const int nnbr = real_src[0][ps].n;
         const int* rnbr = real_src[0][ps].nbor;
         for (s = 0; s < ns; s++, t++, nofr += nn) {
             int n, nrec;
             for (n = 0, nrec = 0; n < nnbr; n++)  nrec += nofr[rnbr[n]];
-            RecvBufBases[t] = rbb;  rbb += nrec;
+            state->recv_buffer_bases[t] = rbb;  rbb += nrec;
         }
     }
-    RecvBufBases[t] = rbb;
+    state->recv_buffer_bases[t] = rbb;
 
-    for (ps = 0, p = Particles, t = 0; ps <= psold; ps++) {
+    for (ps = 0, p = state->particles, t = 0; ps <= psold; ps++) {
         const int mysd = mysubdom[ps];
         for (s = 0; s < ns; s++, t++) {
-            dint* npg = NOfPGrid[ps][s], * npgt = NOfPGridTotal[ps][s];
-            const int itail = TotalP[t];
+            dint* npg = state->level4_particle_grid[ps][s];
+            dint* npgt = state->level4_particle_grid_total[ps][s];
+            const int itail = state->total_particles[t];
             for (i = 0; i < itail; i++, p++)
-                Move_Or_Do(p, ps, mysd, 1, (SendBuf[npgt[g]++] = *p), 1);
+                Move_Or_Do(p, ps, mysd, 1,
+                           (state->send_buffer[npgt[g]++] = *p), 1);
         }
     }
     for (i = 0; i < ninj; i++, p++) {
@@ -1712,12 +1715,14 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
         const OH_nid_t nid = p->nid;
         const int ps = Secondary_Injected(nid) ? 1 : 0;
         const int mysd = mysubdom[ps];
-        dint* npg = NOfPGrid[ps][s], * npgt = NOfPGridTotal[ps][s];
+        dint* npg = state->level4_particle_grid[ps][s];
+        dint* npgt = state->level4_particle_grid_total[ps][s];
         if (nid < 0) continue;
         if (ps)  Primarize_Id_Only(p);
-        Move_Or_Do(p, ps, mysd, 1, (SendBuf[npgt[g]++] = *p), 1);
+        Move_Or_Do(p, ps, mysd, 1,
+                   (state->send_buffer[npgt[g]++] = *p), 1);
     }
-    primaryParts = *secondaryBase = nacc[0];
+    primaryParts = state->primary_parts = *state->secondary_base = nacc[0];
 }
 
 static void sort_received_particles(struct oh_state* state, const int nextmode,

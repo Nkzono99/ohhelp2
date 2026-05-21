@@ -215,6 +215,9 @@ The current code now has this first migration layer:
 - Level-4s regular move-and-sort now uses `oh_state` for particle traversal,
   receive bases, send-buffer writes, Level-4 grid mirrors, transfer counts, and
   final primary/secondary-base synchronization.
+- Level-4s send-buffer staging now uses `oh_state` in the top-level staging
+  routine and its up/down helpers for particle arrays, receive bases, send
+  buffers, total-count mirrors, injection limits, and Level-4 grid mirrors.
 
 ## Particle Layout
 

@@ -115,6 +115,13 @@ rather than open-coded `S_particle` assignments. Storage is still
 `struct S_particle`-backed, so this is a staging step toward stride-based
 adapter storage rather than the final opaque-particle implementation.
 
+Level-2 buffer allocation and internal element addressing now use
+`oh_particle_adapter.stride`. The public buffer type still names
+`struct S_particle`, but internal pointer arithmetic no longer assumes
+`sizeof(struct S_particle)`. Adapter validation also requires the MPI datatype
+extent to match the stride, because `MPI_Alltoallv` displacements are expressed
+in datatype units.
+
 ## Weighted Balancing
 
 For a region `r`, define:

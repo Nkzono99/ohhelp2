@@ -34,9 +34,17 @@ default_get_species(const void *particle) {
 
 int
 oh_particle_adapter_validate(const oh_particle_adapter *adapter) {
+  MPI_Aint lb, extent;
+  int mpi_initialized;
+
   if (!adapter) return 0;
   if (adapter->stride == 0) return 0;
   if (adapter->mpi_type == MPI_DATATYPE_NULL) return 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized) {
+    MPI_Type_get_extent(adapter->mpi_type, &lb, &extent);
+    if (lb != 0 || extent != (MPI_Aint)adapter->stride) return 0;
+  }
   if (!adapter->get_region || !adapter->set_region) return 0;
   if (!adapter->get_species) return 0;
   return 1;

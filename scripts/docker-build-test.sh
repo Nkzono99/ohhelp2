@@ -9,6 +9,10 @@ mpicc -Iinclude -c src/c/oh_context.c -o build/docker/oh_context.o
 mpicc -Iinclude -c src/c/ohhelp1.c -o build/docker/ohhelp1.o
 mpicc -Iinclude -c src/c/ohhelp2.c -o build/docker/ohhelp2.o
 mpicc -Iinclude -c src/c/ohhelp3.c -o build/docker/ohhelp3.o
+mpicc -Iinclude -Ibag_src -DOH_LIB_LEVEL_4P -c bag_src/ohhelp4p.c \
+  -o build/docker/ohhelp4p.bag.o
+mpicc -Iinclude -Ibag_src -DOH_LIB_LEVEL_4S -c bag_src/ohhelp4s.c \
+  -o build/docker/ohhelp4s.bag.o
 
 gfortran -cpp -Iinclude -Jbuild/docker -c src/fortran/oh_type.F90 \
   -o build/docker/oh_type.o

@@ -34,10 +34,10 @@ static void exchange_population(const int currmode, const int nextmode);
 static void add_population(dint* npd, const int xl, const int xu,
                            const int yl, const int yu, const int zl,
                            const int zu, const int src);
-static int  mpi_allreduce_wrapper(void* sendbuf, void* recvbuf,
+static int  mpi_allreduce_wrapper(const void* sendbuf, void* recvbuf,
                                   const int count, MPI_Datatype datatype,
                                   MPI_Op op, const int root, MPI_Comm comm);
-static void reduce_population(int (*mpired)(void*, void*, int,
+static void reduce_population(int (*mpired)(const void*, void*, int,
                                             MPI_Datatype, MPI_Op, int,
                                             MPI_Comm));
 static struct S_commlist* make_recv_list(const int currmode,
@@ -595,13 +595,13 @@ static void add_population(dint* npd, const int xl, const int xu, const int yl,
         npd[The_Grid()] += nps[The_Grid()];
 }
 
-static int mpi_allreduce_wrapper(void* sendbuf, void* recvbuf, int count,
+static int mpi_allreduce_wrapper(const void* sendbuf, void* recvbuf, int count,
                                  MPI_Datatype datatype, MPI_Op op, int root,
                                  MPI_Comm comm) {
     return(MPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm));
 }
 
-static void reduce_population(int (*mpired)(void*, void*, int, MPI_Datatype, MPI_Op, int,
+static void reduce_population(int (*mpired)(const void*, void*, int, MPI_Datatype, MPI_Op, int,
                                             MPI_Comm)) {
     const int ft = nOfFields - 1;
     const int base = FieldDesc[ft].red.base;

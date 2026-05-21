@@ -145,6 +145,10 @@ The current code now has this first migration layer:
   updates grid geometry, subdomain descriptors, adjacency checks, rank, and node
   counts through the context mirror. The passive path also fixes the grid maximum
   size assignment to use the current dimension index.
+- Level-4 C implementations still live under `bag_src/` rather than the active
+  `src/c` tree. Docker verification now compiles both Level-4p and Level-4s
+  sources against the current public headers so future migration work cannot
+  silently break them before they are moved into the active library.
 
 ## Particle Layout
 

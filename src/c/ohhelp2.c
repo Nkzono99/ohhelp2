@@ -11,6 +11,7 @@
 #undef  EXTERN
 #define EXTERN
 #include "ohhelp2.h"
+#include "oh_context_internal.h"
 #include "oh_particle_buffer.h"
 
 /* Prototypes for private functions. */
@@ -23,6 +24,11 @@ static int   try_stable2_state(struct oh_state *state, int currmode,
 static void  rebalance2(int currmode, int level, int stats);
 static void  rebalance2_state(struct oh_state *state, int currmode, int level,
                               int stats);
+static void  init_particle_adapter(void);
+static void  allocate_particle_storage(struct S_particle **pbuf, int maxlocalp);
+static void  allocate_particle_base(int **pbase);
+static void  allocate_level2_work_buffers(int ns, int nn, int nnns,
+                                          int maxlocalp);
 static int   finish_transbound2_state(struct oh_state *state, int ret);
 static void  exchange_primary_particles_state(struct oh_state *state,
                                               int currmode, int stats);
@@ -138,13 +144,22 @@ init2(int **sdid, int nspec, int maxfrac, int **nphgram,
       int **totalp, struct S_particle **pbuf, int **pbase, int maxlocalp,
       struct S_mycommc *mycommc, struct S_mycommf *mycommf,
       int **nbor, int *pcoord, int stats, int repiter, int verbose) {
-  int ns, nn, nnns, s;
+  int ns, nn, nnns;
 
   init1(sdid, nspec, maxfrac, nphgram, totalp, NULL, NULL,
         mycommc, mycommf, nbor, pcoord, stats, repiter, verbose);
 
   ns = nOfSpecies;  nn = nOfNodes;  nnns = nn * ns;
 
+  init_particle_adapter();
+  nOfLocalPLimit = totalParts = maxlocalp;
+  allocate_particle_storage(pbuf, maxlocalp);
+  allocate_particle_base(pbase);
+  allocate_level2_work_buffers(ns, nn, nnns, maxlocalp);
+  oh1_sync_default_state();
+}
+static void
+init_particle_adapter(void) {
   if (useCustomParticleAdapter) {
     ParticleAdapter = CustomParticleAdapter;
     T_Particle = ParticleAdapter.mpi_type;
@@ -158,18 +173,23 @@ init2(int **sdid, int nspec, int maxfrac, int **nphgram,
   }
   if (!oh_particle_adapter_validate(&ParticleAdapter))
     local_errstop("particle MPI datatype extent must match particle stride");
-
-  nOfLocalPLimit = totalParts = maxlocalp;
+}
+static void
+allocate_particle_storage(struct S_particle **pbuf, int maxlocalp) {
   if (*pbuf)
     Particles = *pbuf;
   else
     Particles = *pbuf =
       (struct S_particle*)mem_alloc(particle_stride(), maxlocalp, "Particles");
-
+}
+static void
+allocate_particle_base(int **pbase) {
   if (!*pbase)  *pbase = (int*)mem_alloc(sizeof(int), 3, "ParticleBase");
   (*pbase)[0] = (*pbase)[1] = (*pbase)[2] = 0;
   secondaryBase = *pbase + 1;  totalLocalParticles = *pbase + 2;
-
+}
+static void
+allocate_level2_work_buffers(int ns, int nn, int nnns, int maxlocalp) {
 #ifndef OH_POS_AWARE
   SendBuf = (struct S_particle*)mem_alloc(particle_stride(), maxlocalp,
                                           "SendBuf");

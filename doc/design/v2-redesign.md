@@ -171,6 +171,10 @@ The current code now has this first migration layer:
 - Level-4s user border-data exchange now synchronizes `oh_state` at the public
   entry point and passes it through the vertical/horizontal exchange helpers for
   communicator, request/status buffers, species count, and active region reads.
+- Level-4p/4s receive-list exchange now synchronizes `oh_state` before schedule
+  construction and uses the context mirror for rank/node/species counts,
+  communicator, communication-list storage, node-tree pointers, and Level-4
+  first-neighbor routing.
 
 ## Particle Layout
 

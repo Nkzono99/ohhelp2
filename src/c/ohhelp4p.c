@@ -659,13 +659,17 @@ static void reduce_population(int (*mpired)(const void*, void*, int, MPI_Datatyp
 
 static struct S_commlist* make_recv_list(const int currmode, const int level, const int reb,
                                          const int oldp, const int newp, const int stats) {
-    const int me = myRank, ns = nOfSpecies, nn = nOfNodes, nnns = nn * ns;
+    struct oh_state* state = oh4p_state();
+    const int me = state->my_rank, ns = state->n_of_species;
+    const int nn = state->n_of_nodes, nnns = nn * ns;
     const int nn2 = nn << 1;
-    struct S_node* nodes = reb ? NodesNext : Nodes;
+    struct S_node* nodes = reb ? state->nodes_next : state->nodes;
     struct S_node* mynode = nodes + me;
     struct S_node* ch;
+    int* first_neighbor = state->level4_first_neighbor;
+    MPI_Comm comm = state->comm;
     struct S_recvsched_context
-        context = { 0, 0, 0, 0, 0, 0, 0, 0, CommList };
+        context = { 0, 0, 0, 0, 0, 0, 0, 0, state->comm_list };
     int rlsize, rlidx;
     const int ft = nOfFields - 1;
     const int npgbase = FieldDesc[ft].bc.base;
@@ -681,7 +685,7 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
                    &context);
     sched_recv(currmode, reb, mynode->get.prime, mynode->stay.prime, me, 0,
                &context);
-    rlidx = rlsize = context.cptr - CommList;  lastrl = context.cptr - 1;
+    rlidx = rlsize = context.cptr - state->comm_list;  lastrl = context.cptr - 1;
     if (rlsize == 0 || (lastrl->region < lastg && lastrl->count)) {
         struct S_commlist* rl = lastrl + 1;
         rl->rid = rlsize ? lastrl->rid : me;
@@ -690,9 +694,10 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
     } else
         lastrl->region = lastg;
     if (Mode_Acc(currmode)) {
-        SecRList = CommList + rlidx;  rlsize = 0;
+        SecRList = state->comm_list + rlidx;  rlsize = 0;
         oh1_broadcast(&rlidx, &rlsize, 1, 1, MPI_INT, MPI_INT);
-        oh1_broadcast(CommList, SecRList, rlidx, rlsize, T_Commlist, T_Commlist);
+        oh1_broadcast(state->comm_list, SecRList, rlidx, rlsize,
+                      T_Commlist, T_Commlist);
         return(SecRList + rlsize);
     }
     for (i = 0; i < OH_NEIGHBORS; i++) {
@@ -705,25 +710,27 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
         if (src >= 0) {
             RLIndex[i] = rlidx;
             if (dst >= 0)
-                MPI_Sendrecv(CommList, rlsize, T_Commlist, dst, 0,
-                             CommList + rlidx, nn2, T_Commlist, src, 0, MCW, &st);
+                MPI_Sendrecv(state->comm_list, rlsize, T_Commlist, dst, 0,
+                             state->comm_list + rlidx, nn2, T_Commlist, src, 0,
+                             comm, &st);
             else
-                MPI_Recv(CommList + rlidx, nn2, T_Commlist, src, 0, MCW, &st);
+                MPI_Recv(state->comm_list + rlidx, nn2, T_Commlist, src, 0,
+                         comm, &st);
             MPI_Get_count(&st, T_Commlist, &rc);  rlidx += rc;
         } else {
             if (dst >= 0)
-                MPI_Send(CommList, rlsize, T_Commlist, dst, 0, MCW);
-            RLIndex[i] = (src < -nn) ? rlidx : RLIndex[FirstNeighbor[i]];
+                MPI_Send(state->comm_list, rlsize, T_Commlist, dst, 0, comm);
+            RLIndex[i] = (src < -nn) ? rlidx : RLIndex[first_neighbor[i]];
         }
     }
     RLIndex[OH_NEIGHBORS] = rlidx;  SecRLIndex[OH_NEIGHBORS] = 0;
-    AltSecRList = SecRList = CommList + rlidx;
+    AltSecRList = SecRList = state->comm_list + rlidx;
     if (Mode_PS(currmode)) {
         oh1_broadcast(RLIndex, SecRLIndex, OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
                       MPI_INT, MPI_INT);
-        oh1_broadcast(CommList, SecRList, rlidx,
+        oh1_broadcast(state->comm_list, SecRList, rlidx,
                       SecRLIndex[OH_NEIGHBORS], T_Commlist, T_Commlist);
-        AltSecRList = CommList + (rlidx += SecRLIndex[OH_NEIGHBORS]);
+        AltSecRList = state->comm_list + (rlidx += SecRLIndex[OH_NEIGHBORS]);
     }
     if (reb) {
         int altrlsize = 0;
@@ -732,13 +739,13 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
         set_grid_descriptor(2, newp);
         update_real_neighbors(URN_TRN, Mode_PS(currmode), oldp, newp);
         oh1_broadcast(&rlsize, &altrlsize, 1, 1, MPI_INT, MPI_INT);
-        oh1_broadcast(CommList, AltSecRList, rlsize, altrlsize,
+        oh1_broadcast(state->comm_list, AltSecRList, rlsize, altrlsize,
                       T_Commlist, T_Commlist);
         rlidx += altrlsize;
     }
     oh1_broadcast(NOfPGridTotal[0][0] + npgbase, NOfPGridTotal[1][0] + npgbase,
                   npgsize[0], npgsize[1], MPI_LONG_LONG_INT, MPI_LONG_LONG_INT);
-    return(CommList + rlidx);
+    return(state->comm_list + rlidx);
 }
 
 #define Sched_Recv_Check(INLOOP, G) {\

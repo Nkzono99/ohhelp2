@@ -3,6 +3,7 @@
 */
 #include "ohhelp1.h"
 #include "ohhelp2.h"
+#include "ohhelp3.h"
 #include "oh_context_internal.h"
 #include "oh_context.h"
 
@@ -72,6 +73,21 @@ oh1_sync_default_state(void) {
   OhDefaultState.use_custom_particle_adapter = useCustomParticleAdapter;
   OhDefaultState.requests = Requests;
   OhDefaultState.statuses = Statuses;
+  OhDefaultState.exclude_level2 = excludeLevel2;
+  OhDefaultState.subdomains = SubDomains;
+  OhDefaultState.subdomains_float = SubDomainsFloat;
+  OhDefaultState.grid = Grid;
+  OhDefaultState.subdomain_desc = SubDomainDesc;
+  OhDefaultState.n_of_boundaries = nOfBoundaries;
+  OhDefaultState.boundaries = Boundaries;
+  OhDefaultState.adjacent = &Adjacent[0][0];
+  OhDefaultState.n_of_fields = nOfFields;
+  OhDefaultState.field_types = (int*)FieldTypes;
+  OhDefaultState.field_desc = FieldDesc;
+  OhDefaultState.n_of_exchanges = nOfExc;
+  OhDefaultState.boundary_comm_fields = BoundaryCommFields;
+  OhDefaultState.boundary_comm_types = (int*)BoundaryCommTypes;
+  OhDefaultState.border_exchange = (struct S_borderexc*)BorderExc;
 }
 
 struct oh_state*

@@ -56,6 +56,10 @@ struct S_comms;
 struct S_mycommc;
 struct S_mycommf;
 struct S_particle;
+struct S_grid;
+struct S_subdomdesc;
+struct S_flddesc;
+struct S_borderexc;
 typedef struct oh_particle_adapter oh_particle_adapter;
 
 struct oh_state {
@@ -121,6 +125,21 @@ struct oh_state {
   int use_custom_particle_adapter;
   MPI_Request *requests;
   MPI_Status *statuses;
+  int exclude_level2;
+  int (*subdomains)[OH_DIMENSION][2];
+  double (*subdomains_float)[OH_DIMENSION][2];
+  struct S_grid *grid;
+  struct S_subdomdesc *subdomain_desc;
+  int n_of_boundaries;
+  int (*boundaries)[OH_DIMENSION][2];
+  int *adjacent;
+  int n_of_fields;
+  int *field_types;
+  struct S_flddesc *field_desc;
+  int n_of_exchanges;
+  int *boundary_comm_fields;
+  int *boundary_comm_types;
+  struct S_borderexc *border_exchange;
 };
 extern struct oh_state OhDefaultState;
 

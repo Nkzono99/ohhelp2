@@ -107,6 +107,11 @@ The current code now has this first migration layer:
 - `oh_context_set_particle_adapter()` exposes the Level-2 particle adapter hook
   through the context facade. It still targets the default context only, matching
   the current migration stage.
+- Level-3 geometry, field, boundary, and border-exchange globals are now
+  mirrored into `oh_state`. Fields that depend on Level-3-only array constants
+  are stored as opaque `int *`/struct pointers for now so `ohhelp1.h` does not
+  need to include `ohhelp3.h`; later Level-3 helpers can cast them at the point
+  of use while state ownership is moved behind the context.
 
 ## Particle Layout
 

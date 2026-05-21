@@ -92,12 +92,12 @@ static void move_to_sendbuf_uw4s(struct oh_state* state, const int ps,
 static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
                                  const int mysd, const int ctail,
                                  const int ntail);
-static void sort_particles(const int nextmode, const int psnew,
-                           const int stats);
+static void sort_particles(struct oh_state* state, const int nextmode,
+                           const int psnew, const int stats);
 static void move_and_sort(const int nextmode, const int psold, const int psnew,
                           const int oldp, const int* nacc, const int stats);
-static void sort_received_particles(const int nextmode, const int psnew,
-                                    const int stats);
+static void sort_received_particles(struct oh_state* state, const int nextmode,
+                                    const int psnew, const int stats);
 static void state_set_sendbuf_disps4s(struct oh_state* state,
                                       const int nextmode, const int trans);
 static void xfer_particles(const int trans, const int psnew,
@@ -645,12 +645,12 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
                            stats);
         xfer_particles(trans, psnew, nextmode, SendBuf);
         make_bxfer_sched(oh4s_state(), trans, psnew, rlist, rlidx);
-        sort_particles(nextmode, psnew, stats);
+        sort_particles(oh4s_state(), nextmode, psnew, stats);
     } else {
         make_bxfer_sched(oh4s_state(), 0, psnew, rlist, rlidx);
         move_and_sort(nextmode, psold, psnew, oldp, nacc, stats);
         xfer_particles(trans, psnew, nextmode, SendBuf + nacc[1]);
-        sort_received_particles(nextmode, psnew, stats);
+        sort_received_particles(oh4s_state(), nextmode, psnew, stats);
     }
     xfer_boundary_particles_v(psnew, trans, 0);
     xfer_boundary_particles_v(psnew, trans, 1);
@@ -1636,7 +1636,7 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
 #define Sort_Particle(P) {\
   const int g = Grid_Position(P->nid);\
   const dint dst = npg[g];\
-  SendBuf[npgt[g]++] = *P;\
+  sb[npgt[g]++] = *P;\
   if (dst<0) {\
     const dint bsbidx = -dst;\
     if (!Is_Pillar_Voxel(bsbidx)) {\
@@ -1650,18 +1650,21 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
   }\
 }
 
-static void sort_particles(const int nextmode, const int psnew, const int stats) {
-    const int ns = nOfSpecies;
-    struct S_particle* p;
+static void sort_particles(struct oh_state* state, const int nextmode,
+                           const int psnew, const int stats) {
+    const int ns = state->n_of_species;
+    struct S_particle* p, * sb = state->send_buffer;
     int ps, s, t, i;
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);
     for (ps = 0, t = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, t++) {
-            dint* npg = NOfPGrid[ps][s], * npgt = NOfPGridTotal[ps][s];
+            dint* npg = state->level4_particle_grid[ps][s];
+            dint* npgt = state->level4_particle_grid_total[ps][s];
             const int ips = InteriorParts[t].size;
-            for (i = 0, p = Particles + InteriorParts[t].head; i < ips; i++, p++)
+            for (i = 0, p = state->particles + InteriorParts[t].head; i < ips;
+                 i++, p++)
                 Sort_Particle(p);
         }
     }
@@ -1717,16 +1720,19 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
     primaryParts = *secondaryBase = nacc[0];
 }
 
-static void sort_received_particles(const int nextmode, const int psnew, const int stats) {
-    const int ns = nOfSpecies;
+static void sort_received_particles(struct oh_state* state, const int nextmode,
+                                    const int psnew, const int stats) {
+    const int ns = state->n_of_species;
     int ps, s;
-    struct S_particle* p = Particles, ** rbb = RecvBufBases + 1;
+    struct S_particle* p = state->particles, * sb = state->send_buffer;
+    struct S_particle** rbb = state->recv_buffer_bases + 1;
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);
     for (ps = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, rbb++) {
-            dint* npg = NOfPGrid[ps][s], * npgt = NOfPGridTotal[ps][s];
+            dint* npg = state->level4_particle_grid[ps][s];
+            dint* npgt = state->level4_particle_grid_total[ps][s];
             const struct S_particle* rbtail = *rbb;
             for (; p < rbtail; p++)  Sort_Particle(p);
         }

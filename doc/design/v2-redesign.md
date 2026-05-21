@@ -203,6 +203,9 @@ The current code now has this first migration layer:
   total-count, species-count, and per-grid population mirrors. Legacy scalar
   counters are synchronized in both places until the callers stop reading the
   global names directly.
+- Level-4p/4s particle sorting now receives `oh_state` and writes sorted
+  particles through the context's particle, receive-buffer, send-buffer, and
+  Level-4 grid mirrors.
 
 ## Particle Layout
 

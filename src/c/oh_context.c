@@ -42,6 +42,10 @@ oh1_sync_default_state(void) {
   OhDefaultState.dst_neighbors = DstNeighbors;
   OhDefaultState.src_neighbors = SrcNeighbors;
   OhDefaultState.comm_list = CommList;
+  OhDefaultState.rl_index = RLIndex;
+  OhDefaultState.sl_head_tail = SLHeadTail;
+  OhDefaultState.sec_sl_head_tail = SecSLHeadTail;
+  OhDefaultState.sec_rl_size = &SecRLSize;
   OhDefaultState.world_group = GroupWorld;
   OhDefaultState.communicators = &Comms;
   OhDefaultState.my_comm = MyComm;

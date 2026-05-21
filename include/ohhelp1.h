@@ -90,6 +90,10 @@ struct oh_state {
   int *dst_neighbors;
   int *src_neighbors;
   struct S_commlist *comm_list;
+  int *rl_index;
+  int *sl_head_tail;
+  int *sec_sl_head_tail;
+  int *sec_rl_size;
   MPI_Group world_group;
   struct S_comms *communicators;
   struct S_mycommc *my_comm;

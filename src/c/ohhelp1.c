@@ -685,13 +685,16 @@ schedule_particle_exchange_state(struct oh_state *state, int reb) {
   int *temp=state->temp_array;
   int *dst_neighbors=state->dst_neighbors;
   int *src_neighbors=state->src_neighbors;
+  int *rl_index=state->rl_index;
+  int *sl_head_tail=state->sl_head_tail;
+  int *sec_sl_head_tail=state->sec_sl_head_tail;
   struct S_commlist *comm_list=state->comm_list;
   struct S_node *nodes=state->nodes, *nodesnext=state->nodes_next;
   struct S_node *mynode, *ch;
   int i, slidx;
   struct S_commsched_context context;
 
-  RLIndex[0] = 0;
+  rl_index[0] = 0;
   context.neighbor = 0;
   context.sender = (reb<0 ||reb==3) ? 0 : dst_neighbors[0];
   context.comidx = 0;
@@ -720,10 +723,10 @@ schedule_particle_exchange_state(struct oh_state *state, int reb) {
       sched_comm_state(state, ch->get.sec, ch->id, ns, reb, &context);
     if (reb<0)  reb = 3;
   }
-  SLHeadTail[0] = slidx = context.comidx;
+  sl_head_tail[0] = slidx = context.comidx;
   if (reb==3) return;
 
-  for (i=context.neighbor+1; i<=OH_NEIGHBORS; i++)  RLIndex[i] = slidx;
+  for (i=context.neighbor+1; i<=OH_NEIGHBORS; i++)  rl_index[i] = slidx;
   for (i=0; i<OH_NEIGHBORS; i++) {
     int dst=dst_neighbors[i];
     int src=src_neighbors[i];
@@ -732,7 +735,8 @@ schedule_particle_exchange_state(struct oh_state *state, int reb) {
     if (dst==me) continue;
     if (src>=0) {
       if (dst>=0)
-        MPI_Sendrecv(comm_list+RLIndex[i], RLIndex[i+1]-RLIndex[i], T_Commlist,
+        MPI_Sendrecv(comm_list+rl_index[i], rl_index[i+1]-rl_index[i],
+                     T_Commlist,
                      dst, 0,
                      comm_list+slidx, nn+nnns, T_Commlist, src, 0,
                      state->comm, &st);
@@ -742,17 +746,17 @@ schedule_particle_exchange_state(struct oh_state *state, int reb) {
       MPI_Get_count(&st, T_Commlist, &rc);
       slidx += rc;
     } else if (dst>=0)
-      MPI_Send(comm_list+RLIndex[i], RLIndex[i+1]-RLIndex[i], T_Commlist,
+      MPI_Send(comm_list+rl_index[i], rl_index[i+1]-rl_index[i], T_Commlist,
                dst, 0, state->comm);
   }
-  SLHeadTail[1] = slidx;
+  sl_head_tail[1] = slidx;
   if (reb==2) return;
 
-  SecSLHeadTail[0] = SecSLHeadTail[1] = 0;
-  oh1_broadcast_state(state, SLHeadTail, SecSLHeadTail, 2, 2,
+  sec_sl_head_tail[0] = sec_sl_head_tail[1] = 0;
+  oh1_broadcast_state(state, sl_head_tail, sec_sl_head_tail, 2, 2,
                       MPI_INT, MPI_INT);
   oh1_broadcast_state(state, comm_list, comm_list+slidx, slidx,
-                      SecSLHeadTail[1], T_Commlist, T_Commlist);
+                      sec_sl_head_tail[1], T_Commlist, T_Commlist);
 }
 static int
 count_real_stay_state(struct oh_state *state, int *np) {
@@ -773,6 +777,7 @@ sched_comm_state(struct oh_state *state, int toget, int rid, int tag, int reb,
   int *nofprimaries=state->n_of_primaries;
   int *dst_neighbors=state->dst_neighbors;
   int *temp=state->temp_array;
+  int *rl_index=state->rl_index;
   struct S_commlist *comm_list=state->comm_list;
   struct S_node *nodesbase=state->nodes;
   struct S_node *nodesnext = reb>0 ? state->nodes_next : state->nodes;
@@ -830,9 +835,9 @@ sched_comm_state(struct oh_state *state, int toget, int rid, int tag, int reb,
               snode = snode->sibling;  sid = snode - nodesbase;
             }
             else {
-              RLIndex[++neighbor] = comidx;
+              rl_index[++neighbor] = comidx;
               while(neighbor<OH_NEIGHBORS && (sid=dst_neighbors[neighbor])<0)
-                RLIndex[++neighbor] = comidx;
+                rl_index[++neighbor] = comidx;
               if (neighbor==OH_NEIGHBORS) {
                 nodes = state->nodes_next;
                 snode = nodes[me].child;
@@ -868,35 +873,39 @@ make_comm_count_state(struct oh_state *state, int currmode, int level, int reb,
   int *nofrecv=state->n_of_recv, *nofsend=state->n_of_send;
   int *nofplocal=state->n_of_particles_local;
   int *totalp_next=state->total_particles_next;
+  int *sl_head_tail=state->sl_head_tail;
+  int *sec_sl_head_tail=state->sec_sl_head_tail;
+  int *sec_rl_size=state->sec_rl_size;
   struct S_commlist *comm_list=state->comm_list;
   struct S_node *mynode=state->nodes+me;
   int newparent=mynode->parentid;
   int ps, s, i;
 
   if (reb || currmode==MODE_ANY_SEC) {
-    SecRLSize = 0;
-    oh1_broadcast_state(state, SLHeadTail, &SecRLSize, 1, 1,
+    *sec_rl_size = 0;
+    oh1_broadcast_state(state, sl_head_tail, sec_rl_size, 1, 1,
                         MPI_INT, MPI_INT);
     if (currmode==MODE_NORM_PRI)
-      SecRList = comm_list + SLHeadTail[1];
+      SecRList = comm_list + sl_head_tail[1];
     else if (currmode==MODE_NORM_SEC)
-      SecRList = comm_list + SLHeadTail[1] + SecSLHeadTail[1];
+      SecRList = comm_list + sl_head_tail[1] + sec_sl_head_tail[1];
     else
-      SecRList = comm_list + SLHeadTail[0];
-    oh1_broadcast_state(state, comm_list, SecRList, SLHeadTail[0], SecRLSize,
-                        T_Commlist, T_Commlist);
+      SecRList = comm_list + sl_head_tail[0];
+    oh1_broadcast_state(state, comm_list, SecRList, sl_head_tail[0],
+                        *sec_rl_size, T_Commlist, T_Commlist);
   } else {
-    SecRList = comm_list + SLHeadTail[1];
-    SecRLSize = SecSLHeadTail[0];
+    SecRList = comm_list + sl_head_tail[1];
+    *sec_rl_size = sec_sl_head_tail[0];
   }
   for (s=0; s<ns*2; s++) totalp_next[s] = 0;            /* TotalPNext[p][s] */
   if (level==1 || Mode_Is_Any(currmode) || stats) {
     for (i=0; i<nnns2; i++)  nofrecv[i] = nofsend[i] = 0;
-    make_recv_count_state(state, comm_list, SLHeadTail[0]);
+    make_recv_count_state(state, comm_list, sl_head_tail[0]);
     if (newparent>=0)
-      make_recv_count_state(state, SecRList, SecRLSize);
+      make_recv_count_state(state, SecRList, *sec_rl_size);
     if (oldparent!=newparent && oldparent>=0)
-      make_recv_count_state(state, comm_list+SLHeadTail[1], SecSLHeadTail[0]);
+      make_recv_count_state(state, comm_list+sl_head_tail[1],
+                            sec_sl_head_tail[0]);
     if (Mode_Is_Any(currmode)) {
       MPI_Alltoall(nofrecv, 1, T_Histogram, nofsend, 1, T_Histogram,
                    state->comm);
@@ -905,16 +914,17 @@ make_comm_count_state(struct oh_state *state, int currmode, int level, int reb,
         nofsend[i] = nofrecv[i];
 #endif
     } else {
-      make_send_count_state(state, comm_list+SLHeadTail[0],
-                            SLHeadTail[1]-SLHeadTail[0]);
+      make_send_count_state(state, comm_list+sl_head_tail[0],
+                            sl_head_tail[1]-sl_head_tail[0]);
       if (oldparent>=0)
-        make_send_count_state(state, comm_list+SLHeadTail[1]+SecSLHeadTail[0],
-                              SecSLHeadTail[1]-SecSLHeadTail[0]);
+        make_send_count_state(state,
+                              comm_list+sl_head_tail[1]+sec_sl_head_tail[0],
+                              sec_sl_head_tail[1]-sec_sl_head_tail[0]);
     }
   } else {
-    count_next_particles_state(state, comm_list, SLHeadTail[0]);
+    count_next_particles_state(state, comm_list, sl_head_tail[0]);
     if (newparent>=0)
-      count_next_particles_state(state, SecRList, SecRLSize);
+      count_next_particles_state(state, SecRList, *sec_rl_size);
   }
   if (stats) stats_secondary_comm(currmode, reb);
   if (level==1) {

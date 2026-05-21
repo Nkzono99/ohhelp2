@@ -50,6 +50,10 @@ The current code now has this first migration layer:
   the head/tail counters remain as a smaller follow-up migration.
 - Rebalance tree construction now takes node arrays and the node queue from
   `oh_state`; communicator rebuilding is the next large Level-1 global user.
+- Communicator rebuilding now has a state-backed internal path for rank,
+  communicator, node arrays, node queue, scratch buffer, and region id updates.
+  The communicator container and user-facing `MyComm` mirrors still need to move
+  into context-owned storage.
 
 ## Particle Layout
 

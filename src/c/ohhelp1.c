@@ -62,6 +62,8 @@ static int   try_stable1_state(struct oh_state *state, int currmode,
                                int level, int stats);
 static void  rebalance1_state(struct oh_state *state, int currmode,
                               int level, int stats);
+static void  build_new_comm_state(struct oh_state *state, int currmode,
+                                  int level, int nbridx, int stats);
 
 void
 oh1_fam_comm_(MPI_Comm *fortran_comm) {
@@ -1073,7 +1075,7 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     if (Special_Pexc_Sched(level)) return;
     schedule_particle_exchange_state(state, currmode==MODE_NORM_SEC ?
                                      1 : (currmode==MODE_NORM_PRI ? 2 : 3));
-    build_new_comm(currmode, level, 1, stats);
+    build_new_comm_state(state, currmode, level, 1, stats);
     return;
   }
 
@@ -1138,18 +1140,33 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   if (Special_Pexc_Sched(level)) return;
   schedule_particle_exchange_state(state, currmode==MODE_NORM_SEC ?
                                    1 : (currmode==MODE_NORM_PRI ? 2 : 3));
-  build_new_comm(currmode, level, 1, stats);
+  build_new_comm_state(state, currmode, level, 1, stats);
 }
 void
 build_new_comm(int currmode, int level, int nbridx, int stats) {
-  int bot=nOfNodes-1, me=myRank;
+  build_new_comm_state(oh1_state(), currmode, level, nbridx, stats);
+}
+static void
+build_new_comm_state(struct oh_state *state, int currmode, int level,
+                     int nbridx, int stats) {
+  int nn=state->n_of_nodes, bot=nn-1, me=state->my_rank;
+  int *temp=state->temp_array;
+  int *region_id=state->region_id, *subdomain_id=state->subdomain_id;
+  struct S_node *nodes=state->nodes, *nodes_next=state->nodes_next;
+  struct S_node **node_queue=state->node_queue;
   struct S_node *node, *ch;
-  struct S_node *mynode=NodesNext+me, *root=NodeQueue[bot];
-  int oldparent=Mode_PS(currmode) ? Nodes[me].parentid : -1;
+  struct S_node *mynode=nodes_next+me, *root=node_queue[bot];
+  int oldparent=Mode_PS(currmode) ? nodes[me].parentid : -1;
   int i, j;
   MPI_Group grpw=GroupWorld, grp;
 
-  node = Nodes;  Nodes = NodesNext;  NodesNext = node;
+  node = nodes;
+  Nodes = nodes_next;
+  NodesNext = node;
+  state->nodes = Nodes;
+  state->nodes_next = NodesNext;
+  nodes = state->nodes;
+  nodes_next = state->nodes_next;
 
   if (stats) oh1_stats_time(STATS_REB_COMM, 0);
   for (i=0; i<Comms.n; i++) {
@@ -1159,21 +1176,21 @@ build_new_comm(int currmode, int level, int nbridx, int stats) {
   root->comm.black = 0;  root->comm.sec = -1;
   for (i=0; bot>=0; bot--) {
     int black, rid;
-    node = NodeQueue[bot];
+    node = node_queue[bot];
     if (!(ch=node->child))  continue;   /* a leaf may reside below some non-
                                            leaves in NodeQueue when its number
                                            of primaries is equal to the
                                            average */
     node->comm.prime = i;
-    rid = TempArray[0] = node->id;
+    rid = temp[0] = node->id;
     black = 1 - node->comm.black;
     for (j=1; ch; ch=ch->sibling, j++) {
-      TempArray[j] = ch->id;
+      temp[j] = ch->id;
       ch->comm.prime = -1;  ch->comm.sec = i;  ch->comm.black = black;
     }
-    MPI_Group_incl(grpw, j, TempArray, &grp);
+    MPI_Group_incl(grpw, j, temp, &grp);
     MPI_Group_translate_ranks(grpw, 1, &rid, grp, &(node->comm.rank));
-    MPI_Comm_create(MCW, grp, Comms.body+i);
+    MPI_Comm_create(state->comm, grp, Comms.body+i);
     MPI_Group_free(&grp);
     i++;
   }
@@ -1181,11 +1198,10 @@ build_new_comm(int currmode, int level, int nbridx, int stats) {
 
   if (FamIndex) {
     int *fidx = FamIndex,  *fmem = FamMembers;
-    int nn = nOfNodes, j;
     for (i=0,j=0; i<nn; i++) {
       fidx[i] = j;
       fmem[j++] = i;
-      for (ch=Nodes[i].child; ch; ch=ch->sibling, j++)  fmem[j] = ch->id;
+      for (ch=nodes[i].child; ch; ch=ch->sibling, j++)  fmem[j] = ch->id;
     }
     fidx[nn] = j;  fmem[j] = root->id;
   }
@@ -1212,12 +1228,12 @@ build_new_comm(int currmode, int level, int nbridx, int stats) {
     for (i=0; i<OH_NEIGHBORS; i++)  nb[2][i] = nb[1][i];
     oh1_broadcast(nb[0], nb[1], OH_NEIGHBORS, OH_NEIGHBORS, MPI_INT, MPI_INT);
   }
-  SubdomainId[1] = RegionId[1] = mynode->parentid;
+  subdomain_id[1] = region_id[1] = mynode->parentid;
   oh1_sync_default_state();
 
   if (!Special_Pexc_Sched(level))
-    make_comm_count(currmode, level, 1,
-                    (Mode_Is_Norm(currmode) ? oldparent : -1), stats);
+    make_comm_count_state(state, currmode, level, 1,
+                          (Mode_Is_Norm(currmode) ? oldparent : -1), stats);
 }
 static int
 heap_key_greater(const struct S_heap_key *key, int left, int right) {

@@ -443,37 +443,50 @@ int oh4p_transbound(int currmode, int stats) {
 
 static int transbound4p(int currmode, int stats, const int level) {
     int ret = MODE_NORM_SEC;
-    const int nn = nOfNodes, ns = nOfSpecies, nnns2 = 2 * nn * ns;
+    struct oh_state* state;
+    int nn, ns, ns2, nnns2;
     struct S_particle* tmp;
     int i, ps, s, tp;
     Decl_For_All_Grid();
 
     stats = stats && statsMode;
     currmode = transbound1(currmode, stats, level);
+    state = oh4p_state();
+    nn = state->n_of_nodes;  ns = state->n_of_species;
+    ns2 = ns << 1;  nnns2 = nn * ns2;
 
     if (try_primary4p(currmode, level, stats))  ret = MODE_NORM_PRI;
     else if (!Mode_PS(currmode) || !try_stable4p(currmode, level, stats)) {
         rebalance4p(currmode, level, stats);  ret = MODE_REB_SEC;
     }
-    if (!PbufIndex)
-        PbufIndex = (int*)mem_alloc(sizeof(int), (ns << 1) + 1, "PbufIndex");
-    for (i = 0; i < nnns2; i++) NOfPLocal[i] = 0;
-    for (s = 0, tp = 0; s < ns * 2; s++) {
-        TotalP[s] = TotalPNext[s];  PbufIndex[s] = tp;  tp += TotalPNext[s];
+    state = oh4p_state();
+    if (!PbufIndex) {
+        PbufIndex = (int*)mem_alloc(sizeof(int), ns2 + 1, "PbufIndex");
+        state->level4_pbuf_index = PbufIndex;
     }
-    PbufIndex[s] = totalParts = *totalLocalParticles = tp;  nOfInjections = 0;
-    for (s = 0; s < ns * 2; s++)  InjectedParticles[s] = 0;
+    for (i = 0; i < nnns2; i++) state->n_of_particles_local[i] = 0;
+    for (s = 0, tp = 0; s < ns2; s++) {
+        state->total_particles[s] = state->total_particles_next[s];
+        state->level4_pbuf_index[s] = tp;
+        tp += state->total_particles_next[s];
+    }
+    state->level4_pbuf_index[s] = tp;
+    totalParts = state->total_parts = *state->total_local_particles = tp;
+    nOfInjections = state->n_of_injections = 0;
+    for (s = 0; s < ns2; s++)  state->injected_particles[s] = 0;
 
     for (ps = 0; ps <= Mode_PS(ret); ps++) {
         const int extio = (ps == 1 && ret < 0) ? OH_PGRID_EXT << 1 : OH_PGRID_EXT;
         for (s = 0; s < ns; s++) {
-            dint* npg = NOfPGrid[ps][s];
+            dint* npg = state->level4_particle_grid[ps][s];
             For_All_Grid(ps, -extio, -extio, -extio, extio, extio, extio)
                 npg[The_Grid()] = 0;
         }
     }
-    tmp = Particles;  Particles = SendBuf;  SendBuf = tmp;
-    currMode = ret < 0 ? -ret : ret;
+    tmp = state->particles;
+    Particles = state->particles = state->send_buffer;
+    SendBuf = state->send_buffer = tmp;
+    currMode = state->curr_mode = ret < 0 ? -ret : ret;
     return(ret);
 }
 

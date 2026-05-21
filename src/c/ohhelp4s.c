@@ -487,41 +487,56 @@ int oh4s_transbound(int currmode, int stats) {
 
 static int transbound4s(int currmode, int stats, const int level) {
     int ret = MODE_NORM_SEC;
-    const int nn = nOfNodes, ns = nOfSpecies, ns2 = ns << 1, nnns2 = nn * ns2;
+    struct oh_state* state;
+    int nn, ns, ns2, nnns2;
     struct S_particle* tmp;
     int i, ps, s, tp;
+    int (*z_bound)[2];
     Decl_For_All_Grid();
 
     stats = stats && statsMode;
     currmode = transbound1(currmode, stats, level);
+    state = oh4s_state();
+    nn = state->n_of_nodes;  ns = state->n_of_species;
+    ns2 = ns << 1;  nnns2 = nn * ns2;
+    z_bound = (int (*)[2])state->level4_z_bound;
 
-    ZBound[0][OH_LOWER] = ZBound[0][OH_UPPER] = 0;
-    ZBound[1][OH_UPPER] = ZBound[1][OH_UPPER] = 0;
+    z_bound[0][OH_LOWER] = z_bound[0][OH_UPPER] = 0;
+    z_bound[1][OH_LOWER] = z_bound[1][OH_UPPER] = 0;
     if (try_primary4s(currmode, level, stats))  ret = MODE_NORM_PRI;
     else if (!Mode_PS(currmode) || !try_stable4s(currmode, level, stats)) {
         rebalance4s(currmode, level, stats);  ret = MODE_REB_SEC;
     }
-    if (!PbufIndex)
+    state = oh4s_state();
+    if (!PbufIndex) {
         PbufIndex = (int*)mem_alloc(sizeof(int), ns2 + 1, "PbufIndex");
-    for (i = 0; i < nnns2; i++) NOfPLocal[i] = 0;
-    for (s = 0, tp = 0; s < ns2; s++) {
-        TotalP[s] = TotalPNext[s];  PbufIndex[s] = tp;  tp += TotalPNext[s];
+        state->level4_pbuf_index = PbufIndex;
     }
-    PbufIndex[s] = totalParts = *totalLocalParticles = tp;  nOfInjections = 0;
-    for (s = 0; s < ns2; s++)  InjectedParticles[s] = 0;
+    for (i = 0; i < nnns2; i++) state->n_of_particles_local[i] = 0;
+    for (s = 0, tp = 0; s < ns2; s++) {
+        state->total_particles[s] = state->total_particles_next[s];
+        state->level4_pbuf_index[s] = tp;
+        tp += state->total_particles_next[s];
+    }
+    state->level4_pbuf_index[s] = tp;
+    totalParts = state->total_parts = *state->total_local_particles = tp;
+    nOfInjections = state->n_of_injections = 0;
+    for (s = 0; s < ns2; s++)  state->injected_particles[s] = 0;
 
     for (ps = 0; ps <= Mode_PS(ret); ps++) {
         const int extio = (ps == 1 && ret < 0) ? OH_PGRID_EXT * 3 : OH_PGRID_EXT;
         for (s = 0; s < ns; s++) {
-            dint* npg = NOfPGrid[ps][s];
+            dint* npg = state->level4_particle_grid[ps][s];
             For_All_Grid(ps, -extio, -extio, -extio, extio, extio, extio)
                 npg[The_Grid()] = 0;
         }
     }
-    ZBoundShadow[0][0] = ZBound[0][0];    ZBoundShadow[0][1] = ZBound[0][1];
-    ZBoundShadow[1][0] = ZBound[1][0];    ZBoundShadow[1][1] = ZBound[1][1];
-    tmp = Particles;  Particles = SendBuf;  SendBuf = tmp;
-    currMode = ret < 0 ? -ret : ret;
+    ZBoundShadow[0][0] = z_bound[0][0];    ZBoundShadow[0][1] = z_bound[0][1];
+    ZBoundShadow[1][0] = z_bound[1][0];    ZBoundShadow[1][1] = z_bound[1][1];
+    tmp = state->particles;
+    Particles = state->particles = state->send_buffer;
+    SendBuf = state->send_buffer = tmp;
+    currMode = state->curr_mode = ret < 0 ? -ret : ret;
     return(ret);
 }
 

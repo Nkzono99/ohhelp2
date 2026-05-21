@@ -157,8 +157,9 @@ The current code now has this first migration layer:
 - Level-4s boundary particle exchange now uses `oh_state` for species count,
   particle/send buffers, particle MPI datatype, communicator, requests, and
   statuses. Boundary send-buffer staging is mirrored through `oh_state`, and
-  the boundary transfer helpers now receive the active state explicitly. The
-  boundary-plane descriptors remain Level-4s-owned globals.
+  the boundary transfer helpers now receive the active state explicitly.
+  Movement/sort macros write boundary-send particles through the context mirror.
+  The boundary-plane descriptors remain Level-4s-owned globals.
 - Level-4s horizontal and vertical boundary-plane descriptor arrays are now
   mirrored into `oh_state`. The existing allocation still owns `HPlane` and
   `VPlane`, but state-aware schedule, boundary-particle transfer, and user

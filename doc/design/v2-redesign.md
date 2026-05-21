@@ -72,6 +72,10 @@ The current code now has this first migration layer:
 - Primary-mode Level-2 particle exchange now has a state-backed internal path
   for communicator, rank, particle histograms, neighbor arrays, particle MPI
   datatype, send/receive buffers, displacement arrays, and scratch counts.
+- Secondary-mode Level-2 particle exchange now reads its communicator,
+  request/status buffers, communication lists, count arrays, displacement
+  arrays, node descriptors, particle MPI datatype, and particle buffers through
+  `oh_state` after local movement has prepared the buffers.
 
 ## Particle Layout
 

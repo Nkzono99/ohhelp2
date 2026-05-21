@@ -28,9 +28,12 @@ static void  move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail,
 static void  move_injected_to_sendbuf();
 static void  move_injected_from_sendbuf(int *injected, int mysd,
                                         struct S_particle **rbb);
-static void  receive_particles(struct S_commlist *rlist, int rlsize, int *req);
-static void  send_particles(struct S_commlist *slist, int slsize, int myregion,
-                            int parentregion, int *req);
+static void  receive_particles(struct oh_state *state,
+                               struct S_commlist *rlist, int rlsize,
+                               int *req);
+static void  send_particles(struct oh_state *state,
+                            struct S_commlist *slist, int slsize,
+                            int myregion, int parentregion, int *req);
 static int   particle_region(const struct S_particle *part,
                              int primary_or_secondary);
 static void  set_particle_region(struct S_particle *part, int region,
@@ -392,45 +395,55 @@ set_sendbuf_disps(int secondary, int parent) {
 void
 exchange_particles(struct S_commlist *secrlist, int secrlsize, int oldparent,
                    int neighboring, int currmode, int stats) {
-  int me=myRank, nn=nOfNodes, ns=nOfSpecies, nnns=nn*ns;
-  int newparent=Nodes[me].parentid;
+  struct oh_state *state;
+  int me, nn, ns, nnns;
+  int newparent;
   int s, i, req;
 
   move_to_sendbuf_secondary(Mode_PS(currmode), stats);
+  state = oh1_state();
+  me=state->my_rank;  nn=state->n_of_nodes;  ns=state->n_of_species;
+  nnns=nn*ns;
+  newparent=state->nodes[me].parentid;
   if (stats) oh1_stats_time(STATS_TB_COMM, 1);
   if (neighboring) {
     req = 0;
-    receive_particles(CommList, SLHeadTail[0], &req);
+    receive_particles(state, state->comm_list, state->sl_head_tail[0], &req);
     if (newparent>=0)
-      receive_particles(secrlist, secrlsize, &req);
+      receive_particles(state, secrlist, secrlsize, &req);
     if (oldparent!=newparent && oldparent>=0)
-      receive_particles(CommList+SLHeadTail[1], SecSLHeadTail[0], &req);
-    send_particles(CommList+SLHeadTail[0], SLHeadTail[1]-SLHeadTail[0],
-                   newparent, oldparent, &req);
+      receive_particles(state, state->comm_list+state->sl_head_tail[1],
+                        state->sec_sl_head_tail[0], &req);
+    send_particles(state, state->comm_list+state->sl_head_tail[0],
+                   state->sl_head_tail[1]-state->sl_head_tail[0], newparent,
+                   oldparent, &req);
     if (oldparent>=0)
-      send_particles(CommList+SLHeadTail[1]+SecSLHeadTail[0],
-                     SecSLHeadTail[1]-SecSLHeadTail[0], me, newparent, &req);
-    MPI_Waitall(req, Requests, Statuses);
+      send_particles(state,
+                     state->comm_list+state->sl_head_tail[1]+
+                     state->sec_sl_head_tail[0],
+                     state->sec_sl_head_tail[1]-state->sec_sl_head_tail[0],
+                     me, newparent, &req);
+    MPI_Waitall(req, state->requests, state->statuses);
   }
   else {
     int ps;
-    int *rcount=NOfRecv;
-    int *scount=NOfSend;
-    struct S_particle **rbb=RecvBufBases;
+    int *rcount=state->n_of_recv;
+    int *scount=state->n_of_send;
+    struct S_particle **rbb=state->recv_buffer_bases;
     for (ps=0; ps<2; ps++,rbb+=ns) {            /* rbb=&RecvBufBases[p][0] */
-      int *sbd0=SendBufDisps, *sbd;
+      int *sbd0=state->send_buffer_disps, *sbd;
       for (s=0; s<ns; s++,rcount+=nn,scount+=nn,sbd0+=nn) {
                                         /* rcount=&NOfRecv[ps][s][0] */
                                         /* sbd0=&SendBufDisps[s][0] */
         int rdisp=0;
         for (i=0; i<nn; i++) {
-          RecvBufDisps[i] = rdisp;  rdisp += rcount[i];
+          state->recv_buffer_disps[i] = rdisp;  rdisp += rcount[i];
         }
         if (ps==0) sbd = sbd0;                  /* &SendBufDisps[s][0] */
         else {
-          sbd = TempArray;
+          sbd = state->temp_array;
           for (i=0; i<nn; i++) {
-            int r=Nodes[i].parentid;
+            int r=state->nodes[i].parentid;
             if (r>=0) {
               sbd[i] = sbd0[r];
               sbd0[r] += scount[i];
@@ -439,8 +452,10 @@ exchange_particles(struct S_commlist *secrlist, int secrlsize, int oldparent,
                                            but ... */
           }
         }
-        MPI_Alltoallv(SendBuf, scount, sbd, T_Particle,
-                      rbb[s], rcount, RecvBufDisps, T_Particle, MCW);
+        MPI_Alltoallv(state->send_buffer, scount, sbd,
+                      state->particle_mpi_type, rbb[s], rcount,
+                      state->recv_buffer_disps, state->particle_mpi_type,
+                      state->comm);
         if (ps==0)
           for (i=0; i<nn; i++) sbd0[i] += scount[i];
       }
@@ -563,43 +578,50 @@ move_injected_from_sendbuf(int *injected, int mysd, struct S_particle **rbb) {
   }
 }
 static void
-receive_particles(struct S_commlist *rlist, int rlsize, int *req) {
-  int me=myRank, i, r=*req, nn=nOfNodes, ns=nOfSpecies, sdisp;
+receive_particles(struct oh_state *state, struct S_commlist *rlist,
+                  int rlsize, int *req) {
+  int me=state->my_rank, i, r=*req, nn=state->n_of_nodes;
+  int ns=state->n_of_species, sdisp;
   struct S_particle *rbuf;
 
   for (i=0; i<rlsize; i++) {
     if (rlist[i].rid==me) {
       int count=rlist[i].count, tag=rlist[i].tag;
-      rbuf = RecvBufBases[tag];
-      RecvBufBases[tag] = particle_at(rbuf, count);
-      MPI_Irecv(rbuf, count, T_Particle, rlist[i].sid, tag, MCW,
-                Requests+(r++));
+      rbuf = state->recv_buffer_bases[tag];
+      state->recv_buffer_bases[tag] = particle_at(rbuf, count);
+      MPI_Irecv(rbuf, count, state->particle_mpi_type, rlist[i].sid, tag,
+                state->comm, state->requests+(r++));
     }
     if (rlist[i].sid==me) {
       int count=rlist[i].count, tag=rlist[i].tag, region=rlist[i].region;
       region += nn * (tag<ns ? tag : tag-ns);
-      sdisp = SendBufDisps[region];  SendBufDisps[region] = sdisp + count;
+      sdisp = state->send_buffer_disps[region];
+      state->send_buffer_disps[region] = sdisp + count;
                                                 /* SendBufDisps[s][region] */
-      MPI_Isend(particle_at(SendBuf, sdisp), count, T_Particle, rlist[i].rid,
-                tag, MCW, Requests+(r++));
+      MPI_Isend(particle_at(state->send_buffer, sdisp), count,
+                state->particle_mpi_type, rlist[i].rid, tag, state->comm,
+                state->requests+(r++));
     }
   }
   *req = r;
 }
 static void
-send_particles(struct S_commlist *slist, int slsize, int myregion,
-               int parentregion, int *req) {
-  int me=myRank, i, r=*req, nn=nOfNodes, ns=nOfSpecies, sdisp, region;
+send_particles(struct oh_state *state, struct S_commlist *slist, int slsize,
+               int myregion, int parentregion, int *req) {
+  int me=state->my_rank, i, r=*req, nn=state->n_of_nodes;
+  int ns=state->n_of_species, sdisp, region;
 
   for (i=0; i<slsize; i++) {
     if (slist[i].sid==me && (region=slist[i].region)!=myregion &&
                             region != parentregion) {
       int count=slist[i].count, tag=slist[i].tag;
       region += nn * (tag<ns ? tag : tag-ns);
-      sdisp = SendBufDisps[region];  SendBufDisps[region] = sdisp + count;
+      sdisp = state->send_buffer_disps[region];
+      state->send_buffer_disps[region] = sdisp + count;
                                                 /* SendBufDisps[s][region] */
-      MPI_Isend(particle_at(SendBuf, sdisp), count, T_Particle, slist[i].rid,
-                tag, MCW, Requests+(r++));
+      MPI_Isend(particle_at(state->send_buffer, sdisp), count,
+                state->particle_mpi_type, slist[i].rid, tag, state->comm,
+                state->requests+(r++));
     }
   }
   *req = r;

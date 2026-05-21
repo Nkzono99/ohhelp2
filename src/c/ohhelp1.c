@@ -17,10 +17,11 @@ static void  count_stay_state(struct oh_state *state);
 static dint  assign_particles_state(struct oh_state *state, dint npr, dint npt,
                                     struct S_node *ch, int incgp, int *nget);
 static int   compare_int(const void* x, const void* y);
-static void  schedule_particle_exchange(int reb);
-static int   count_real_stay(int *np);
-static void  sched_comm(int toget, int rid, int tag, int reb,
-                        struct S_commsched_context *context);
+static void  schedule_particle_exchange_state(struct oh_state *state, int reb);
+static int   count_real_stay_state(struct oh_state *state, int *np);
+static void  sched_comm_state(struct oh_state *state, int toget, int rid,
+                              int tag, int reb,
+                              struct S_commsched_context *context);
 static void  make_comm_count(int currmode, int level, int reb, int oldparent,
                              int stats);
 static void  make_recv_count(struct S_commlist* rlist, int rlsize);
@@ -589,7 +590,7 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
     }
   }
   if (Special_Pexc_Sched(level)) return(TRUE);
-  schedule_particle_exchange(currmode==MODE_NORM_SEC ? 0 : -1);
+  schedule_particle_exchange_state(state, currmode==MODE_NORM_SEC ? 0 : -1);
   make_comm_count(currmode, level, 0, nodes[state->my_rank].parentid, stats);
   return(TRUE);
 }
@@ -657,36 +658,47 @@ compare_int(const void* x, const void* y) {
   return(0);
 }
 static void
-schedule_particle_exchange(int reb) {
-  int me=myRank, nn=nOfNodes, ns=nOfSpecies, nnns=nn*ns;
+schedule_particle_exchange_state(struct oh_state *state, int reb) {
+  int me=state->my_rank, nn=state->n_of_nodes;
+  int ns=state->n_of_species, nnns=nn*ns;
+  int *nofprimaries=state->n_of_primaries;
+  int *nofplocal=state->n_of_particles_local;
+  int *temp=state->temp_array;
+  int *dst_neighbors=state->dst_neighbors;
+  int *src_neighbors=state->src_neighbors;
+  struct S_commlist *comm_list=state->comm_list;
+  struct S_node *nodes=state->nodes, *nodesnext=state->nodes_next;
   struct S_node *mynode, *ch;
   int i, slidx;
   struct S_commsched_context context;
 
   RLIndex[0] = 0;
   context.neighbor = 0;
-  context.sender = (reb<0 ||reb==3) ? 0 : DstNeighbors[0];
+  context.sender = (reb<0 ||reb==3) ? 0 : dst_neighbors[0];
   context.comidx = 0;
   context.spec = 0;  context.dones = 0;  context.donen = 0;
-  for (i=0; i<nn; i++) TempArray[i] = 0;
-  TempArray[context.sender] = 1;
+  for (i=0; i<nn; i++) temp[i] = 0;
+  temp[context.sender] = 1;
   if (reb>0) {
-    mynode = NodesNext + me;
+    mynode = nodesnext + me;
     for (ch=mynode->child; ch; ch=ch->sibling)
-      ch->get.sec -= (ch->stay.sec=count_real_stay(NOfPrimaries+nnns+ch->id));
+      ch->get.sec -=
+        (ch->stay.sec =
+         count_real_stay_state(state, nofprimaries+nnns+ch->id));
                                                 /* NOfPrimaries[1][0][cid] */
-    sched_comm(mynode->get.prime, me, 0, reb, &context);
+    sched_comm_state(state, mynode->get.prime, me, 0, reb, &context);
     for (ch=mynode->child; ch; ch=ch->sibling)
-      sched_comm(ch->get.sec, ch->id, ns, reb, &context);
+      sched_comm_state(state, ch->get.sec, ch->id, ns, reb, &context);
     if (mynode->parent)
       mynode->get.sec -=
-        (mynode->stay.sec=count_real_stay(NOfPLocal+nnns+mynode->parentid));
+        (mynode->stay.sec =
+         count_real_stay_state(state, nofplocal+nnns+mynode->parentid));
                                                 /* NOfPLocal[1][0][pid] */
   } else {
-    mynode = Nodes + me;
-    sched_comm(mynode->get.prime, me, 0, reb, &context);
+    mynode = nodes + me;
+    sched_comm_state(state, mynode->get.prime, me, 0, reb, &context);
     for (ch=mynode->child; ch; ch=ch->sibling)
-      sched_comm(ch->get.sec, ch->id, ns, reb, &context);
+      sched_comm_state(state, ch->get.sec, ch->id, ns, reb, &context);
     if (reb<0)  reb = 3;
   }
   SLHeadTail[0] = slidx = context.comidx;
@@ -694,54 +706,61 @@ schedule_particle_exchange(int reb) {
 
   for (i=context.neighbor+1; i<=OH_NEIGHBORS; i++)  RLIndex[i] = slidx;
   for (i=0; i<OH_NEIGHBORS; i++) {
-    int dst=DstNeighbors[i];
-    int src=SrcNeighbors[i];
+    int dst=dst_neighbors[i];
+    int src=src_neighbors[i];
     int rc;
     MPI_Status st;
     if (dst==me) continue;
     if (src>=0) {
       if (dst>=0)
-        MPI_Sendrecv(CommList+RLIndex[i], RLIndex[i+1]-RLIndex[i], T_Commlist,
+        MPI_Sendrecv(comm_list+RLIndex[i], RLIndex[i+1]-RLIndex[i], T_Commlist,
                      dst, 0,
-                     CommList+slidx, nn+nnns, T_Commlist, src, 0, MCW, &st);
+                     comm_list+slidx, nn+nnns, T_Commlist, src, 0,
+                     state->comm, &st);
       else
-        MPI_Recv(CommList+slidx, nn+nnns, T_Commlist, src, 0, MCW, &st);
+        MPI_Recv(comm_list+slidx, nn+nnns, T_Commlist, src, 0,
+                 state->comm, &st);
       MPI_Get_count(&st, T_Commlist, &rc);
       slidx += rc;
     } else if (dst>=0)
-      MPI_Send(CommList+RLIndex[i], RLIndex[i+1]-RLIndex[i], T_Commlist,
-               dst, 0, MCW);
+      MPI_Send(comm_list+RLIndex[i], RLIndex[i+1]-RLIndex[i], T_Commlist,
+               dst, 0, state->comm);
   }
   SLHeadTail[1] = slidx;
   if (reb==2) return;
 
   SecSLHeadTail[0] = SecSLHeadTail[1] = 0;
   oh1_broadcast(SLHeadTail, SecSLHeadTail, 2, 2, MPI_INT, MPI_INT);
-  oh1_broadcast(CommList, CommList+slidx, slidx, SecSLHeadTail[1],
+  oh1_broadcast(comm_list, comm_list+slidx, slidx, SecSLHeadTail[1],
                 T_Commlist, T_Commlist);
 }
 static int
-count_real_stay(int *np) {
-  const int ns=nOfSpecies, nn=nOfNodes;
+count_real_stay_state(struct oh_state *state, int *np) {
+  const int ns=state->n_of_species, nn=state->n_of_nodes;
   int stay, s;
 
   for (s=0,stay=0; s<ns; s++,np+=nn)  stay += *np;
   return(stay);
 }
 static void
-sched_comm(int toget, int rid, int tag, int reb,
-           struct S_commsched_context *context) {
+sched_comm_state(struct oh_state *state, int toget, int rid, int tag, int reb,
+                 struct S_commsched_context *context) {
   int neighbor = context->neighbor, sid = context->sender;
   int comidx = context->comidx;
   int s=context->spec, havedones=context->dones, havedonen=context->donen;
-  int me=myRank;
-  int nn=nOfNodes, ns=nOfSpecies, nnns=nn*ns;
+  int me=state->my_rank;
+  int nn=state->n_of_nodes, ns=state->n_of_species, nnns=nn*ns;
+  int *nofprimaries=state->n_of_primaries;
+  int *dst_neighbors=state->dst_neighbors;
+  int *temp=state->temp_array;
+  struct S_commlist *comm_list=state->comm_list;
+  struct S_node *nodesbase=state->nodes;
+  struct S_node *nodesnext = reb>0 ? state->nodes_next : state->nodes;
   int i=nn*s+sid;                       /* [0][s][sid] */
-  struct S_node *nodesnext = reb>0 ? NodesNext : Nodes;
 
   while (toget>0) {
     struct S_node *snoden=nodesnext+sid;
-    int npp = NOfPrimaries[i], nps = NOfPrimaries[i+nnns];
+    int npp = nofprimaries[i], nps = nofprimaries[i+nnns];
                                                         /* [0/1][s][sid] */
     int toput, hdninc = 0;
     int next=1;
@@ -760,7 +779,7 @@ sched_comm(int toget, int rid, int tag, int reb,
     }
     toput = npp + nps - havedones;
     if (toput>0) {
-      struct S_commlist *cptr = CommList+(comidx++);
+      struct S_commlist *cptr = comm_list+(comidx++);
       if (toput>toget) {
         havedones += toget;
         toput = toget;
@@ -777,32 +796,33 @@ sched_comm(int toget, int rid, int tag, int reb,
         havedonen = 0;
         s = 0;
         if (reb>=0 && reb!=3) {
-          struct S_node *nodes = (neighbor<OH_NEIGHBORS ? Nodes : NodesNext);
+          struct S_node *nodes = (neighbor<OH_NEIGHBORS ?
+                                  nodesbase : state->nodes_next);
           struct S_node *snode = nodes + sid;
           while (sid>=0) {
             if (neighbor==OH_NEIGHBORS) {
               snode = snode->sibling;  sid = snode ? snode - nodes : -1;
             }
-            else if (sid==DstNeighbors[neighbor] && reb<2 && snode->child) {
-              snode = snode->child;  sid = snode - Nodes;
+            else if (sid==dst_neighbors[neighbor] && reb<2 && snode->child) {
+              snode = snode->child;  sid = snode - nodesbase;
             }
-            else if (sid!=DstNeighbors[neighbor] && reb<2 && snode->sibling) {
-              snode = snode->sibling;  sid = snode - Nodes;
+            else if (sid!=dst_neighbors[neighbor] && reb<2 && snode->sibling) {
+              snode = snode->sibling;  sid = snode - nodesbase;
             }
             else {
               RLIndex[++neighbor] = comidx;
-              while(neighbor<OH_NEIGHBORS && (sid=DstNeighbors[neighbor])<0)
+              while(neighbor<OH_NEIGHBORS && (sid=dst_neighbors[neighbor])<0)
                 RLIndex[++neighbor] = comidx;
               if (neighbor==OH_NEIGHBORS) {
-                nodes = NodesNext;
+                nodes = state->nodes_next;
                 snode = nodes[me].child;
                 sid = (snode && reb) ? snode - nodes : -1;
               } else {
-                snode = Nodes + sid;
+                snode = nodesbase + sid;
               }
             }
-            if (sid>=0 && TempArray[sid]==0) {
-              TempArray[sid] = 1;  break;
+            if (sid>=0 && temp[sid]==0) {
+              temp[sid] = 1;  break;
             }
           }
         } else {
@@ -1020,10 +1040,11 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     NodeQueue[bot] = root;
 
     mynode->get.prime = totalp_global[me] -
-                        (mynode->stay.prime=count_real_stay(nofplocal+me));
+                        (mynode->stay.prime =
+                         count_real_stay_state(state, nofplocal+me));
     if (Special_Pexc_Sched(level)) return;
-    schedule_particle_exchange(currmode==MODE_NORM_SEC ?
-                               1 : (currmode==MODE_NORM_PRI ? 2 : 3));
+    schedule_particle_exchange_state(state, currmode==MODE_NORM_SEC ?
+                                     1 : (currmode==MODE_NORM_PRI ? 2 : 3));
     build_new_comm(currmode, level, 1, stats);
     return;
   }
@@ -1084,10 +1105,11 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   NodeQueue[bot] = root;
 
   mynode->get.prime = totalp_global[me] -
-                      (mynode->stay.prime=count_real_stay(nofplocal+me));
+                      (mynode->stay.prime =
+                       count_real_stay_state(state, nofplocal+me));
   if (Special_Pexc_Sched(level)) return;
-  schedule_particle_exchange(currmode==MODE_NORM_SEC ?
-                             1 : (currmode==MODE_NORM_PRI ? 2 : 3));
+  schedule_particle_exchange_state(state, currmode==MODE_NORM_SEC ?
+                                   1 : (currmode==MODE_NORM_PRI ? 2 : 3));
   build_new_comm(currmode, level, 1, stats);
 }
 void

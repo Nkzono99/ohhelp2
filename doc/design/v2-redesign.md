@@ -42,6 +42,9 @@ The current code now has this first migration layer:
 - Stable-secondary particle assignment now receives `oh_state`, including the
   local particle limit, node queue, and scratch buffer, instead of reaching into
   the legacy globals directly.
+- Particle-exchange schedule construction now receives `oh_state` for rank,
+  communicator, histograms, node descriptors, neighbor lists, and the schedule
+  buffer. The remaining global schedule counters are a migration target.
 
 ## Particle Layout
 

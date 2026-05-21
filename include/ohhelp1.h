@@ -51,6 +51,7 @@ typedef long long int dint;     /* shorthand of 64-bit integer */
 #endif
 
 struct S_node;
+struct S_commlist;
 
 struct oh_state {
   MPI_Comm comm;
@@ -81,6 +82,9 @@ struct oh_state {
   struct S_node *nodes_next;
   struct S_node **node_queue;
   int *temp_array;
+  int *dst_neighbors;
+  int *src_neighbors;
+  struct S_commlist *comm_list;
 };
 extern struct oh_state OhDefaultState;
 

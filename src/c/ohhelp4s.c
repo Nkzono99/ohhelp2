@@ -1062,11 +1062,13 @@ static void make_send_sched_self(struct oh_state* state, const int psor2,
     const int tagt = OH_NBR_TCC * ns, tagb = OH_NBR_BCC * ns;
     const int ps = psor2 == 0 ? 0 : 1, rtag = ps ? tag1 : 0;
     const int exti = OH_PGRID_EXT;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     const int zmax = GridDesc[psor2].z - 1;
     int rlz = -1, rid = nn, ridp = -1, ridn, stag = 0;
     struct S_hplane* hp = HPlane[ps];
-    int* zb = ZBound[ps];
-    int np = *naccptr, * tpn = TotalPNext + (ps ? ns : 0);
+    int* zb = z_bound[ps];
+    int np = *naccptr, * tpn = state->total_particles_next + (ps ? ns : 0);
     int s;
     Decl_For_All_Grid();
 
@@ -1107,7 +1109,7 @@ static void make_send_sched_self(struct oh_state* state, const int psor2,
                                        hp[OH_LOWER].nrecv, hp[OH_LOWER].rbuf);
             else {
                 for (s = 0; s < ns; s++) {
-                    int* npgo = NOfPGridOut[ps][s];
+                    int* npgo = state->level4_particle_grid_out[ps][s];
                     For_All_Grid_XY(psor2, -exti, -exti, exti, exti)
                         npgo[The_Grid()] = 0;
                 }
@@ -1146,19 +1148,20 @@ static void make_send_sched_hplane(struct oh_state* state, const int psor2,
                                    int* buf) {
     const int ns = state->n_of_species, exti = OH_PGRID_EXT;
     const int ps = psor2 == 0 ? 0 : 1, nsor0 = ps ? ns : 0;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
     int nacc = *naccptr, s;
     Decl_For_All_Grid();
 
     for (s = 0; s < ns; s++) {
-        dint* npgt = NOfPGridTotal[ps][s];
-        int* npgo = NOfPGridOut[ps][s];
+        dint* npgt = state->level4_particle_grid_total[ps][s];
+        int* npgo = state->level4_particle_grid_out[ps][s];
         int npofs = 0;
-        if (buf)  buf[s] = TotalPNext[nsor0 + s];
+        if (buf)  buf[s] = state->total_particles_next[nsor0 + s];
         For_All_Grid_XY_At_Z(psor2, -exti, -exti, exti, exti, z) {
             const int g = The_Grid();
             npofs += (npgo[g] = npgt[g]);
         }
-        nacc += npofs;  TotalPNext[nsor0 + s] += npofs;
+        nacc += npofs;  state->total_particles_next[nsor0 + s] += npofs;
         if (np)  np[s] = npofs;
     }
     *naccptr = nacc;

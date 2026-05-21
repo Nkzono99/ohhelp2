@@ -7,6 +7,7 @@
    unchanged.
 */
 #include "oh_part.h"
+#include "oh_particle_adapter.h"
 
 EXTERN int nOfLocalPLimit;
 EXTERN struct S_particle *Particles;    /* [nOfLocalPLimit] */
@@ -20,6 +21,9 @@ EXTERN int specBase;
 EXTERN MPI_Datatype T_Particle;
 EXTERN MPI_Datatype CustomTParticle;
 EXTERN int useCustomTParticle;
+EXTERN oh_particle_adapter ParticleAdapter;
+EXTERN oh_particle_adapter CustomParticleAdapter;
+EXTERN int useCustomParticleAdapter;
 EXTERN MPI_Request *Requests;           /* [nOfNodes*nOfSpecies*2*2] */
 EXTERN MPI_Status *Statuses;            /* [nOfNodes*nOfSpecies*2*2] */
 
@@ -53,6 +57,7 @@ EXTERN int AbsNeighbors[2][OH_NEIGHBORS];
 void oh2_set_total_particles();
 int  oh2_max_local_particles(dint npmax, int maxfrac, int minmargin);
 void oh2_set_particle_mpi_type(MPI_Datatype type);
+void oh2_set_particle_adapter(const oh_particle_adapter *adapter);
 void oh2_inject_particle(struct S_particle *part);
 void oh2_remap_injected_particle(struct S_particle *part);
 void oh2_remove_injected_particle(struct S_particle *part);

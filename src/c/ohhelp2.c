@@ -49,6 +49,15 @@ oh2_set_particle_mpi_type(MPI_Datatype type) {
   useCustomTParticle = 1;
 }
 void
+oh2_set_particle_adapter(const oh_particle_adapter *adapter) {
+  if (!oh_particle_adapter_validate(adapter))
+    local_errstop("invalid oh_particle_adapter");
+  CustomParticleAdapter = *adapter;
+  useCustomParticleAdapter = 1;
+  CustomTParticle = adapter->mpi_type;
+  useCustomTParticle = 1;
+}
+void
 oh2_init(int **sdid, int nspec, int maxfrac, int **nphgram,
          int **totalp, struct S_particle **pbuf, int **pbase, int maxlocalp,
          void *mycomm, int **nbor, int *pcoord,
@@ -78,11 +87,16 @@ init2(int **sdid, int nspec, int maxfrac, int **nphgram,
       (struct S_particle*)mem_alloc(sizeof(struct S_particle),
                                     maxlocalp, "Particles");
 
-  if (useCustomTParticle) {
+  if (useCustomParticleAdapter) {
+    ParticleAdapter = CustomParticleAdapter;
+    T_Particle = ParticleAdapter.mpi_type;
+  } else if (useCustomTParticle) {
     T_Particle = CustomTParticle;
+    ParticleAdapter = oh_default_particle_adapter(T_Particle);
   } else {
     MPI_Type_contiguous(sizeof(struct S_particle), MPI_BYTE, &T_Particle);
     MPI_Type_commit(&T_Particle);
+    ParticleAdapter = oh_default_particle_adapter(T_Particle);
   }
 
   if (!*pbase)  *pbase = (int*)mem_alloc(sizeof(int), 3, "ParticleBase");

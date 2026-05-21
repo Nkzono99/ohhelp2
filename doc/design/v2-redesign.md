@@ -97,6 +97,11 @@ and fields used by the selected level, so it is not the final adapter design.
 caller can provide the MPI datatype used for particle movement instead of always
 using a raw contiguous byte type.
 
+Level 2 now also has `oh2_set_particle_adapter()` / `oh_set_particle_adapter()`.
+The first implementation stores the adapter and uses its MPI datatype during
+initialization; the movement and injection code still needs to be migrated from
+direct `S_particle` field access to adapter callbacks.
+
 ## Weighted Balancing
 
 For a region `r`, define:

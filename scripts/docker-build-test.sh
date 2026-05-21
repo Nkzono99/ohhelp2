@@ -21,6 +21,8 @@ gfortran -cpp -Iinclude -Jbuild/docker -c src/fortran/oh_mod3.F90 \
 
 gcc -Iinclude tests/test_oh_context_header.c \
   -c -o build/docker/test_oh_context_header.o
+mpicc -Iinclude tests/test_ohhelp_c_header.c \
+  -c -o build/docker/test_ohhelp_c_header.o
 gcc -Iinclude tests/test_oh_load_balance.c src/c/oh_load_balance.c \
   -o build/docker/test_oh_load_balance
 build/docker/test_oh_load_balance

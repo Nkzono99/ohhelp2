@@ -81,6 +81,7 @@ struct oh_state {
   dint *n_of_particles_to_stay;
   int *total_particles;
   int *total_particles_next;
+  int *injected_particles;
   int *n_of_recv;
   int *n_of_send;
   int primary_parts;

@@ -76,6 +76,9 @@ The current code now has this first migration layer:
   request/status buffers, communication lists, count arrays, displacement
   arrays, node descriptors, particle MPI datatype, and particle buffers through
   `oh_state` after local movement has prepared the buffers.
+- Level-2 send-buffer displacement construction now has a state-backed helper
+  and uses context-owned particle histograms, injection counters, rank/node
+  counts, and displacement storage.
 
 ## Particle Layout
 

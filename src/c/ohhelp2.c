@@ -19,6 +19,8 @@ static int   try_stable2(int currmode, int level, int stats);
 static void  rebalance2(int currmode, int level, int stats);
 static void  exchange_primary_particles_state(struct oh_state *state,
                                               int currmode, int stats);
+static void  set_sendbuf_disps_state(struct oh_state *state, int secondary,
+                                     int parent);
 static void  move_to_sendbuf_secondary(int secondary, int stats);
 static void  move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase,
                                 int *ctp, int nbase, int *ntp,
@@ -372,22 +374,29 @@ move_to_sendbuf_secondary(int secondary, int stats) {
 }
 void
 set_sendbuf_disps(int secondary, int parent) {
-  int nn=nOfNodes, ns=nOfSpecies, me=myRank;
+  set_sendbuf_disps_state(oh1_state(), secondary, parent);
+}
+static void
+set_sendbuf_disps_state(struct oh_state *state, int secondary, int parent) {
+  int nn=state->n_of_nodes, ns=state->n_of_species, me=state->my_rank;
+  int *sendbuf_disps=state->send_buffer_disps;
+  int *n_of_particles_local=state->n_of_particles_local;
+  int *injected_particles=state->injected_particles;
   int i, j, k, s, disp;
 
   for (s=0,i=0,disp=0; s<ns; s++) {
     for (k=0; k<nn; k++,i++) {
-      SendBufDisps[i] = disp;                   /* SendBufDisps[s][k] */
-      disp += NOfPLocal[i];                     /* NOfPLocal[0][s][k] */
-      if (k==me)  disp += InjectedParticles[s]; /* InjectedParticles[0][s] */
+      sendbuf_disps[i] = disp;                  /* SendBufDisps[s][k] */
+      disp += n_of_particles_local[i];          /* NOfPLocal[0][s][k] */
+      if (k==me)  disp += injected_particles[s];/* InjectedParticles[0][s] */
     }
   }
   if (secondary) {
     for (s=0,j=0,disp=0; s<ns; s++) {
       for (k=0; k<nn; k++,i++,j++) {
-        SendBufDisps[j] += disp;                /* SendBufDisps[s][k] */
-        disp += NOfPLocal[i];                   /* NOfPLocal[1][s][k] */
-        if (k==parent)  disp += InjectedParticles[ns+s];
+        sendbuf_disps[j] += disp;               /* SendBufDisps[s][k] */
+        disp += n_of_particles_local[i];        /* NOfPLocal[1][s][k] */
+        if (k==parent)  disp += injected_particles[ns+s];
       }                                         /* InjectedParticles[1][s] */
     }
   }

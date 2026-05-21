@@ -169,9 +169,32 @@ oh4p_state(void) {
 
 #ifdef OH_POS_AWARE
 #undef Decl_Grid_Info
+#undef Subdomain_Id
+#undef Primarize_Id
+#undef Primarize_Id_Only
+#undef Secondarize_Id
+#undef Secondary_Injected
+#undef Neighbor_Subdomain_Id
 #define Decl_Grid_Info() \
   OH_nid_t nidelement;  int subdomid;\
   const int gridmask = state->grid_mask, loggrid = state->log_grid
+#define Subdomain_Id(ID, PS) \
+  ((nidelement = (ID)) < 0 ? -1 :\
+      ((subdomid = nidelement >> loggrid) < OH_NEIGHBORS ?\
+          state->abs_neighbors[PS][subdomid] : subdomid - OH_NEIGHBORS))
+#define Primarize_Id(P, SD) {\
+  const OH_nid_t nidelem =\
+    ((P)->nid -= (OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid);\
+  SD = Subdomain_Id(nidelem, 1);\
+}
+#define Primarize_Id_Only(P) \
+  (P)->nid -= (OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid
+#define Secondarize_Id(P) \
+  (P)->nid += (OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid
+#define Secondary_Injected(ID) \
+  (((ID) >> loggrid) >= state->n_of_nodes + OH_NEIGHBORS)
+#define Neighbor_Subdomain_Id(ID, PS) \
+  state->abs_neighbors[PS][(ID) >> loggrid]
 #endif
 
 #define If_Dim(D, ET, EF)  (OH_DIMENSION>D ? (ET) : (EF))
@@ -583,8 +606,6 @@ static void rebalance4p(const int currmode, const int level, const int stats) {
     const int me = state->my_rank, ns = state->n_of_species;
     const int oldp = state->region_id[1], amode = Mode_Acc(currmode);
     const int ninj = state->n_of_injections;
-    const int nOfNodes = state->n_of_nodes;
-    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int s, n, newp;
 
     rebalance1(currmode, (amode ? level : -level), stats);
@@ -1614,9 +1635,7 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
                                   const int psold, const int stats) {
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     const int nnns = nn * ns, me = state->my_rank;
-    const int nOfNodes = nn;
     const int ninj = state->n_of_injections, sbase = state->spec_base;
-    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     struct S_particle* rbb, * p, * sbuf;
     int ps, s, t, i, nacc, mysd, * sbd;
     Decl_For_All_Grid();
@@ -1730,11 +1749,9 @@ static void move_to_sendbuf_sec4p(const int psold, const int trans, const int ol
                                   const int* nacc, const int nsend, const int stats) {
     struct oh_state* state = oh4p_state();
     const int me = state->my_rank, ns = state->n_of_species;
-    const int nOfNodes = state->n_of_nodes;
     const int sbase = state->spec_base;
     const int ninj = state->n_of_injections;
     const int nplim = state->n_of_local_particles_limit;
-    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int ninjp = 0, ninjs = nplim, i;
     struct S_particle* sb = state->send_buffer, * p;
     Decl_Grid_Info();
@@ -1839,9 +1856,7 @@ static void move_and_sort_secondary(const int psold, const int psnew, const int 
     struct oh_state* state = oh4p_state();
     const int me = state->my_rank, ns = state->n_of_species;
     const int nn = state->n_of_nodes, sbase = state->spec_base;
-    const int nOfNodes = nn;
     const int mysubdom[2] = { me, oldp }, ninj = state->n_of_injections;
-    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
     struct S_particle* p, * rbb;
@@ -2032,7 +2047,6 @@ int oh4p_map_particle_to_neighbor_(struct S_particle* part, const int* ps, const
 int oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps, const int s) {
     struct oh_state* state = oh4p_state();
     const int ns = state->n_of_species, nn = state->n_of_nodes;
-    const int nOfNodes = nn;
     const int inj = part >= state->particles + state->total_parts;
     struct S_grid* Grid = state->grid;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
@@ -2150,7 +2164,6 @@ int oh4p_map_particle_to_subdomain(struct S_particle* part, const int ps,
                                    const int s) {
     struct oh_state* state = oh4p_state();
     const int ns = state->n_of_species, nn = state->n_of_nodes;
-    const int nOfNodes = nn;
     const int inj = part >= state->particles + state->total_parts;
     struct S_grid* Grid = state->grid;
     struct S_subdomdesc* SubDomainDesc = state->subdomain_desc;
@@ -2240,9 +2253,7 @@ void oh4p_remove_mapped_particle_(struct S_particle* part, const int* ps, const 
 void oh4p_remove_mapped_particle(struct S_particle* part, const int ps, const int s) {
     struct oh_state* state = oh4p_state();
     const int nn = state->n_of_nodes, ns = state->n_of_species;
-    const int nOfNodes = nn;
     const int inj = part >= state->particles + state->total_parts;
-    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     OH_nid_t nid = part->nid;
     int sd, g, psreal = ps, mysd, t;
     Decl_Grid_Info();

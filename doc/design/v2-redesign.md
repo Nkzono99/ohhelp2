@@ -370,6 +370,9 @@ Level-4 now mirrors the POS-aware packed-grid id parameters (`gridMask` and
 `logGrid`) into `oh_state` as `grid_mask` and `log_grid`. The Level-4
 translation units override their local `Decl_Grid_Info()` expansion to read the
 state fields, while Level-2 keeps the legacy macro during the staged migration.
+Their local packed-id helper macros also read node counts and absolute
+neighbors through `oh_state`, removing the previous `nOfNodes` / `AbsNeighbors`
+shadow variables from the Level-4 particle movement and mapping paths.
 
 ## Weighted Balancing
 

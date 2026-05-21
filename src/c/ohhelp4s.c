@@ -99,10 +99,11 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
 static void xfer_boundary_particles_v(const int psnew, const int pcode,
                                       const int d);
 static void xfer_boundary_particles_h(const int psnew);
-static void exchange_border_data_v(void* buf, void* sbuf, void* rbuf,
-                                   MPI_Datatype type, const MPI_Aint esize,
-                                   const int d);
-static void exchange_border_data_h(void* buf, MPI_Datatype type,
+static void exchange_border_data_v(struct oh_state* state, void* buf,
+                                   void* sbuf, void* rbuf, MPI_Datatype type,
+                                   const MPI_Aint esize, const int d);
+static void exchange_border_data_h(struct oh_state* state, void* buf,
+                                   MPI_Datatype type,
                                    const MPI_Aint esize);
 
 static struct oh_state*
@@ -1870,19 +1871,22 @@ void oh4s_exchange_border_data_(void* buf, void* sbuf, void* rbuf, int* type) {
 
 void oh4s_exchange_border_data(void* buf, void* sbuf, void* rbuf,
                                MPI_Datatype type) {
+    struct oh_state* state = oh4s_state();
     MPI_Aint esize, lb;
 
     MPI_Type_get_extent(type, &lb, &esize);
-    exchange_border_data_v(buf, sbuf, rbuf, type, esize, 0);
-    exchange_border_data_v(buf, sbuf, rbuf, type, esize, 1);
-    exchange_border_data_h(buf, type, esize);
+    exchange_border_data_v(state, buf, sbuf, rbuf, type, esize, 0);
+    exchange_border_data_v(state, buf, sbuf, rbuf, type, esize, 1);
+    exchange_border_data_h(state, buf, type, esize);
 }
 
-static void exchange_border_data_v(void* buf, void* sbuf, void* rbuf,
-                                   MPI_Datatype type, const MPI_Aint esize,
-                                   const int d) {
+static void exchange_border_data_v(struct oh_state* state, void* buf,
+                                   void* sbuf, void* rbuf, MPI_Datatype type,
+                                   const MPI_Aint esize, const int d) {
     char* b = (char*)buf, * sb = (char*)sbuf, * rb = (char*)rbuf;
-    const int ns = nOfSpecies, pscurr = RegionId[1] < 0 ? 0 : 1, vphi = d * 2 * 2;
+    const int ns = state->n_of_species;
+    const int pscurr = state->region_id[1] < 0 ? 0 : 1;
+    const int vphi = d * 2 * 2;
     const int vphead = VPlaneHead[vphi], vptail = VPlaneHead[vphi + 2 * 2];
     struct S_vplane* vp;
     int ps, s, i, req = 0;
@@ -1922,18 +1926,18 @@ static void exchange_border_data_v(void* buf, void* sbuf, void* rbuf,
     for (i = vphead, vp = VPlane + vphead; i < vptail; i++, vp++) {
         const int nrecv = vp->nrecv;
         if (nrecv)
-            MPI_Irecv(rb + vp->rbuf * esize, nrecv, type, vp->nbor, vp->rtag, MCW,
-                      Requests + req++);
+            MPI_Irecv(rb + vp->rbuf * esize, nrecv, type, vp->nbor, vp->rtag,
+                      state->comm, state->requests + req++);
     }
     sb = (char*)sbuf - VPlane[vphead].sbuf * esize;
     for (i = vphead, vp = VPlane + vphead; i < vptail; i++, vp++) {
         const int nsend = vp->nsend;
         if (nsend)
-            MPI_Isend(sb + vp->sbuf * esize, nsend, type, vp->nbor, vp->stag, MCW,
-                      Requests + req++);
+            MPI_Isend(sb + vp->sbuf * esize, nsend, type, vp->nbor, vp->stag,
+                      state->comm, state->requests + req++);
     }
     if (req == 0)  return;
-    MPI_Waitall(req, Requests, Statuses);
+    MPI_Waitall(req, state->requests, state->statuses);
 
     rb = (char*)rbuf;
     for (ps = 0, i = vphi; ps <= pscurr; ps++) {
@@ -1966,9 +1970,11 @@ static void exchange_border_data_v(void* buf, void* sbuf, void* rbuf,
     }
 }
 
-static void exchange_border_data_h(void* buf, MPI_Datatype type, const MPI_Aint esize) {
+static void exchange_border_data_h(struct oh_state* state, void* buf,
+                                   MPI_Datatype type, const MPI_Aint esize) {
     char* b = (char*)buf;
-    const int ns = nOfSpecies, pscurr = RegionId[1] < 0 ? 0 : 1;
+    const int ns = state->n_of_species;
+    const int pscurr = state->region_id[1] < 0 ? 0 : 1;
     int ps, ud, s, req = 0;
     Decl_For_All_Grid();
 
@@ -1980,8 +1986,9 @@ static void exchange_border_data_h(void* buf, MPI_Datatype type, const MPI_Aint 
             if (nbor != MPI_PROC_NULL) {
                 for (s = 0; s < ns; s++) {
                     if (nrecv[s])
-                        MPI_Irecv(b + rbuf[s] * esize, nrecv[s], type, nbor, tag + s, MCW,
-                                  Requests + req++);
+                        MPI_Irecv(b + rbuf[s] * esize, nrecv[s], type, nbor,
+                                  tag + s, state->comm,
+                                  state->requests + req++);
                 }
             }
         }
@@ -1994,13 +2001,14 @@ static void exchange_border_data_h(void* buf, MPI_Datatype type, const MPI_Aint 
             if (nbor != MPI_PROC_NULL) {
                 for (s = 0; s < ns; s++) {
                     if (nsend[s])
-                        MPI_Isend(b + sbuf[s] * esize, nsend[s], type, nbor, tag + s, MCW,
-                                  Requests + req++);
+                        MPI_Isend(b + sbuf[s] * esize, nsend[s], type, nbor,
+                                  tag + s, state->comm,
+                                  state->requests + req++);
                 }
             }
         }
     }
-    if (req)  MPI_Waitall(req, Requests, Statuses);
+    if (req)  MPI_Waitall(req, state->requests, state->statuses);
 }
 
 #ifndef OH_NO_CHECK

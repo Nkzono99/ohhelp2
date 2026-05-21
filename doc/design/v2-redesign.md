@@ -168,6 +168,9 @@ The current code now has this first migration layer:
   now have state-backed helpers for communicator, requests/statuses,
   receive/send histograms, node/species counts, and real-neighbor routing
   tables.
+- Level-4s user border-data exchange now synchronizes `oh_state` at the public
+  entry point and passes it through the vertical/horizontal exchange helpers for
+  communicator, request/status buffers, species count, and active region reads.
 
 ## Particle Layout
 

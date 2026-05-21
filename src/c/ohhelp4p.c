@@ -75,13 +75,15 @@ static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
                                     const int psor2, const int n,
                                     int* naccptr, int* nsendptr);
 static void update_descriptors(const int oldp, const int newp);
-static void update_neighbors(const int ps);
+static void update_neighbors(struct oh_state* state, const int ps);
 static void set_grid_descriptor(const int idx, const int nid);
 static void adjust_field_descriptor(const int ps);
-static void update_real_neighbors(const int mode, const int dosec,
-                                  const int oldp, const int newp);
-static void upd_real_nbr(const int root, const int psp, const int pss,
-                         const int nbr, const int dosec, struct S_node* node,
+static void update_real_neighbors(struct oh_state* state, const int mode,
+                                  const int dosec, const int oldp,
+                                  const int newp);
+static void upd_real_nbr(struct oh_state* state, const int root, const int psp,
+                         const int pss, const int nbr, const int dosec,
+                         struct S_node* node,
                          struct S_realneighbor rnbrptr[2], int* occur[2]);
 static void exchange_xfer_amount(const int trans, const int psnew);
 static void state_exchange_xfer_amount4p(struct oh_state* state,
@@ -375,14 +377,17 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
         else if (snbr < -nn)  FirstNeighbor[n] = n;
         else                FirstNeighbor[n] = TempArray[-(snbr + 1)];
     }
-    update_neighbors(0);
+    {
+        struct oh_state* state = oh4p_state();
+        update_neighbors(state, 0);
+    }
     rnbr = (int*)mem_alloc(sizeof(int), nn * 2 * 2 * 2, "RealNeighbors");
     for (tr = 0; tr < 2; tr++)  for (ps = 0; ps < 2; ps++, rnbr += nn) {
         RealDstNeighbors[tr][ps].n = RealSrcNeighbors[tr][ps].n = 0;
         RealDstNeighbors[tr][ps].nbor = rnbr;
         RealSrcNeighbors[tr][ps].nbor = rnbr + nn * 2 * 2;
     }
-    update_real_neighbors(URN_PRI, 0, -1, -1);
+    update_real_neighbors(oh4p_state(), URN_PRI, 0, -1, -1);
 
     if (!SubDomainDesc)
         memcpy(BoundaryCondition, bcond, sizeof(int) * OH_DIMENSION * 2);
@@ -465,7 +470,7 @@ static int try_primary4p(const int currmode, const int level, const int stats) {
     dint*** npg = Mode_PS(currmode) ? NOfPGridTotal : NOfPGrid;
 
     if (!try_primary1(currmode, level, stats)) return(FALSE);
-    if (Mode_PS(currmode))  update_real_neighbors(URN_PRI, 0, -1, -1);
+    if (Mode_PS(currmode))  update_real_neighbors(oh4p_state(), URN_PRI, 0, -1, -1);
     if (Mode_Acc(currmode)) {
         move_to_sendbuf_primary(Mode_PS(currmode), stats);
         exchange_primary_particles(currmode, stats);
@@ -531,7 +536,7 @@ static void rebalance4p(const int currmode, const int level, const int stats) {
     if (!amode) {
         set_grid_descriptor(1, newp);
         for (n = 0; n < OH_NEIGHBORS; n++)  Neighbors[1][n] = Neighbors[2][n];
-        update_neighbors(1);
+        update_neighbors(oh4p_state(), 1);
     }
 }
 
@@ -556,8 +561,8 @@ static void exchange_particles4p(const int currmode, const int level, int reb,
             exchange_particles(SecRList, SecRLSize, oldp, 0, currmode, stats);
             update_descriptors(oldp, newp);
             set_grid_descriptor(1, newp);
-            update_neighbors(1);
-            update_real_neighbors(URN_SEC, 0, -1, newp);
+            update_neighbors(oh4p_state(), 1);
+            update_real_neighbors(oh4p_state(), URN_SEC, 0, -1, newp);
         } else
             exchange_particles(CommList + SLHeadTail[1], SecSLHeadTail[0], oldp, 0,
                                currmode, stats);
@@ -742,7 +747,7 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
         build_new_comm(currmode, -level, 2, stats);
         update_descriptors(oldp, newp);
         set_grid_descriptor(2, newp);
-        update_real_neighbors(URN_TRN, Mode_PS(currmode), oldp, newp);
+        update_real_neighbors(state, URN_TRN, Mode_PS(currmode), oldp, newp);
         oh1_broadcast(&rlsize, &altrlsize, 1, 1, MPI_INT, MPI_INT);
         oh1_broadcast(state->comm_list, AltSecRList, rlsize, altrlsize,
                       T_Commlist, T_Commlist);
@@ -1210,18 +1215,19 @@ static void update_descriptors(const int oldp, const int newp) {
   (N==0 ? 0 : (N<0 ? SubDomains[SD][D][OH_LOWER]-SubDomains[SD][D][OH_UPPER] :\
                      GridDesc[ps].XYZ))
 
-static void update_neighbors(const int ps) {
+static void update_neighbors(struct oh_state* state, const int ps) {
     int n = 0, nx, ny = 0, nz = 0;
-    const int nn = nOfNodes;
+    const int nn = state->n_of_nodes;
+    int* grid_offset = state->level4_grid_offset;
 
     Do_Z(for (nz = -1; nz < 2; nz++)) {
         Do_Y(for (ny = -1; ny < 2; ny++)) {
             for (nx = -1; nx < 2; nx++, n++) {
-                int nbr = Neighbors[ps][n];
+                int nbr = state->neighbors[ps][n];
                 nbr = AbsNeighbors[ps][n] = nbr < 0 ? -(nbr + 1) : nbr;
-                if (nbr >= nn)  GridOffset[ps][n] = 0;
+                if (nbr >= nn)  grid_offset[ps * OH_NEIGHBORS + n] = 0;
                 else
-                    GridOffset[ps][n] =
+                    grid_offset[ps * OH_NEIGHBORS + n] =
                     Coord_To_Index(Neighbor_Grid_Offset(ps, nx, nbr, OH_DIM_X, x),
                                    Neighbor_Grid_Offset(ps, ny, nbr, OH_DIM_Y, y),
                                    Neighbor_Grid_Offset(ps, nz, nbr, OH_DIM_Z, z),
@@ -1263,50 +1269,59 @@ static void adjust_field_descriptor(const int ps) {
     FieldDesc[f].bc.size[ps] += fs;    FieldDesc[f].red.size[ps] += fs;
 }
 
-static void update_real_neighbors(const int mode, const int dosec, const int oldp,
+static void update_real_neighbors(struct oh_state* state, const int mode,
+                                  const int dosec, const int oldp,
                                   const int newp) {
-    const int me = myRank, nn = nOfNodes, nn4 = nn << 2;
+    const int me = state->my_rank, nn = state->n_of_nodes, nn4 = nn << 2;
     const int dosec0 = mode != URN_PRI;
+    struct S_realneighbor (*real_dst)[2] =
+        (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
+    struct S_realneighbor (*real_src)[2] =
+        (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
     int i, nbridx, ps, * doccur[2], * soccur[2];
 
-    for (i = 0; i < nn4; i++)  TempArray[i] = 0;
-    doccur[0] = TempArray;       doccur[1] = doccur[0] + nn;
+    for (i = 0; i < nn4; i++)  state->temp_array[i] = 0;
+    doccur[0] = state->temp_array;       doccur[1] = doccur[0] + nn;
     soccur[0] = doccur[1] + nn;  soccur[1] = soccur[0] + nn;
 
     if (mode == URN_TRN) {
-        int* tmp = RealSrcNeighbors[1][0].nbor;
-        RealSrcNeighbors[1][0].n = RealSrcNeighbors[0][0].n;
-        RealSrcNeighbors[1][0].nbor = RealSrcNeighbors[0][0].nbor;
-        RealSrcNeighbors[0][0].nbor = tmp;
+        int* tmp = real_src[1][0].nbor;
+        real_src[1][0].n = real_src[0][0].n;
+        real_src[1][0].nbor = real_src[0][0].nbor;
+        real_src[0][0].nbor = tmp;
     }
-    RealDstNeighbors[0][0].n = RealDstNeighbors[0][1].n = 0;
-    RealSrcNeighbors[0][0].n = RealSrcNeighbors[0][1].n = 0;
-    upd_real_nbr(me, 0, 1, 0, dosec0, Nodes, RealDstNeighbors[0], doccur);
-    upd_real_nbr(me, 0, 0, 0, dosec0, Nodes, RealSrcNeighbors[0], soccur);
+    real_dst[0][0].n = real_dst[0][1].n = 0;
+    real_src[0][0].n = real_src[0][1].n = 0;
+    upd_real_nbr(state, me, 0, 1, 0, dosec0, state->nodes, real_dst[0], doccur);
+    upd_real_nbr(state, me, 0, 0, 0, dosec0, state->nodes, real_src[0], soccur);
     if (mode == URN_PRI)  return;
 
     nbridx = mode == URN_TRN ? 2 : 1;
-    upd_real_nbr(newp, 0, 1, nbridx, 1, Nodes, RealDstNeighbors[0], doccur);
-    upd_real_nbr(newp, 1, 1, nbridx, 1, Nodes, RealSrcNeighbors[0], soccur);
+    upd_real_nbr(state, newp, 0, 1, nbridx, 1, state->nodes, real_dst[0],
+                 doccur);
+    upd_real_nbr(state, newp, 1, 1, nbridx, 1, state->nodes, real_src[0],
+                 soccur);
     if (mode != URN_TRN)  return;
 
     for (ps = 0; ps < 2; ps++) {
-        const int nd = RealDstNeighbors[0][ps].n;
-        const int ns = RealSrcNeighbors[0][ps].n;
-        for (i = 0; i < nd; i++)  doccur[ps][RealDstNeighbors[0][ps].nbor[i]] = 0;
-        for (i = 0; i < ns; i++)  soccur[ps][RealSrcNeighbors[0][ps].nbor[i]] = 0;
+        const int nd = real_dst[0][ps].n;
+        const int ns = real_src[0][ps].n;
+        for (i = 0; i < nd; i++)  doccur[ps][real_dst[0][ps].nbor[i]] = 0;
+        for (i = 0; i < ns; i++)  soccur[ps][real_src[0][ps].nbor[i]] = 0;
     }
-    RealDstNeighbors[1][0].n = RealDstNeighbors[1][1].n = 0;
-    RealSrcNeighbors[1][1].n = 0;
-    upd_real_nbr(me, 0, 1, 0, 1, Nodes, RealDstNeighbors[1], doccur);
-    upd_real_nbr(oldp, 0, 1, 1, 1, Nodes, RealDstNeighbors[1], doccur);
-    upd_real_nbr(newp, 1, 1, 2, dosec, NodesNext, RealSrcNeighbors[1], soccur);
+    real_dst[1][0].n = real_dst[1][1].n = 0;
+    real_src[1][1].n = 0;
+    upd_real_nbr(state, me, 0, 1, 0, 1, state->nodes, real_dst[1], doccur);
+    upd_real_nbr(state, oldp, 0, 1, 1, 1, state->nodes, real_dst[1], doccur);
+    upd_real_nbr(state, newp, 1, 1, 2, dosec, state->nodes_next, real_src[1],
+                 soccur);
 }
 
-static void upd_real_nbr(const int root, const int psp, const int pss,
-                         const int nbr, const int dosec, struct S_node* nodes,
+static void upd_real_nbr(struct oh_state* state, const int root, const int psp,
+                         const int pss, const int nbr, const int dosec,
+                         struct S_node* nodes,
                          struct S_realneighbor rnbrptr[2], int* occur[2]) {
-    const int me = myRank;
+    const int me = state->my_rank;
     struct S_realneighbor* pnbr = rnbrptr + psp, * snbr = rnbrptr + pss;
     int* poccur = occur[psp], * soccur = occur[pss];
     int i;
@@ -1325,7 +1340,7 @@ static void upd_real_nbr(const int root, const int psp, const int pss,
         }
     }
     for (i = 0; i < OH_NEIGHBORS; i++) {
-        const int nid = Neighbors[nbr][i];
+        const int nid = state->neighbors[nbr][i];
         struct S_node* ch;
         if (nid < 0 || nid == root)  continue;
         if (!poccur[nid]) {

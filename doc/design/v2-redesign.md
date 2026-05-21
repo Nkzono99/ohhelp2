@@ -193,6 +193,9 @@ The current code now has this first migration layer:
 - Level-4s particle movement now threads `oh_state` through the primary
   movement helpers so the shared move macro updates send counters through the
   context mirror.
+- Level-4p/4s neighbor refresh now receives `oh_state`, so first-hop grid
+  offsets and real-neighbor transfer lists read rank/node/neighborhood mirrors
+  instead of the legacy process globals.
 
 ## Particle Layout
 

@@ -2,6 +2,7 @@
    v2 load-balance helpers independent of MPI and particle layout.
 */
 #include <limits.h>
+#include <float.h>
 
 #include "oh_load_balance.h"
 
@@ -47,4 +48,20 @@ oh_weighted_transfer_count(double target_load, double receiver_load,
   double deficit = target_load - receiver_load;
 
   return oh_particles_for_load(deficit, donor_region_weight, donor_particles);
+}
+
+int
+oh_region_weight_is_valid(double region_weight) {
+  return region_weight > 0.0 && region_weight <= DBL_MAX;
+}
+
+int
+oh_region_weights_use_weighted_mode(const double *region_weights,
+                                    int region_count) {
+  int i;
+
+  if (!region_weights || region_count <= 0) return 0;
+  for (i=0; i<region_count; i++)
+    if (region_weights[i] != 1.0) return 1;
+  return 0;
 }

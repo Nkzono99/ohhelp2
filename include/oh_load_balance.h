@@ -17,6 +17,9 @@ double oh_load_after_transfer(double current_load, long long particle_count,
 int oh_weighted_transfer_count(double target_load, double receiver_load,
                                double donor_region_weight,
                                long long donor_particles);
+int oh_region_weight_is_valid(double region_weight);
+int oh_region_weights_use_weighted_mode(const double *region_weights,
+                                        int region_count);
 
 #ifdef __cplusplus
 }

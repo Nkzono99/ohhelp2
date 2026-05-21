@@ -329,6 +329,11 @@ count-to-load policy is testable outside the MPI scheduling code:
   particle transfer count.
 - `oh_load_after_transfer()` updates the donor load using the same weight
   convention and clamps numerical underflow at zero.
+- `oh_region_weight_is_valid()` and `oh_region_weights_use_weighted_mode()`
+  keep setter validation and weighted-mode detection testable without MPI.
+
+`oh1_set_region_weights(NULL)` and `oh_context_set_region_weights(ctx, NULL)`
+reset all region weights to `1.0` and return to the count-balanced path.
 
 The first implementation applies weighted load to primary-mode eligibility and
 secondary assignment rebuilding. The old stable-secondary check remains

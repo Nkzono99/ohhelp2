@@ -104,7 +104,8 @@ oh_default_context(void) {
 
 void
 oh_context_set_region_weights(struct oh_state *context, const double *weights) {
-  if (context && context!=&OhDefaultState)
+  if (!context) context = oh1_state();
+  if (context!=&OhDefaultState)
     local_errstop("only the default oh_context is implemented yet");
   oh1_set_region_weights(weights);
 }

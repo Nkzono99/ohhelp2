@@ -340,6 +340,7 @@ void oh1_stats_time(int key, int ps);
 void oh1_show_stats(int step, int currmode);
 void oh1_print_stats(int nstep);
 void oh1_verbose(char *message);
+/* Passing NULL resets all region weights to 1.0 and disables weighted mode. */
 void oh1_set_region_weights(const double *weights);
 struct oh_state *oh1_state(void);
 struct oh_state *oh_default_context(void);

@@ -266,18 +266,23 @@ oh1_set_region_weights_(double *weights) {
 }
 void
 oh1_set_region_weights(const double *weights) {
-  int i, any = FALSE;
+  int i;
 
   if (!RegionWeights)
     local_errstop("oh1_set_region_weights() must be called after oh_init()");
+  if (!weights) {
+    for (i=0; i<nOfNodes; i++) RegionWeights[i] = 1.0;
+    weightedLoadBalancing = FALSE;
+    oh1_sync_default_state();
+    return;
+  }
   for (i=0; i<nOfNodes; i++) {
     double w = weights[i];
-    if (w<=0.0)
-      local_errstop("region weight[%d] must be greater than zero", i);
+    if (!oh_region_weight_is_valid(w))
+      local_errstop("region weight[%d] must be finite and greater than zero", i);
     RegionWeights[i] = w;
-    if (w!=1.0) any = TRUE;
   }
-  weightedLoadBalancing = any;
+  weightedLoadBalancing = oh_region_weights_use_weighted_mode(weights, nOfNodes);
   oh1_sync_default_state();
 }
 void*

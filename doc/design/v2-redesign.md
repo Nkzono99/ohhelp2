@@ -376,6 +376,8 @@ shadow variables from the Level-4 particle movement and mapping paths.
 The Level-4 particle-to-subdomain mapping macros now read boundary conditions
 through the mirrored state pointer instead of shadowing the global
 `BoundaryCondition` array locally.
+The Level-4 grid iteration macros (`For_All_Grid*`) now read grid descriptors
+through `oh_state`, reducing their dependency on local `GridDesc` aliases.
 
 ## Weighted Balancing
 

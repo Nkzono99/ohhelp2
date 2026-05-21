@@ -36,9 +36,9 @@ static void count_population(struct oh_state* state, const int nextmode,
                              const int psnew, const int stats);
 static void exchange_population(struct oh_state* state, const int currmode);
 static void reduce_population(struct oh_state* state);
-static void add_population(dint* npd, const int xl, const int xu,
-                           const int yl, const int yu, const int zl,
-                           const int zu, const int src);
+static void add_population(struct oh_state* state, dint* npd, const int xl,
+                           const int xu, const int yl, const int yu,
+                           const int zl, const int zu, const int src);
 static void make_recv_list(const int currmode, const int level, const int reb,
                            const int oldp, const int newp, const int stats);
 static void sched_recv(struct oh_state* state, const int reb, const int get,
@@ -195,6 +195,7 @@ oh4s_state(void) {
 
 #define Level4_Boundary_Condition(DIM, SIDE) \
   (((int (*)[2])state->level4_boundary_condition)[DIM][SIDE])
+#define Level4_Grid_Desc(PS) (state->level4_grid_desc[PS])
 
 #define If_Dim(D, ET, EF)  (ET)
 #define For_Y(LINIT, LCONT, LNEXT) for(LINIT; LCONT; LNEXT)
@@ -208,9 +209,10 @@ oh4s_state(void) {
   int fag_w, fag_dw;
 
 #define For_All_Grid(PS, X0, Y0, Z0, X1, Y1, Z1)\
-  For_Z((fag_zidx=(Z0), fag_x1=GridDesc[PS].x+(X1),\
-         fag_y1=GridDesc[PS].y+(Y1), fag_z1=GridDesc[PS].z+(Z1),\
-         fag_w=GridDesc[PS].w, fag_dw=GridDesc[PS].dw,\
+  For_Z((fag_zidx=(Z0), fag_x1=Level4_Grid_Desc(PS).x+(X1),\
+         fag_y1=Level4_Grid_Desc(PS).y+(Y1),\
+         fag_z1=Level4_Grid_Desc(PS).z+(Z1),\
+         fag_w=Level4_Grid_Desc(PS).w, fag_dw=Level4_Grid_Desc(PS).dw,\
          fag_gz=Coord_To_Index(X0,Y0,Z0,fag_w,fag_dw)),\
         (fag_zidx<fag_z1), (fag_zidx++,fag_gz+=fag_dw))\
     For_Y((fag_yidx=(Y0), fag_gy=fag_gz),\
@@ -219,7 +221,7 @@ oh4s_state(void) {
 
 #define For_All_Grid_Abs(PS, X0, Y0, Z0, X1, Y1, Z1)\
   For_Z((fag_zidx=(Z0), fag_x1=(X1), fag_y1=(Y1), fag_z1=(Z1),\
-         fag_w=GridDesc[PS].w, fag_dw=GridDesc[PS].dw,\
+         fag_w=Level4_Grid_Desc(PS).w, fag_dw=Level4_Grid_Desc(PS).dw,\
          fag_gz=Coord_To_Index(X0,Y0,Z0,fag_w,fag_dw)),\
         (fag_zidx<fag_z1), (fag_zidx++,fag_gz+=fag_dw))\
     For_Y((fag_yidx=(Y0), fag_gy=fag_gz),\
@@ -804,12 +806,18 @@ static void exchange_population(struct oh_state* state, const int currmode) {
     for (s = 0; s < ns; s++) {
         dint* npgt = npg[s];
         oh3_exchange_borders(npgt, NULL, ct, 0);
-        add_population(npgt, -ext3, x + ext3, -ext3, y + ext3, -ext, ext, -dw * ext2);
-        add_population(npgt, -ext3, x + ext3, -ext3, y + ext3, z - ext, z + ext, dw * ext2);
-        add_population(npgt, -ext3, x + ext3, -ext, ext, -ext, z + ext, -w * ext2);
-        add_population(npgt, -ext3, x + ext3, y - ext, y + ext, -ext, z + ext, w * ext2);
-        add_population(npgt, -ext, ext, -ext, y + ext, -ext, z + ext, -ext2);
-        add_population(npgt, x - ext, x + ext, -ext, y + ext, -ext, z + ext, ext2);
+        add_population(state, npgt, -ext3, x + ext3, -ext3, y + ext3,
+                       -ext, ext, -dw * ext2);
+        add_population(state, npgt, -ext3, x + ext3, -ext3, y + ext3,
+                       z - ext, z + ext, dw * ext2);
+        add_population(state, npgt, -ext3, x + ext3, -ext, ext,
+                       -ext, z + ext, -w * ext2);
+        add_population(state, npgt, -ext3, x + ext3, y - ext, y + ext,
+                       -ext, z + ext, w * ext2);
+        add_population(state, npgt, -ext, ext, -ext, y + ext, -ext,
+                       z + ext, -ext2);
+        add_population(state, npgt, x - ext, x + ext, -ext, y + ext, -ext,
+                       z + ext, ext2);
 
         For_All_Grid(0, 0, 0, 0, 0, 0, 0)
             state->level4_particle_grid_z[Grid_Z()] += npgt[The_Grid()];
@@ -847,9 +855,9 @@ static void reduce_population(struct oh_state* state) {
                size[0] * sizeof(dint));
 }
 
-static void add_population(dint* npd, const int xl, const int xu, const int yl,
-                           const int yu, const int zl, const int zu,
-                           const int src) {
+static void add_population(struct oh_state* state, dint* npd, const int xl,
+                           const int xu, const int yl, const int yu,
+                           const int zl, const int zu, const int src) {
     dint* nps = npd + src;
     Decl_For_All_Grid();
 
@@ -1058,9 +1066,10 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
 }
 
 #define For_All_Grid_Z(PS, X0, Y0, Z0, X1, Y1, Z1)\
-  For_Z((fag_zidx=(Z0), fag_x1=GridDesc[PS].x+(X1),\
-         fag_y1=GridDesc[PS].y+(Y1), fag_z1=GridDesc[PS].z+(Z1),\
-         fag_w=GridDesc[PS].w, fag_dw=GridDesc[PS].dw,\
+  For_Z((fag_zidx=(Z0), fag_x1=Level4_Grid_Desc(PS).x+(X1),\
+         fag_y1=Level4_Grid_Desc(PS).y+(Y1),\
+         fag_z1=Level4_Grid_Desc(PS).z+(Z1),\
+         fag_w=Level4_Grid_Desc(PS).w, fag_dw=Level4_Grid_Desc(PS).dw,\
          fag_gz=Coord_To_Index(X0,Y0,Z0,fag_w,fag_dw)),\
         (fag_zidx<fag_z1), (fag_zidx++,fag_gz+=fag_dw))
 
@@ -1216,9 +1225,9 @@ static void make_send_sched_self(struct oh_state* state, const int psor2,
 }
 
 #define For_All_Grid_XY_At_Z(PS, X0, Y0, X1, Y1, Z0)\
-  For_Z((fag_zidx=(Z0), fag_x1=GridDesc[PS].x+(X1),\
-         fag_y1=GridDesc[PS].y+(Y1), fag_z1=(Z0)+1,\
-         fag_w=GridDesc[PS].w, fag_dw=GridDesc[PS].dw,\
+  For_Z((fag_zidx=(Z0), fag_x1=Level4_Grid_Desc(PS).x+(X1),\
+         fag_y1=Level4_Grid_Desc(PS).y+(Y1), fag_z1=(Z0)+1,\
+         fag_w=Level4_Grid_Desc(PS).w, fag_dw=Level4_Grid_Desc(PS).dw,\
          fag_gz=Coord_To_Index(X0,Y0,Z0,fag_w,fag_dw)),\
         (fag_zidx<fag_z1), (fag_zidx++,fag_gz+=fag_dw))\
     For_Y((fag_yidx=(Y0), fag_gy=fag_gz),\

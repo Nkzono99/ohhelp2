@@ -33,9 +33,9 @@ static void exchange_particles4p(const int currmode, const int level,
                                  const int stats);
 static void exchange_population(struct oh_state* state, const int currmode,
                                 const int nextmode);
-static void add_population(dint* npd, const int xl, const int xu,
-                           const int yl, const int yu, const int zl,
-                           const int zu, const int src);
+static void add_population(struct oh_state* state, dint* npd, const int xl,
+                           const int xu, const int yl, const int yu,
+                           const int zl, const int zu, const int src);
 static int  mpi_allreduce_wrapper(const void* sendbuf, void* recvbuf,
                                   const int count, MPI_Datatype datatype,
                                   MPI_Op op, const int root, MPI_Comm comm);
@@ -199,6 +199,7 @@ oh4p_state(void) {
 
 #define Level4_Boundary_Condition(DIM, SIDE) \
   (((int (*)[2])state->level4_boundary_condition)[DIM][SIDE])
+#define Level4_Grid_Desc(PS) (state->level4_grid_desc[PS])
 
 #define If_Dim(D, ET, EF)  (OH_DIMENSION>D ? (ET) : (EF))
 #define For_Y(LINIT, LCONT, LNEXT) LINIT;
@@ -240,9 +241,10 @@ oh4p_state(void) {
   int fag_w, fag_dw;
 
 #define For_All_Grid(PS, X0, Y0, Z0, X1, Y1, Z1)\
-  For_Z((fag_zidx=(Z0), fag_x1=GridDesc[PS].x+(X1),\
-         fag_y1=GridDesc[PS].y+(Y1), fag_z1=GridDesc[PS].z+(Z1),\
-         fag_w=GridDesc[PS].w, fag_dw=GridDesc[PS].dw,\
+  For_Z((fag_zidx=(Z0), fag_x1=Level4_Grid_Desc(PS).x+(X1),\
+         fag_y1=Level4_Grid_Desc(PS).y+(Y1),\
+         fag_z1=Level4_Grid_Desc(PS).z+(Z1),\
+         fag_w=Level4_Grid_Desc(PS).w, fag_dw=Level4_Grid_Desc(PS).dw,\
          fag_gz=Coord_To_Index(X0,Y0,Z0,fag_w,fag_dw)),\
         (fag_zidx<fag_z1), (fag_zidx++,fag_gz+=fag_dw))\
     For_Y((fag_yidx=(Y0), fag_gy=fag_gz),\
@@ -251,7 +253,7 @@ oh4p_state(void) {
 
 #define For_All_Grid_Abs(PS, X0, Y0, Z0, X1, Y1, Z1)\
   For_Z((fag_zidx=(Z0), fag_x1=(X1), fag_y1=(Y1), fag_z1=(Z1),\
-         fag_w=GridDesc[PS].w, fag_dw=GridDesc[PS].dw,\
+         fag_w=Level4_Grid_Desc(PS).w, fag_dw=Level4_Grid_Desc(PS).dw,\
          fag_gz=Coord_To_Index(X0,Y0,Z0,fag_w,fag_dw)),\
         (fag_zidx<fag_z1), (fag_zidx++,fag_gz+=fag_dw))\
     For_Y((fag_yidx=(Y0), fag_gy=fag_gz),\
@@ -725,21 +727,25 @@ static void exchange_population(struct oh_state* state, const int currmode,
     for (s = 0; s < ns; s++) {
         oh3_exchange_borders(npg[s], NULL, ct, 0);
         if (OH_DIMENSION > OH_DIM_Z) {
-            add_population(npg[s], -exto, x + exto, -exto, y + exto, 0, exti, -dw * exto);
-            add_population(npg[s], -exto, x + exto, -exto, y + exto, z - exti, z, dw * exto);
+            add_population(state, npg[s], -exto, x + exto, -exto,
+                           y + exto, 0, exti, -dw * exto);
+            add_population(state, npg[s], -exto, x + exto, -exto,
+                           y + exto, z - exti, z, dw * exto);
         }
         if (OH_DIMENSION > OH_DIM_Y) {
-            add_population(npg[s], -exto, x + exto, 0, exti, 0, z, -w * exto);
-            add_population(npg[s], -exto, x + exto, y - exti, y, 0, z, w * exto);
+            add_population(state, npg[s], -exto, x + exto, 0, exti, 0, z,
+                           -w * exto);
+            add_population(state, npg[s], -exto, x + exto, y - exti, y, 0, z,
+                           w * exto);
         }
-        add_population(npg[s], 0, exti, 0, y, 0, z, -exto);
-        add_population(npg[s], x - exti, x, 0, y, 0, z, exto);
+        add_population(state, npg[s], 0, exti, 0, y, 0, z, -exto);
+        add_population(state, npg[s], x - exti, x, 0, y, 0, z, exto);
     }
 }
 
-static void add_population(dint* npd, const int xl, const int xu, const int yl,
-                           const int yu, const int zl, const int zu,
-                           const int src) {
+static void add_population(struct oh_state* state, dint* npd, const int xl,
+                           const int xu, const int yl, const int yu,
+                           const int zl, const int zu, const int src) {
     dint* nps = npd + src;
     Decl_For_All_Grid();
 
@@ -909,9 +915,10 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
 
 #define For_All_Grid_From(X0, Y0, Z0)\
   For_Z((fag_zidx=(Z0),\
-         fag_x1=GridDesc[0].x, fag_y1=GridDesc[0].y, fag_z1=GridDesc[0].z,\
+         fag_x1=Level4_Grid_Desc(0).x, fag_y1=Level4_Grid_Desc(0).y,\
+         fag_z1=Level4_Grid_Desc(0).z,\
          fag_x0=(X0), fag_y0=(Y0),\
-         fag_w=GridDesc[0].w, fag_dw=GridDesc[0].dw,\
+         fag_w=Level4_Grid_Desc(0).w, fag_dw=Level4_Grid_Desc(0).dw,\
          fag_gz=(Z0)*fag_dw, fag_gy=fag_gz+fag_y0*fag_w,\
          fag_gx=fag_gy+fag_x0),\
         (fag_zidx<fag_z1),\

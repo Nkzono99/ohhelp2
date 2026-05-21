@@ -82,6 +82,9 @@ The current code now has this first migration layer:
 - Level-2 injected-particle buffer movement now receives `oh_state` and uses
   context-owned particle buffers, injection counters, node/species counts, and
   send-buffer displacements.
+- Level-2 local upward/downward particle movement now receives `oh_state` and
+  uses context-owned particle buffers, send-buffer displacements, receive-buffer
+  bases, and node/species counts for the core copy/routing loops.
 
 ## Particle Layout
 

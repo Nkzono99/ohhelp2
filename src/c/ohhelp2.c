@@ -22,11 +22,12 @@ static void  exchange_primary_particles_state(struct oh_state *state,
 static void  set_sendbuf_disps_state(struct oh_state *state, int secondary,
                                      int parent);
 static void  move_to_sendbuf_secondary(int secondary, int stats);
-static void  move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase,
-                                int *ctp, int nbase, int *ntp,
-                                struct S_particle **rbb);
-static void  move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail,
-                                int *ctp, int ntail, int *ntp);
+static void  move_to_sendbuf_uw(struct oh_state *state, int ps, int me,
+                                int *putmes, int cbase, int *ctp, int nbase,
+                                int *ntp, struct S_particle **rbb);
+static void  move_to_sendbuf_dw(struct oh_state *state, int ps, int me,
+                                int *putmes, int ctail, int *ctp, int ntail,
+                                int *ntp);
 static void  move_injected_to_sendbuf(struct oh_state *state);
 static void  move_injected_from_sendbuf(struct oh_state *state,
                                         int *injected, int mysd,
@@ -275,6 +276,7 @@ rebalance2(int currmode, int level, int stats) {
 void
 move_to_sendbuf_primary(int secondary, int stats) {
   int me=myRank, ns=nOfSpecies, nn=nOfNodes, nnns=nn*ns;
+  struct oh_state *state;
   int s, i, j, *pp;
 
   if (stats) oh1_stats_time(STATS_TB_MOVE, 0);
@@ -287,25 +289,28 @@ move_to_sendbuf_primary(int secondary, int stats) {
     TotalPNext[ns+s] = 0;                       /* TotalPNext[1][s] */
   }
   set_sendbuf_disps(secondary, -1);
-  if (nOfInjections)  move_injected_to_sendbuf(oh1_state());
+  state = oh1_state();
+  if (nOfInjections)  move_injected_to_sendbuf(state);
 
-  move_to_sendbuf_uw(0, me, NOfPLocal+me, 0, TotalP, 0, TotalPNext,
-                     RecvBufBases);
+  move_to_sendbuf_uw(state, 0, me, NOfPLocal+me, 0, TotalP, 0, TotalPNext,
+                     state->recv_buffer_bases);
 
-  if (secondary) move_to_sendbuf_uw(1, -1, NULL, primaryParts, TotalP+ns,
-                                    0, TotalPNext+ns, RecvBufBases+ns);
+  if (secondary) move_to_sendbuf_uw(state, 1, -1, NULL, primaryParts,
+                                    TotalP+ns, 0, TotalPNext+ns,
+                                    state->recv_buffer_bases+ns);
 
-  move_to_sendbuf_dw(0, me, NOfPLocal+me, primaryParts, TotalP,
+  move_to_sendbuf_dw(state, 0, me, NOfPLocal+me, primaryParts, TotalP,
                      TotalPGlobal[me], TotalPNext);
 
   set_sendbuf_disps(secondary, -1);
   if (nOfInjections)
-    move_injected_from_sendbuf(oh1_state(), InjectedParticles, me,
-                               RecvBufBases);
+    move_injected_from_sendbuf(state, InjectedParticles, me,
+                               state->recv_buffer_bases);
 }
 static void
 move_to_sendbuf_secondary(int secondary, int stats) {
   int me=myRank, ns=nOfSpecies, ns2=ns<<1, nn=nOfNodes;
+  struct oh_state *state;
   struct S_node *node = Nodes+me;
   int put[2]={-node->get.prime, -node->get.sec}, pnext[2];
   int sec=node->parentid;
@@ -344,34 +349,35 @@ move_to_sendbuf_secondary(int secondary, int stats) {
     pnext[ps] = npnext;
   }
   set_sendbuf_disps(secondary, sec);
-  if (nOfInjections)  move_injected_to_sendbuf(oh1_state());
+  state = oh1_state();
+  if (nOfInjections)  move_injected_to_sendbuf(state);
 
-  move_to_sendbuf_uw(0, me, mynp[0],            /* &NOfPLocal[0][0][me] */
-                     0, TotalP, 0, TotalPNext, RecvBufBases);
+  move_to_sendbuf_uw(state, 0, me, mynp[0],     /* &NOfPLocal[0][0][me] */
+                     0, TotalP, 0, TotalPNext, state->recv_buffer_bases);
 
   if (secondary) {
-    move_to_sendbuf_uw(1, sec, mynp[1],         /* &NOfPLocal[1][0][sec] */
+    move_to_sendbuf_uw(state, 1, sec, mynp[1],  /* &NOfPLocal[1][0][sec] */
                        primaryParts, TotalP+ns, pnext[0], TotalPNext+ns,
-                       RecvBufBases+ns);
-    move_to_sendbuf_dw(1, sec, mynp[1], totalParts, TotalP+ns,
+                       state->recv_buffer_bases+ns);
+    move_to_sendbuf_dw(state, 1, sec, mynp[1], totalParts, TotalP+ns,
                        pnext[0]+pnext[1], TotalPNext+ns);
   } else {
-    struct S_particle *rbb=particle_at(Particles, pnext[0]);
+    struct S_particle *rbb=particle_at(state->particles, pnext[0]);
     for (s=0; s<ns; s++) {
-      RecvBufBases[ns+s] = rbb;                 /* RecvBufBases[1][s] */
+      state->recv_buffer_bases[ns+s] = rbb;     /* RecvBufBases[1][s] */
       rbb = particle_at(rbb, TotalPNext[ns+s]); /* TotalPNext[1][s] */
     }
   }
-  move_to_sendbuf_dw(0, me, mynp[0], primaryParts, TotalP, pnext[0],
+  move_to_sendbuf_dw(state, 0, me, mynp[0], primaryParts, TotalP, pnext[0],
                      TotalPNext);
 
   set_sendbuf_disps(secondary, sec);
   if (nOfInjections) {
-    move_injected_from_sendbuf(oh1_state(), InjectedParticles+ns2, me,
-                               RecvBufBases);
+    move_injected_from_sendbuf(state, InjectedParticles+ns2, me,
+                               state->recv_buffer_bases);
     if (sec>=0)
-      move_injected_from_sendbuf(oh1_state(), InjectedParticles+ns2+ns, sec,
-                                 RecvBufBases+ns);
+      move_injected_from_sendbuf(state, InjectedParticles+ns2+ns, sec,
+                                 state->recv_buffer_bases+ns);
   }
   primaryParts = *secondaryBase = pnext[0];
 }
@@ -475,70 +481,77 @@ exchange_particles(struct S_commlist *secrlist, int secrlsize, int oldparent,
   }
 }
 static void
-move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase, int *ctp,
-                   int nbase, int *ntp, struct S_particle **rbb) {
+move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
+                   int cbase, int *ctp, int nbase, int *ntp,
+                   struct S_particle **rbb) {
   int i, in, j, jn, k, s;
-  int ns=nOfSpecies, nn=nOfNodes, *sbd=SendBufDisps;
+  int ns=state->n_of_species, nn=state->n_of_nodes;
+  int *sbd=state->send_buffer_disps;
+  struct S_particle *particles=state->particles;
+  struct S_particle *sendbuf=state->send_buffer;
 
   for (s=0,i=cbase,j=nbase,k=0; s<ns; s++,i=in,j=jn,sbd+=nn,k+=nn) {
     int putme = putmes ? putmes[k] : 0; /* NOfPLocal[0/1][s][me/sec] */
     in = i + ctp[s];  jn = j + ntp[s];
     if (j<=i) {                         /* upward move only */
       for (; putme>0; i++) {            /* throw my particles to send buf */
-        struct S_particle *part=particle_at(Particles, i);
+        struct S_particle *part=particle_at(particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        copy_particle(particle_at(SendBuf, sbd[dst]++), part);
+        copy_particle(particle_at(sendbuf, sbd[dst]++), part);
         if (dst==me) putme--;
       }
       for (; i<in; i++) {               /* move upward */
-        struct S_particle *part=particle_at(Particles, i);
+        struct S_particle *part=particle_at(particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        if (dst==me) copy_particle(particle_at(Particles, j++), part);
-        else         copy_particle(particle_at(SendBuf, sbd[dst]++), part);
+        if (dst==me) copy_particle(particle_at(particles, j++), part);
+        else         copy_particle(particle_at(sendbuf, sbd[dst]++), part);
       }
-      rbb[s] = particle_at(Particles, j);        /* receive to bottom */
+      rbb[s] = particle_at(particles, j);        /* receive to bottom */
     } else if (jn>in) {                 /* downward only and thus skip */
-      rbb[s] = particle_at(Particles, j);        /* receive to top */
+      rbb[s] = particle_at(particles, j);        /* receive to top */
     } else {                            /* downward and upward */
       int ib, im, jm;
       for (; putme>0; i++) {            /* throw my particles to send buf */
-        struct S_particle *part=particle_at(Particles, i);
+        struct S_particle *part=particle_at(particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        copy_particle(particle_at(SendBuf, sbd[dst]++), part);
+        copy_particle(particle_at(sendbuf, sbd[dst]++), part);
         if (dst==me) putme--;
       }
       ib = i;
       for (; i<j; i++) {                 /* skip downward movers if any */
-        int dst=particle_subdomain(particle_at(Particles, i), ps);
+        int dst=particle_subdomain(particle_at(particles, i), ps);
         if (dst==me && dst>=0)  j++;
       }
       im = i-1; jm = j-1;
       for (; i<in; i++) {               /* move remainders upward */
-        struct S_particle *part=particle_at(Particles, i);
+        struct S_particle *part=particle_at(particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        if (dst==me) copy_particle(particle_at(Particles, j++), part);
-        else         copy_particle(particle_at(SendBuf, sbd[dst]++), part);
+        if (dst==me) copy_particle(particle_at(particles, j++), part);
+        else         copy_particle(particle_at(sendbuf, sbd[dst]++), part);
       }
-      rbb[s] = particle_at(Particles, j);        /* receive to bottom */
+      rbb[s] = particle_at(particles, j);        /* receive to bottom */
       for (i=im,j=jm; i>=ib; i--) {     /* move first half downward if any */
-        struct S_particle *part=particle_at(Particles, i);
+        struct S_particle *part=particle_at(particles, i);
         int dst=particle_subdomain(part, ps);
         if (dst<0) continue;
-        if (dst==me) copy_particle(particle_at(Particles, j--), part);
-        else         copy_particle(particle_at(SendBuf, sbd[dst]++), part);
+        if (dst==me) copy_particle(particle_at(particles, j--), part);
+        else         copy_particle(particle_at(sendbuf, sbd[dst]++), part);
       }
     }
   }
 }
 static void
-move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail, int *ctp, int ntail,
-                   int *ntp) {
-  int i, in, j, jn, k, s, ns=nOfSpecies, nn=nOfNodes, nnnsm1=nn*(ns-1);
-  int *sbd=SendBufDisps+nnnsm1;
+move_to_sendbuf_dw(struct oh_state *state, int ps, int me, int *putmes,
+                   int ctail, int *ctp, int ntail, int *ntp) {
+  int i, in, j, jn, k, s;
+  int ns=state->n_of_species, nn=state->n_of_nodes, nnnsm1=nn*(ns-1);
+  int *sbd=state->send_buffer_disps+nnnsm1;
+  struct S_particle *particles=state->particles;
+  struct S_particle *sendbuf=state->send_buffer;
 
   in = ctail;  jn = ntail;
   for (s=ns-1,i=in-1,j=jn-1,k=nnnsm1; s>=0; s--,i=in-1,j=jn-1,sbd-=nn,k-=nn) {
@@ -546,18 +559,18 @@ move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail, int *ctp, int ntail,
     in -= ctp[s];  jn -= ntp[s];
     if (i>=j || in>=jn) continue;       /* not downward only and thus skip */
     for (; putme>0; i--) {              /* throw my particles to send buf */
-      struct S_particle *part=particle_at(Particles, i);
+      struct S_particle *part=particle_at(particles, i);
       int dst=particle_subdomain(part, ps);
       if (dst<0) continue;
-      copy_particle(particle_at(SendBuf, sbd[dst]++), part);
+      copy_particle(particle_at(sendbuf, sbd[dst]++), part);
       if (dst==me) putme--;
     }
     for (; i>=in; i--) {                /* move downward */
-      struct S_particle *part=particle_at(Particles, i);
+      struct S_particle *part=particle_at(particles, i);
       int dst=particle_subdomain(part, ps);
       if (dst<0) continue;
-      if (dst==me) copy_particle(particle_at(Particles, j--), part);
-      else         copy_particle(particle_at(SendBuf, sbd[dst]++), part);
+      if (dst==me) copy_particle(particle_at(particles, j--), part);
+      else         copy_particle(particle_at(sendbuf, sbd[dst]++), part);
     }
   }
 }

@@ -154,6 +154,9 @@ The current code now has this first migration layer:
   particle MPI datatype, communicator, requests, and statuses. Level-4 grid
   routing tables are still Level-4 globals and remain a follow-up migration
   target.
+- Level-4s boundary particle exchange now uses `oh_state` for species count,
+  particle/send buffers, particle MPI datatype, communicator, requests, and
+  statuses. The boundary-plane descriptors remain Level-4s-owned globals.
 
 ## Particle Layout
 

@@ -98,6 +98,9 @@ The current code now has this first migration layer:
 - Level-2 transbound finalization now uses `oh_state` to reset particle
   histograms, carry `TotalPNext` into `TotalP`, clear injection counters, and
   update total-particle/current-mode mirrors.
+- Level-2 primary/stable/rebalance transition wrappers now have state-backed
+  internal paths for rank/node lookups, secondary receive lists, schedule sizes,
+  injection counters, and primary/secondary base updates.
 
 ## Particle Layout
 

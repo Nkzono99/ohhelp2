@@ -93,6 +93,7 @@ struct oh_state {
   int *dst_neighbors;
   int *src_neighbors;
   struct S_commlist *comm_list;
+  struct S_commlist *sec_recv_list;
   int *rl_index;
   int *sl_head_tail;
   int *sec_sl_head_tail;

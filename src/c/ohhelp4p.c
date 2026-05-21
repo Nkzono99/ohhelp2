@@ -138,6 +138,9 @@ oh4p_state(void) {
     state->level4_hotspot_send = HSSend;
     state->level4_hotspot_recv_from_parent = HSRecvFromParent;
     state->level4_hotspot_receiver = HSReceiver;
+    state->level4_horizontal_planes = NULL;
+    state->level4_vertical_planes = NULL;
+    state->level4_vertical_plane_head = NULL;
     state->level4_boundary_send_buffer = NULL;
     state->level4_first_neighbor = FirstNeighbor;
     state->level4_grid_offset = &GridOffset[0][0];

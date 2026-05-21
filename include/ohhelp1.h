@@ -61,6 +61,8 @@ struct S_subdomdesc;
 struct S_flddesc;
 struct S_borderexc;
 struct S_griddesc;
+struct S_hplane;
+struct S_vplane;
 typedef struct oh_particle_adapter oh_particle_adapter;
 
 struct oh_state {
@@ -154,6 +156,9 @@ struct oh_state {
   int *level4_hotspot_send;
   int *level4_hotspot_recv_from_parent;
   int *level4_hotspot_receiver;
+  struct S_hplane *level4_horizontal_planes;
+  struct S_vplane *level4_vertical_planes;
+  int *level4_vertical_plane_head;
   struct S_particle *level4_boundary_send_buffer;
   int *level4_first_neighbor;
   int *level4_grid_offset;

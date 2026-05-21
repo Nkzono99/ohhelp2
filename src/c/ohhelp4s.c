@@ -135,6 +135,9 @@ oh4s_state(void) {
     state->level4_hotspot_send = NULL;
     state->level4_hotspot_recv_from_parent = NULL;
     state->level4_hotspot_receiver = NULL;
+    state->level4_horizontal_planes = &HPlane[0][0];
+    state->level4_vertical_planes = VPlane;
+    state->level4_vertical_plane_head = VPlaneHead;
     state->level4_boundary_send_buffer = BoundarySendBuf;
     state->level4_first_neighbor = FirstNeighbor;
     state->level4_grid_offset = &GridOffset[0][0];
@@ -931,6 +934,8 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
     int s, ps, n;
     int nsend = 0;
     int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
+    struct S_hplane (*hplanes)[2] =
+        (struct S_hplane (*)[2])state->level4_horizontal_planes;
 
     for (s = 0; s < ns2; s++)  state->total_particles_next[s] = 0;
     for (ps = 0; ps <= psold; ps++) {
@@ -949,7 +954,7 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
         int psor2;
         int* nbors, * ri;
         struct S_commlist* rl;
-        struct S_hplane* hp = HPlane[ps];
+        struct S_hplane* hp = hplanes[ps];
         if (ps && Parent_New_Diff(pcode)) {
             psor2 = 2;  nbors = state->neighbors[2];
             rl = AltSecRList;  ri = AltSecRLIndex;
@@ -1081,7 +1086,9 @@ static void make_send_sched_self(struct oh_state* state, const int psor2,
     int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     const int zmax = GridDesc[psor2].z - 1;
     int rlz = -1, rid = nn, ridp = -1, ridn, stag = 0;
-    struct S_hplane* hp = HPlane[ps];
+    struct S_hplane (*hplanes)[2] =
+        (struct S_hplane (*)[2])state->level4_horizontal_planes;
+    struct S_hplane* hp = hplanes[ps];
     int* zb = z_bound[ps];
     int np = *naccptr, * tpn = state->total_particles_next + (ps ? ns : 0);
     int s;
@@ -1399,7 +1406,7 @@ static void make_bxfer_sched(struct oh_state* state, const int trans,
                              int* rlidx[2]) {
     const int nn = state->n_of_nodes;
     int d, ps, du;
-    int(*vph)[2][2] = (int(*)[2][2])VPlaneHead;
+    int(*vph)[2][2] = (int(*)[2][2])state->level4_vertical_plane_head;
     int nsendib = 0, nrecveb = 0, vpidx = 0;
     int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
 
@@ -1456,6 +1463,7 @@ static void make_bsend_sched(struct oh_state* state, const int psor2,
     int rlz = rl->region;
     int nsend = *nsendptr, nsendsave = nsend, vpidx = *vpptr;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
+    struct S_vplane* vplanes = state->level4_vertical_planes;
     int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     int xl, xu, yl, yu;
     const int zbl = z_bound[ps][OH_LOWER];
@@ -1473,10 +1481,10 @@ static void make_bsend_sched(struct oh_state* state, const int psor2,
     Grid_Interior_Boundary(ny, GridDesc[psor2].y, yl, yu);
 
     while (rlz < zbl)  rlz = (++rl)->region;
-    VPlane[vpidx].nbor = rl->rid;
-    VPlane[vpidx].stag = (rl->tag ? tag1 : 0) + stag;
-    VPlane[vpidx].rtag = rtag;
-    VPlane[vpidx].sbuf = nsend;
+    vplanes[vpidx].nbor = rl->rid;
+    vplanes[vpidx].stag = (rl->tag ? tag1 : 0) + stag;
+    vplanes[vpidx].rtag = rtag;
+    vplanes[vpidx].sbuf = nsend;
     For_All_Grid_Z(psor2, xl, yl, zbl, xu, yu, zbu) {
         const int z = Grid_Z();
         for (s = 0; s < ns; s++) {
@@ -1495,15 +1503,15 @@ static void make_bsend_sched(struct oh_state* state, const int psor2,
             }
         }
         if (z == rlz && z < zmax) {
-            VPlane[vpidx++].nsend = nsend - nsendsave;
+            vplanes[vpidx++].nsend = nsend - nsendsave;
             rlz = (++rl)->region;
-            VPlane[vpidx].nbor = rl->rid;
-            VPlane[vpidx].stag = (rl->tag ? tag1 : 0) + stag;
-            VPlane[vpidx].rtag = rtag;
-            VPlane[vpidx].sbuf = nsendsave = nsend;
+            vplanes[vpidx].nbor = rl->rid;
+            vplanes[vpidx].stag = (rl->tag ? tag1 : 0) + stag;
+            vplanes[vpidx].rtag = rtag;
+            vplanes[vpidx].sbuf = nsendsave = nsend;
         }
     }
-    VPlane[vpidx].nsend = nsend - nsendsave;
+    vplanes[vpidx].nsend = nsend - nsendsave;
     *nsendptr = nsend;  *vpptr = vpidx + 1;
 }
 
@@ -1517,6 +1525,7 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
     struct S_commlist* rl = rlist;
     int rlz = rl->region;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
+    struct S_vplane* vplanes = state->level4_vertical_planes;
     int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     int xl, xu, yl, yu;
     const int zbl = z_bound[ps][OH_LOWER];
@@ -1533,7 +1542,7 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
     Grid_Exterior_Boundary(ny, GridDesc[psor2].y, yl, yu);
 
     while (rlz < zbl)  rlz = (++rl)->region;
-    VPlane[vpidx].rbuf = nrecv;
+    vplanes[vpidx].rbuf = nrecv;
     For_All_Grid_Z(psor2, xl, yl, zbl, xu, yu, zbu) {
         const int z = Grid_Z();
         for (s = 0; s < ns; s++) {
@@ -1542,12 +1551,12 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
                 nrecv += npgo[The_Grid()];
         }
         if (z == rlz && z < zmax) {
-            VPlane[vpidx++].nrecv = nrecv - nrecvsave;
+            vplanes[vpidx++].nrecv = nrecv - nrecvsave;
             rlz = (++rl)->region;
-            VPlane[vpidx].rbuf = nrecvsave = nrecv;
+            vplanes[vpidx].rbuf = nrecvsave = nrecv;
         }
     }
-    VPlane[vpidx].nrecv = nrecv - nrecvsave;  *nrecvptr = nrecv;
+    vplanes[vpidx].nrecv = nrecv - nrecvsave;  *nrecvptr = nrecv;
 }
 
 #define Local_Grid_Position(G, NID, PS)  ((G) + GridOffset[PS][NID>>loggrid])
@@ -1901,7 +1910,9 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
                                       const int trans, const int d) {
     const int ns = state->n_of_species;
     int vphi = d * 2 * 2;
-    const int vphead = VPlaneHead[vphi], vptail = VPlaneHead[vphi + 2 * 2];
+    int* vplane_head = state->level4_vertical_plane_head;
+    struct S_vplane* vplanes = state->level4_vertical_planes;
+    const int vphead = vplane_head[vphi], vptail = vplane_head[vphi + 2 * 2];
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     struct S_particle* boundary_send_buffer = state->level4_boundary_send_buffer;
@@ -1912,14 +1923,14 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
 
     if (vphead == vptail)  return;
 
-    for (i = vphead, vp = VPlane + vphead; i < vptail; i++, vp++) {
+    for (i = vphead, vp = vplanes + vphead; i < vptail; i++, vp++) {
         const int nrecv = vp->nrecv;
         if (nrecv)
             MPI_Irecv(state->particles + vp->rbuf, nrecv,
                       state->particle_mpi_type, vp->nbor, vp->rtag,
                       state->comm, state->requests + req++);
     }
-    for (i = vphead, vp = VPlane + vphead; i < vptail; i++, vp++) {
+    for (i = vphead, vp = vplanes + vphead; i < vptail; i++, vp++) {
         const int nsend = vp->nsend;
         if (nsend)
             MPI_Isend(boundary_send_buffer + vp->sbuf, nsend,
@@ -1929,7 +1940,7 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
     if (req == 0)  return;
     MPI_Waitall(req, state->requests, state->statuses);
 
-    p = state->particles + VPlane[vphead].rbuf;
+    p = state->particles + vplanes[vphead].rbuf;
     for (ps = 0; ps <= psnew; ps++) {
         const int psor2 = ps ? trans + 1 : 0;
         const int zl = z_bound[ps][OH_LOWER];
@@ -1938,7 +1949,7 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
         for (du = OH_LOWER; du <= OH_UPPER; du++, vphi++) {
             int ny;
             int xl, yl, xu, yu;
-            if (VPlaneHead[vphi] == VPlaneHead[vphi + 1])  continue;
+            if (vplane_head[vphi] == vplane_head[vphi + 1])  continue;
             if (d == OH_DIM_X) {
                 ny = 1;
                 Grid_Exterior_Boundary(du << 1, GridDesc[psor2].x, xl, xu);
@@ -1975,11 +1986,13 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
 
 static void xfer_boundary_particles_h(struct oh_state* state, const int psnew) {
     const int ns = state->n_of_species;
+    struct S_hplane (*hplanes)[2] =
+        (struct S_hplane (*)[2])state->level4_horizontal_planes;
     int ps, ud, s, req = 0;
 
     for (ps = 0; ps <= psnew; ps++) {
         for (ud = OH_LOWER; ud <= OH_UPPER; ud++) {
-            struct S_hplane* hp = HPlane[ps] + ud;
+            struct S_hplane* hp = hplanes[ps] + ud;
             int* nrecv = hp->nrecv, * rbuf = hp->rbuf;
             const int nbor = hp->nbor, tag = hp->rtag;
             if (nbor != MPI_PROC_NULL) {
@@ -1994,7 +2007,7 @@ static void xfer_boundary_particles_h(struct oh_state* state, const int psnew) {
     }
     for (ps = 0; ps <= psnew; ps++) {
         for (ud = OH_LOWER; ud <= OH_UPPER; ud++) {
-            struct S_hplane* hp = HPlane[ps] + ud;
+            struct S_hplane* hp = hplanes[ps] + ud;
             int* nsend = hp->nsend, * sbuf = hp->sbuf;
             const int nbor = hp->nbor, tag = hp->stag;
             if (nbor != MPI_PROC_NULL) {
@@ -2012,7 +2025,7 @@ static void xfer_boundary_particles_h(struct oh_state* state, const int psnew) {
 
     for (ps = 0; ps <= psnew; ps++) {
         for (ud = OH_LOWER; ud <= OH_UPPER; ud++) {
-            struct S_hplane* hp = HPlane[ps] + ud;
+            struct S_hplane* hp = hplanes[ps] + ud;
             int* nrecv = hp->nrecv, * rbuf = hp->rbuf;
             if (hp->nbor != MPI_PROC_NULL) {
                 for (s = 0; s < ns; s++) {
@@ -2048,7 +2061,9 @@ static void exchange_border_data_v(struct oh_state* state, void* buf,
     const int ns = state->n_of_species;
     const int pscurr = state->region_id[1] < 0 ? 0 : 1;
     const int vphi = d * 2 * 2;
-    const int vphead = VPlaneHead[vphi], vptail = VPlaneHead[vphi + 2 * 2];
+    int* vplane_head = state->level4_vertical_plane_head;
+    struct S_vplane* vplanes = state->level4_vertical_planes;
+    const int vphead = vplane_head[vphi], vptail = vplane_head[vphi + 2 * 2];
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     struct S_vplane* vp;
@@ -2064,7 +2079,7 @@ static void exchange_border_data_v(struct oh_state* state, void* buf,
         for (du = OH_LOWER; du <= OH_UPPER; du++, i++) {
             int ny;
             int xl, yl, xu, yu;
-            if (VPlaneHead[i] == VPlaneHead[i + 1])  continue;
+            if (vplane_head[i] == vplane_head[i + 1])  continue;
             if (d == OH_DIM_X) {
                 ny = 1;
                 Grid_Interior_Boundary(du << 1, GridDesc[ps].x, xl, xu);
@@ -2086,15 +2101,15 @@ static void exchange_border_data_v(struct oh_state* state, void* buf,
             }
         }
     }
-    rb -= VPlane[vphead].rbuf * esize;
-    for (i = vphead, vp = VPlane + vphead; i < vptail; i++, vp++) {
+    rb -= vplanes[vphead].rbuf * esize;
+    for (i = vphead, vp = vplanes + vphead; i < vptail; i++, vp++) {
         const int nrecv = vp->nrecv;
         if (nrecv)
             MPI_Irecv(rb + vp->rbuf * esize, nrecv, type, vp->nbor, vp->rtag,
                       state->comm, state->requests + req++);
     }
-    sb = (char*)sbuf - VPlane[vphead].sbuf * esize;
-    for (i = vphead, vp = VPlane + vphead; i < vptail; i++, vp++) {
+    sb = (char*)sbuf - vplanes[vphead].sbuf * esize;
+    for (i = vphead, vp = vplanes + vphead; i < vptail; i++, vp++) {
         const int nsend = vp->nsend;
         if (nsend)
             MPI_Isend(sb + vp->sbuf * esize, nsend, type, vp->nbor, vp->stag,
@@ -2111,7 +2126,7 @@ static void exchange_border_data_v(struct oh_state* state, void* buf,
         for (du = OH_LOWER; du <= OH_UPPER; du++, i++) {
             int ny;
             int xl, yl, xu, yu;
-            if (VPlaneHead[i] == VPlaneHead[i + 1])  continue;
+            if (vplane_head[i] == vplane_head[i + 1])  continue;
             if (d == OH_DIM_X) {
                 ny = 1;
                 Grid_Exterior_Boundary(du << 1, GridDesc[ps].x, xl, xu);
@@ -2140,12 +2155,14 @@ static void exchange_border_data_h(struct oh_state* state, void* buf,
     char* b = (char*)buf;
     const int ns = state->n_of_species;
     const int pscurr = state->region_id[1] < 0 ? 0 : 1;
+    struct S_hplane (*hplanes)[2] =
+        (struct S_hplane (*)[2])state->level4_horizontal_planes;
     int ps, ud, s, req = 0;
     Decl_For_All_Grid();
 
     for (ps = 0; ps <= pscurr; ps++) {
         for (ud = OH_LOWER; ud <= OH_UPPER; ud++) {
-            struct S_hplane* hp = HPlane[ps] + ud;
+            struct S_hplane* hp = hplanes[ps] + ud;
             int* nrecv = hp->nrecv, * rbuf = hp->rbuf;
             const int nbor = hp->nbor, tag = hp->rtag;
             if (nbor != MPI_PROC_NULL) {
@@ -2160,7 +2177,7 @@ static void exchange_border_data_h(struct oh_state* state, void* buf,
     }
     for (ps = 0; ps <= pscurr; ps++) {
         for (ud = OH_LOWER; ud <= OH_UPPER; ud++) {
-            struct S_hplane* hp = HPlane[ps] + ud;
+            struct S_hplane* hp = hplanes[ps] + ud;
             int* nsend = hp->nsend, * sbuf = hp->sbuf;
             const int nbor = hp->nbor, tag = hp->stag;
             if (nbor != MPI_PROC_NULL) {

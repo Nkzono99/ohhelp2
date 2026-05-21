@@ -1585,7 +1585,8 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
     vplanes[vpidx].nrecv = nrecv - nrecvsave;  *nrecvptr = nrecv;
 }
 
-#define Local_Grid_Position(G, NID, PS)  ((G) + GridOffset[PS][NID>>loggrid])
+#define Local_Grid_Position(G, NID, PS) \
+  ((G) + state->level4_grid_offset[(PS) * OH_NEIGHBORS + ((NID) >> loggrid)])
 
 #define Move_Or_Do(P, PS, MYSD, TOSB, ACT, PIL) {\
   const OH_nid_t nid = P->nid;\

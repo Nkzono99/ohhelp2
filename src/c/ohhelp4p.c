@@ -1683,7 +1683,8 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
     }
 }
 
-#define Local_Grid_Position(G, NID, PS)  ((G) + GridOffset[PS][NID>>loggrid])
+#define Local_Grid_Position(G, NID, PS) \
+  ((G) + state->level4_grid_offset[(PS) * OH_NEIGHBORS + ((NID) >> loggrid)])
 
 #define Move_Or_Do(P, PS, MYSD, MOVEIF, ACT) {\
   const OH_nid_t nid = P->nid;\

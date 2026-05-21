@@ -141,6 +141,11 @@ oh4s_state(void) {
     state->level4_horizontal_planes = &HPlane[0][0];
     state->level4_vertical_planes = VPlane;
     state->level4_vertical_plane_head = VPlaneHead;
+    state->level4_alt_sec_recv_list = AltSecRList;
+    state->level4_primary_comm_list = &PrimaryCommList[0][0];
+    state->level4_sec_rl_index = SecRLIndex;
+    state->level4_alt_sec_rl_index = AltSecRLIndex;
+    state->level4_primary_rl_index = PrimaryRLIndex;
     state->level4_boundary_send_buffer = BoundarySendBuf;
     state->level4_first_neighbor = FirstNeighbor;
     state->level4_grid_offset = &GridOffset[0][0];
@@ -659,10 +664,12 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
     if (nextmode) {
         make_recv_list(currmode, level, reb, oldp, newp, stats);
         rlist[0] = state->comm_list;  rlist[1] = state->sec_recv_list;
-        rlidx[0] = state->rl_index;   rlidx[1] = SecRLIndex;
+        rlidx[0] = state->rl_index;   rlidx[1] = state->level4_sec_rl_index;
     } else {
-        rlist[0] = PrimaryCommList[0];  rlist[1] = PrimaryCommList[1];
-        rlidx[0] = rlidx[1] = PrimaryRLIndex;
+        struct S_commlist (*primary_comm_list)[OH_NEIGHBORS] =
+            (struct S_commlist (*)[OH_NEIGHBORS])state->level4_primary_comm_list;
+        rlist[0] = primary_comm_list[0];  rlist[1] = primary_comm_list[1];
+        rlidx[0] = rlidx[1] = state->level4_primary_rl_index;
     }
     make_send_sched(reb, pcode, oldp, newp, rlist, rlidx, nacc, &nsend);
     state_exchange_xfer_amount4s(state, trans, psnew, nextmode);
@@ -817,6 +824,8 @@ static void make_recv_list(const int currmode, const int level, const int reb,
     struct S_node* ch;
     int* first_neighbor = state->level4_first_neighbor;
     int* rl_index = state->rl_index;
+    int* sec_rl_index = state->level4_sec_rl_index;
+    int* alt_sec_rl_index = state->level4_alt_sec_rl_index;
     MPI_Comm comm = state->comm;
     struct S_recvsched_context
         context = { 0, 0, 0, state->comm_list };
@@ -866,26 +875,29 @@ static void make_recv_list(const int currmode, const int level, const int reb,
             rl_index[i] = (src < -nn) ? rlidx : rl_index[first_neighbor[i]];
         }
     }
-    rl_index[OH_NEIGHBORS] = rlidx;  SecRLIndex[OH_NEIGHBORS] = 0;
-    AltSecRList = state->sec_recv_list = SecRList = state->comm_list + rlidx;
-    AltSecRLIndex[OH_NEIGHBORS] = 0;
+    rl_index[OH_NEIGHBORS] = rlidx;  sec_rl_index[OH_NEIGHBORS] = 0;
+    AltSecRList = state->level4_alt_sec_recv_list =
+        state->sec_recv_list = SecRList = state->comm_list + rlidx;
+    alt_sec_rl_index[OH_NEIGHBORS] = 0;
     if (Mode_PS(currmode)) {
-        oh1_broadcast(rl_index, SecRLIndex, OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
-                      MPI_INT, MPI_INT);
+        oh1_broadcast(rl_index, sec_rl_index, OH_NEIGHBORS + 1,
+                      OH_NEIGHBORS + 1, MPI_INT, MPI_INT);
         oh1_broadcast(state->comm_list, state->sec_recv_list, rlidx,
-                      SecRLIndex[OH_NEIGHBORS], T_Commlist, T_Commlist);
-        AltSecRList += SecRLIndex[OH_NEIGHBORS];
+                      sec_rl_index[OH_NEIGHBORS], T_Commlist, T_Commlist);
+        AltSecRList = state->level4_alt_sec_recv_list =
+            state->level4_alt_sec_recv_list + sec_rl_index[OH_NEIGHBORS];
     }
     if (reb) {
         build_new_comm(currmode, -level, 2, stats);
         update_descriptors(state, oldp, newp);
         set_grid_descriptor(state, 2, newp);
         update_real_neighbors(state, URN_TRN, Mode_PS(currmode), oldp, newp);
-        oh1_broadcast(rl_index, AltSecRLIndex, OH_NEIGHBORS + 1,
+        oh1_broadcast(rl_index, alt_sec_rl_index, OH_NEIGHBORS + 1,
                       OH_NEIGHBORS + 1,
                       MPI_INT, MPI_INT);
-        oh1_broadcast(state->comm_list, AltSecRList, rl_index[OH_NEIGHBORS],
-                      AltSecRLIndex[OH_NEIGHBORS], T_Commlist, T_Commlist);
+        oh1_broadcast(state->comm_list, state->level4_alt_sec_recv_list,
+                      rl_index[OH_NEIGHBORS], alt_sec_rl_index[OH_NEIGHBORS],
+                      T_Commlist, T_Commlist);
     }
     oh1_broadcast(state->level4_particle_grid_total[0][0] + npgbase,
                   state->level4_particle_grid_total[1][0] + npgbase,
@@ -939,6 +951,7 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
     int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
     struct S_hplane (*hplanes)[2] =
         (struct S_hplane (*)[2])state->level4_horizontal_planes;
+    int* alt_sec_rl_index = state->level4_alt_sec_rl_index;
 
     for (s = 0; s < ns2; s++)  state->total_particles_next[s] = 0;
     for (ps = 0; ps <= psold; ps++) {
@@ -960,7 +973,7 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
         struct S_hplane* hp = hplanes[ps];
         if (ps && Parent_New_Diff(pcode)) {
             psor2 = 2;  nbors = state->neighbors[2];
-            rl = AltSecRList;  ri = AltSecRLIndex;
+            rl = state->level4_alt_sec_recv_list;  ri = alt_sec_rl_index;
         } else {
             psor2 = ps;  nbors = state->neighbors[ps];
             rl = rlist[ps];  ri = rlidx[ps];
@@ -1215,7 +1228,9 @@ static void update_neighbors(struct oh_state* state, const int ps) {
     const int nn = state->n_of_nodes;
     int (*abs_neighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int* grid_offset = state->level4_grid_offset;
-    struct S_commlist* cl = PrimaryCommList[ps];
+    struct S_commlist (*primary_comm_list)[OH_NEIGHBORS] =
+        (struct S_commlist (*)[OH_NEIGHBORS])state->level4_primary_comm_list;
+    struct S_commlist* cl = primary_comm_list[ps];
 
     for (nz = -1, n = 0; nz < 2; nz++) {
         for (ny = -1; ny < 2; ny++) {
@@ -1423,7 +1438,8 @@ static void make_bxfer_sched(struct oh_state* state, const int trans,
                 continue;
             }
             if (psor2 == 2) {
-                rl = AltSecRList;  ri = AltSecRLIndex;
+                rl = state->level4_alt_sec_recv_list;
+                ri = state->level4_alt_sec_rl_index;
             } else {
                 rl = rlist[ps];  ri = rlidx[ps];
             }

@@ -164,6 +164,11 @@ struct oh_state {
   struct S_hplane *level4_horizontal_planes;
   struct S_vplane *level4_vertical_planes;
   int *level4_vertical_plane_head;
+  struct S_commlist *level4_alt_sec_recv_list;
+  struct S_commlist *level4_primary_comm_list;
+  int *level4_sec_rl_index;
+  int *level4_alt_sec_rl_index;
+  int *level4_primary_rl_index;
   struct S_particle *level4_boundary_send_buffer;
   int *level4_first_neighbor;
   int *level4_grid_offset;

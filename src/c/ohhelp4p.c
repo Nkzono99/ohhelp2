@@ -145,6 +145,11 @@ oh4p_state(void) {
     state->level4_horizontal_planes = NULL;
     state->level4_vertical_planes = NULL;
     state->level4_vertical_plane_head = NULL;
+    state->level4_alt_sec_recv_list = AltSecRList;
+    state->level4_primary_comm_list = NULL;
+    state->level4_sec_rl_index = SecRLIndex;
+    state->level4_alt_sec_rl_index = NULL;
+    state->level4_primary_rl_index = NULL;
     state->level4_boundary_send_buffer = NULL;
     state->level4_first_neighbor = FirstNeighbor;
     state->level4_grid_offset = &GridOffset[0][0];
@@ -805,14 +810,17 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
             rl_index[i] = (src < -nn) ? rlidx : rl_index[first_neighbor[i]];
         }
     }
-    rl_index[OH_NEIGHBORS] = rlidx;  SecRLIndex[OH_NEIGHBORS] = 0;
-    AltSecRList = state->sec_recv_list = SecRList = state->comm_list + rlidx;
+    rl_index[OH_NEIGHBORS] = rlidx;  state->level4_sec_rl_index[OH_NEIGHBORS] = 0;
+    AltSecRList = state->level4_alt_sec_recv_list =
+        state->sec_recv_list = SecRList = state->comm_list + rlidx;
     if (Mode_PS(currmode)) {
-        oh1_broadcast(rl_index, SecRLIndex, OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
-                      MPI_INT, MPI_INT);
+        oh1_broadcast(rl_index, state->level4_sec_rl_index, OH_NEIGHBORS + 1,
+                      OH_NEIGHBORS + 1, MPI_INT, MPI_INT);
         oh1_broadcast(state->comm_list, state->sec_recv_list, rlidx,
-                      SecRLIndex[OH_NEIGHBORS], T_Commlist, T_Commlist);
-        AltSecRList = state->comm_list + (rlidx += SecRLIndex[OH_NEIGHBORS]);
+                      state->level4_sec_rl_index[OH_NEIGHBORS], T_Commlist,
+                      T_Commlist);
+        AltSecRList = state->level4_alt_sec_recv_list =
+            state->comm_list + (rlidx += state->level4_sec_rl_index[OH_NEIGHBORS]);
     }
     if (reb) {
         int altrlsize = 0;
@@ -821,8 +829,8 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
         set_grid_descriptor(state, 2, newp);
         update_real_neighbors(state, URN_TRN, Mode_PS(currmode), oldp, newp);
         oh1_broadcast(&rlsize, &altrlsize, 1, 1, MPI_INT, MPI_INT);
-        oh1_broadcast(state->comm_list, AltSecRList, rlsize, altrlsize,
-                      T_Commlist, T_Commlist);
+        oh1_broadcast(state->comm_list, state->level4_alt_sec_recv_list,
+                      rlsize, altrlsize, T_Commlist, T_Commlist);
         rlidx += altrlsize;
     }
     oh1_broadcast(state->level4_particle_grid_total[0][0] + npgbase,
@@ -921,7 +929,7 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
     int s, ps, n, h, maxhs = -1;
     int nfrom, nto;
     struct S_commlist* rlist[2] = { state->comm_list, state->sec_recv_list };
-    int* rlidx[2] = { state->rl_index, SecRLIndex };
+    int* rlidx[2] = { state->rl_index, state->level4_sec_rl_index };
     struct S_hotspotbase (*hotspots)[OH_NEIGHBORS] =
         (struct S_hotspotbase (*)[OH_NEIGHBORS])state->level4_hotspots;
     struct S_hotspot* hotspot_top = state->level4_hotspot_list;
@@ -953,7 +961,8 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
         struct S_hotspot* hs = hotspot_top++;
         hs->comm = NULL;  hs->next = NULL;  hs->g = 0;  hs->lev = INT_MAX;
         hotspots[2][OH_NBR_SELF].head = hotspots[2][OH_NBR_SELF].tail = hs;
-        make_send_sched_body(state, 2, OH_NBR_SELF, newp, 1, 0, AltSecRList,
+        make_send_sched_body(state, 2, OH_NBR_SELF, newp, 1, 0,
+                             state->level4_alt_sec_recv_list,
                              &maxhs, nacc + 1, nsend, &hotspot_top);
     }
     for (h = 0; h <= maxhs; h++) {

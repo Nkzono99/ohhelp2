@@ -159,6 +159,11 @@ The current code now has this first migration layer:
   statuses. Boundary send-buffer staging is mirrored through `oh_state`, and
   the boundary transfer helpers now receive the active state explicitly. The
   boundary-plane descriptors remain Level-4s-owned globals.
+- Level-4s horizontal and vertical boundary-plane descriptor arrays are now
+  mirrored into `oh_state`. The existing allocation still owns `HPlane` and
+  `VPlane`, but state-aware schedule, boundary-particle transfer, and user
+  border-data exchange paths read the plane descriptors through the context
+  mirror.
 - Level-4 grid histogram/routing state is now mirrored into `oh_state` by
   Level-4p/4s-local sync helpers. `src/c/oh_context.c` deliberately does not
   include Level-4 headers because the Level-4p and Level-4s headers carry

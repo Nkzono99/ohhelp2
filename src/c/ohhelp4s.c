@@ -69,14 +69,17 @@ static void exchange_xfer_amount(const int trans, const int psnew,
 static void state_exchange_xfer_amount4s(struct oh_state* state,
                                          const int trans, const int psnew,
                                          const int nextmode);
-static void make_bxfer_sched(const int trans, const int psnew,
+static void make_bxfer_sched(struct oh_state* state, const int trans,
+                             const int psnew,
                              struct S_commlist* rlist[2], int* rlidx[2]);
-static void make_bsend_sched(const int psor2, const int n, const int nx,
-                             const int ny, struct S_commlist* rlist,
-                             int* nsendptr, int* vpptr);
-static void make_brecv_sched(const int psor2, const int n, const int nx,
-                             const int ny, struct S_commlist* rlist,
-                             int* nrecvptr, int vpidx);
+static void make_bsend_sched(struct oh_state* state, const int psor2,
+                             const int n, const int nx, const int ny,
+                             struct S_commlist* rlist, int* nsendptr,
+                             int* vpptr);
+static void make_brecv_sched(struct oh_state* state, const int psor2,
+                             const int n, const int nx, const int ny,
+                             struct S_commlist* rlist, int* nrecvptr,
+                             int vpidx);
 static void move_to_sendbuf_4s(const int nextmode, const int psold,
                                const int psnew, const int trans,
                                const int oldp, const int* nacc,
@@ -624,10 +627,10 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
         move_to_sendbuf_4s(nextmode, psold, psnew, trans, oldp, nacc, nsend,
                            stats);
         xfer_particles(trans, psnew, nextmode, SendBuf);
-        make_bxfer_sched(trans, psnew, rlist, rlidx);
+        make_bxfer_sched(oh4s_state(), trans, psnew, rlist, rlidx);
         sort_particles(nextmode, psnew, stats);
     } else {
-        make_bxfer_sched(0, psnew, rlist, rlidx);
+        make_bxfer_sched(oh4s_state(), 0, psnew, rlist, rlidx);
         move_and_sort(nextmode, psold, psnew, oldp, nacc, stats);
         xfer_particles(trans, psnew, nextmode, SendBuf + nacc[1]);
         sort_received_particles(nextmode, psnew, stats);
@@ -1294,9 +1297,10 @@ static void state_exchange_xfer_amount4s(struct oh_state* state,
     MPI_Waitall(req, state->requests, state->statuses);
 }
 
-static void make_bxfer_sched(const int trans, const int psnew, struct S_commlist* rlist[2],
+static void make_bxfer_sched(struct oh_state* state, const int trans,
+                             const int psnew, struct S_commlist* rlist[2],
                              int* rlidx[2]) {
-    const int nn = nOfNodes;
+    const int nn = state->n_of_nodes;
     int d, ps, du;
     int(*vph)[2][2] = (int(*)[2][2])VPlaneHead;
     int nsendib = 0, nrecveb = 0, vpidx = 0;
@@ -1321,12 +1325,14 @@ static void make_bxfer_sched(const int trans, const int psnew, struct S_commlist
                 const int ny = (d == OH_DIM_X) ? 1 : du << 1;
                 const int n = 3 * 3 + 3 * ny + nx;
                 const int nrev = OH_NEIGHBORS - 1 - n;
-                int nbor = Neighbors[psor2][n];
+                int nbor = state->neighbors[psor2][n];
                 vph[d][ps][du] = vpidx;
                 if (nbor < 0)  nbor = -(nbor + 1);
                 if (nbor < nn) {
-                    make_bsend_sched(psor2, n, nx, ny, rl + ri[nrev], &nsendib, &vpidx);
-                    make_brecv_sched(psor2, n, nx, ny, rl + ri[nrev], &nrecveb, vpisave);
+                    make_bsend_sched(state, psor2, n, nx, ny, rl + ri[nrev],
+                                     &nsendib, &vpidx);
+                    make_brecv_sched(state, psor2, n, nx, ny, rl + ri[nrev],
+                                     &nrecveb, vpisave);
                 }
             }
         }
@@ -1339,9 +1345,11 @@ static void make_bxfer_sched(const int trans, const int psnew, struct S_commlist
 #define Pillar_Lower(V)         (V&INT_MAX)
 #define Pillar_Upper(V)         ((V)>>32)
 
-static void make_bsend_sched(const int psor2, const int n, const int nx, const int ny,
-                             struct S_commlist* rlist, int* nsendptr, int* vpptr) {
-    const int ns = nOfSpecies;
+static void make_bsend_sched(struct oh_state* state, const int psor2,
+                             const int n, const int nx, const int ny,
+                             struct S_commlist* rlist, int* nsendptr,
+                             int* vpptr) {
+    const int ns = state->n_of_species;
     const int ps = psor2 == 0 ? 0 : 1;
     const int tag1 = OH_NEIGHBORS;
     const int stag = n;
@@ -1399,9 +1407,11 @@ static void make_bsend_sched(const int psor2, const int n, const int nx, const i
     *nsendptr = nsend;  *vpptr = vpidx + 1;
 }
 
-static void make_brecv_sched(const int psor2, const int n, const int nx, const int ny,
-                             struct S_commlist* rlist, int* nrecvptr, int vpidx) {
-    const int ns = nOfSpecies;
+static void make_brecv_sched(struct oh_state* state, const int psor2,
+                             const int n, const int nx, const int ny,
+                             struct S_commlist* rlist, int* nrecvptr,
+                             int vpidx) {
+    const int ns = state->n_of_species;
     const int ps = psor2 == 0 ? 0 : 1;
     int nrecv = *nrecvptr, nrecvsave = nrecv;
     struct S_commlist* rl = rlist;

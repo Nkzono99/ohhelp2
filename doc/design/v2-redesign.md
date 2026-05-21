@@ -182,6 +182,9 @@ The current code now has this first migration layer:
 - Level-4s primary send-schedule construction now synchronizes `oh_state` and
   threads it through the regular and horizontal-plane scheduling helpers for
   rank/node/species counts, neighbor mirrors, and send-count accumulation.
+- Level-4s vertical boundary transfer scheduling now receives `oh_state` for
+  node/species counts and neighbor mirrors before building the vertical-plane
+  send/receive schedule descriptors.
 
 ## Particle Layout
 

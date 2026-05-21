@@ -296,20 +296,21 @@ void oh4p_init(int** sdid, const int nspec, const int maxfrac, int** totalp,
 }
 
 #define Allocate_NOfPGrid(BODY, NPG, TYPE, SIZE, MSG) {\
-  const int ns2 = nOfSpecies<<1;\
+  const int ns2 = state->n_of_species<<1;\
   const int gridsize = SIZE;\
   TYPE *npg = BODY;\
   TYPE **npgp = (TYPE**)mem_alloc(sizeof(TYPE*), ns2, MSG);\
   int s, g, exto=OH_PGRID_EXT<<1;\
   const int base = Coord_To_Index(exto, exto, exto,\
-                                  GridDesc[0].w, GridDesc[0].dw);\
+                                  Level4_Grid_Desc(0).w,\
+                                  Level4_Grid_Desc(0).dw);\
   if (!npg)\
     BODY = npg = (TYPE*)mem_alloc(sizeof(TYPE), ns2*gridsize, MSG) + base;\
   for (s=0; s<ns2; s++,npg+=gridsize) {\
     npgp[s] = npg;\
     for (g=0; g<gridsize; g++)  npg[g-base] = 0;\
   }\
-  NPG[0] = npgp;  NPG[1] = npgp + nOfSpecies;\
+  NPG[0] = npgp;  NPG[1] = npgp + state->n_of_species;\
 }
 
 static int nOfLocalPLimitShadow = -1;
@@ -532,9 +533,9 @@ static int transbound4p(int currmode, int stats, const int level) {
         rebalance4p(currmode, level, stats);  ret = MODE_REB_SEC;
     }
     state = oh4p_state();
-    if (!PbufIndex) {
-        PbufIndex = (int*)mem_alloc(sizeof(int), ns2 + 1, "PbufIndex");
-        state->level4_pbuf_index = PbufIndex;
+    if (!state->level4_pbuf_index) {
+        state->level4_pbuf_index =
+            PbufIndex = (int*)mem_alloc(sizeof(int), ns2 + 1, "PbufIndex");
     }
     for (i = 0; i < nnns2; i++) state->n_of_particles_local[i] = 0;
     for (s = 0, tp = 0; s < ns2; s++) {

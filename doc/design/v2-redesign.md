@@ -381,6 +381,9 @@ through `oh_state`, reducing their dependency on local `GridDesc` aliases.
 Level-4 initialization now writes first-neighbor tables, real-neighbor
 descriptors, primary receive-list indexes, and boundary conditions through
 their mirrored `oh_state` fields after allocation-time synchronization.
+The Level-4 particle-grid allocation macros now take species counts and grid
+descriptor dimensions from `oh_state`, and transfer-bound setup tests the
+state-owned `level4_pbuf_index` mirror before allocating the backing global.
 
 ## Weighted Balancing
 

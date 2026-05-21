@@ -107,9 +107,9 @@ static void xfer_particles(const int trans, const int psnew,
 static void state_xfer_particles4s(struct oh_state* state, const int trans,
                                    const int psnew, const int nextmode,
                                    struct S_particle* sbuf);
-static void xfer_boundary_particles_v(const int psnew, const int pcode,
-                                      const int d);
-static void xfer_boundary_particles_h(const int psnew);
+static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
+                                      const int pcode, const int d);
+static void xfer_boundary_particles_h(struct oh_state* state, const int psnew);
 static void exchange_border_data_v(struct oh_state* state, void* buf,
                                    void* sbuf, void* rbuf, MPI_Datatype type,
                                    const MPI_Aint esize, const int d);
@@ -135,6 +135,7 @@ oh4s_state(void) {
     state->level4_hotspot_send = NULL;
     state->level4_hotspot_recv_from_parent = NULL;
     state->level4_hotspot_receiver = NULL;
+    state->level4_boundary_send_buffer = BoundarySendBuf;
     state->level4_first_neighbor = FirstNeighbor;
     state->level4_grid_offset = &GridOffset[0][0];
     state->level4_real_dst_neighbors = RealDstNeighbors;
@@ -675,9 +676,9 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
                                state->send_buffer + nacc[1]);
         sort_received_particles(state, nextmode, psnew, stats);
     }
-    xfer_boundary_particles_v(psnew, trans, 0);
-    xfer_boundary_particles_v(psnew, trans, 1);
-    xfer_boundary_particles_h(psnew);
+    xfer_boundary_particles_v(state, psnew, trans, 0);
+    xfer_boundary_particles_v(state, psnew, trans, 1);
+    xfer_boundary_particles_h(state, psnew);
 }
 
 static void count_population(struct oh_state* state, const int nextmode,
@@ -1878,11 +1879,14 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
     MPI_Waitall(req, state->requests, state->statuses);
 }
 
-static void xfer_boundary_particles_v(const int psnew, const int trans, const int d) {
-    struct oh_state* state = oh4s_state();
+static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
+                                      const int trans, const int d) {
     const int ns = state->n_of_species;
     int vphi = d * 2 * 2;
     const int vphead = VPlaneHead[vphi], vptail = VPlaneHead[vphi + 2 * 2];
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
+    struct S_particle* boundary_send_buffer = state->level4_boundary_send_buffer;
     int i, s, req = 0, ps;
     struct S_vplane* vp;
     struct S_particle* p;
@@ -1900,7 +1904,7 @@ static void xfer_boundary_particles_v(const int psnew, const int trans, const in
     for (i = vphead, vp = VPlane + vphead; i < vptail; i++, vp++) {
         const int nsend = vp->nsend;
         if (nsend)
-            MPI_Isend(BoundarySendBuf + vp->sbuf, nsend,
+            MPI_Isend(boundary_send_buffer + vp->sbuf, nsend,
                       state->particle_mpi_type, vp->nbor, vp->stag,
                       state->comm, state->requests + req++);
     }
@@ -1910,8 +1914,8 @@ static void xfer_boundary_particles_v(const int psnew, const int trans, const in
     p = state->particles + VPlane[vphead].rbuf;
     for (ps = 0; ps <= psnew; ps++) {
         const int psor2 = ps ? trans + 1 : 0;
-        const int zl = ZBound[ps][OH_LOWER];
-        const int zu = ZBound[ps][OH_UPPER] - GridDesc[psor2].z;
+        const int zl = z_bound[ps][OH_LOWER];
+        const int zu = z_bound[ps][OH_UPPER] - GridDesc[psor2].z;
         int du;
         for (du = OH_LOWER; du <= OH_UPPER; du++, vphi++) {
             int ny;
@@ -1927,8 +1931,9 @@ static void xfer_boundary_particles_v(const int psnew, const int trans, const in
             Grid_Exterior_Boundary(ny, GridDesc[psor2].y, yl, yu);
             For_All_Grid_Z(psor2, xl, yl, zl, xu, yu, zu) {
                 for (s = 0; s < ns; s++) {
-                    dint* npg = NOfPGrid[ps][s];
-                    int* npgo = NOfPGridOut[ps][s], * npgi = NOfPGridIndex[ps][s];
+                    dint* npg = state->level4_particle_grid[ps][s];
+                    int* npgo = state->level4_particle_grid_out[ps][s],
+                        * npgi = state->level4_particle_grid_index[ps][s];
                     For_All_Grid_XY(psor2, xl, yl, xu, yu) {
                         const int g = The_Grid(), tail = npgi[g] + npgo[g];
                         const dint dst = npg[g];
@@ -1936,10 +1941,12 @@ static void xfer_boundary_particles_v(const int psnew, const int trans, const in
                         if (Is_Pillar_Voxel(dst)) {
                             struct S_particle* q = p;
                             int j = Pillar_Upper(dst) - 1;
-                            for (i = npgi[g]; i < tail; i++)  BoundarySendBuf[j++] = *q++;
+                            for (i = npgi[g]; i < tail; i++)
+                                boundary_send_buffer[j++] = *q++;
                         }
                         for (i = npgi[g]; i < tail; i++) {
-                            SendBuf[i] = *p++;  SendBuf[i].nid = -2;
+                            state->send_buffer[i] = *p++;
+                            state->send_buffer[i].nid = -2;
                         }
                     }
                 }
@@ -1948,8 +1955,7 @@ static void xfer_boundary_particles_v(const int psnew, const int trans, const in
     }
 }
 
-static void xfer_boundary_particles_h(const int psnew) {
-    struct oh_state* state = oh4s_state();
+static void xfer_boundary_particles_h(struct oh_state* state, const int psnew) {
     const int ns = state->n_of_species;
     int ps, ud, s, req = 0;
 
@@ -1994,7 +2000,8 @@ static void xfer_boundary_particles_h(const int psnew) {
                 for (s = 0; s < ns; s++) {
                     const int tail = rbuf[s] + nrecv[s];
                     int i;
-                    for (i = rbuf[s]; i < tail; i++)  SendBuf[i].nid = -2;
+                    for (i = rbuf[s]; i < tail; i++)
+                        state->send_buffer[i].nid = -2;
                 }
             }
         }

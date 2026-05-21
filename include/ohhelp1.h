@@ -154,6 +154,7 @@ struct oh_state {
   int *level4_hotspot_send;
   int *level4_hotspot_recv_from_parent;
   int *level4_hotspot_receiver;
+  struct S_particle *level4_boundary_send_buffer;
   int *level4_first_neighbor;
   int *level4_grid_offset;
   void *level4_real_dst_neighbors;

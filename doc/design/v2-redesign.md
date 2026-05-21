@@ -235,6 +235,9 @@ The current code now has this first migration layer:
 - Level-4p/4s descriptor refresh now receives `oh_state`; field descriptor
   adjustment and Level-4 grid descriptor rebuilds read field metadata, grid
   geometry, and subdomain tables through the context mirror.
+- Level-4p/4s initialization sizing now binds grid geometry and Level-4 grid
+  descriptors through `oh_state` after `init3()`, including per-grid histogram
+  setup entry points.
 - Level-4p/4s transfer setup now consumes destination/source neighbor arrays
   through `oh_state`; the active Level-4 translation units no longer read the
   legacy `Neighbors`, `DstNeighbors`, or `SrcNeighbors` globals directly.

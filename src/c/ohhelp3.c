@@ -442,6 +442,7 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
             int nb, int sd[OH_DIMENSION][2], int **fsizes) {
   struct S_flddesc *fd;
   struct S_borderexc (*bx)[2][OH_DIMENSION][2];
+  struct oh_state *state;
   int (*fs)[OH_DIMENSION][2]=(int(*)[OH_DIMENSION][2])*fsizes;
   int nf, ne;
   int f, e, b, d, lu, i, *tmp;
@@ -473,6 +474,7 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
   BoundaryCommFields = cf = tmp;
 #endif
 
+  state = oh1_state();
   if (!fs)
     fs = (int(*)[OH_DIMENSION][2])
          (*fsizes = (int*)mem_alloc(sizeof(int), nf*OH_DIMENSION*2,
@@ -512,8 +514,8 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
     int lo=fd[f].ext[OH_LOWER], up=fd[f].ext[OH_UPPER];
     for (d=0; d<OH_DIMENSION; d++) {
       fs[f][d][OH_LOWER] = lo;
-      fs[f][d][OH_UPPER] = (Grid[d].size+cfid) + up;
-      fd[f].size[d] = Grid[d].size + (up - lo);
+      fs[f][d][OH_UPPER] = (state->grid[d].size+cfid) + up;
+      fd[f].size[d] = state->grid[d].size + (up - lo);
     }
   }
   for (f=0; f<nf; f++) {
@@ -522,11 +524,12 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
     fd[f].bc.base  = Field_Disp(fd, f, bl, bl, bl);
     fd[f].red.base = Field_Disp(fd, f, rl, rl, rl);
   }
-  set_field_descriptors(ft, sd, 0);
+  state_set_field_descriptors(state, ft, sd, 0);
 
   BorderExc = bx =
     (struct S_borderexc(*)[2][OH_DIMENSION][2])
     mem_alloc(sizeof(struct S_borderexc), ne*2*OH_DIMENSION*2, "BorderExc");
+  state = oh1_state();
 
   for (e=0; e<ne; e++) {
     for (d=0; d<OH_DIMENSION; d++) {
@@ -534,12 +537,13 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
         bx[e][1][d][lu].send.deriv = bx[e][1][d][lu].recv.deriv = 0;
     }
 #ifdef OH_POS_AWARE
-    set_border_exchange(e, 0, e<ne-1 ? MPI_DOUBLE : MPI_LONG_LONG_INT);
+    state_set_border_exchange(state, e, 0,
+                              e<ne-1 ? MPI_DOUBLE : MPI_LONG_LONG_INT);
 #else
-    set_border_exchange(e, 0, MPI_DOUBLE);
+    state_set_border_exchange(state, e, 0, MPI_DOUBLE);
 #endif
   }
-  clear_border_exchange();
+  state_clear_border_exchange(state);
 }
 void
 set_field_descriptors(int (*ft)[OH_FTYPE_N], int sd[OH_DIMENSION][2], int ps) {

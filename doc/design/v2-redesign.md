@@ -134,6 +134,10 @@ The current code now has this first migration layer:
   `set_border_exchange()` entry points remain as wrappers, while the core
   descriptor, boundary-communication, subdomain, and field-size reads flow
   through `oh_state`.
+- Level-3 field initialization now synchronizes the default context before
+  descriptor sizing and border datatype creation, then calls the state-backed
+  descriptor/exchange helpers directly instead of routing through the legacy
+  wrappers.
 
 ## Particle Layout
 

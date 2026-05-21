@@ -1602,11 +1602,11 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
     ACT;\
     const dint bsbidx = -dst;\
     if (!Is_Pillar_Voxel(bsbidx)) {\
-      BoundarySendBuf[bsbidx-1] = *P;  npg[g] = dst - 1;\
+      state->level4_boundary_send_buffer[bsbidx-1] = *P;  npg[g] = dst - 1;\
     }\
     else {\
-      BoundarySendBuf[Pillar_Lower(bsbidx)-1] =\
-        BoundarySendBuf[Pillar_Upper(bsbidx)-1] = *P;\
+      state->level4_boundary_send_buffer[Pillar_Lower(bsbidx)-1] =\
+        state->level4_boundary_send_buffer[Pillar_Upper(bsbidx)-1] = *P;\
       npg[g] = dst - (Add_Pillar_Voxel(1) + 1);\
     }\
   }\
@@ -1752,11 +1752,11 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
   if (dst<0) {\
     const dint bsbidx = -dst;\
     if (!Is_Pillar_Voxel(bsbidx)) {\
-      BoundarySendBuf[bsbidx-1] = *P;  npg[g] = dst - 1;\
+      state->level4_boundary_send_buffer[bsbidx-1] = *P;  npg[g] = dst - 1;\
     }\
     else {\
-      BoundarySendBuf[Pillar_Lower(bsbidx)-1] =\
-        BoundarySendBuf[Pillar_Upper(bsbidx)-1] = *P;\
+      state->level4_boundary_send_buffer[Pillar_Lower(bsbidx)-1] =\
+        state->level4_boundary_send_buffer[Pillar_Upper(bsbidx)-1] = *P;\
       npg[g] = dst - (Add_Pillar_Voxel(1) + 1);\
     }\
   }\

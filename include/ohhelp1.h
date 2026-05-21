@@ -150,6 +150,10 @@ struct oh_state {
   int **level4_particle_grid_out[2];
   int **level4_particle_grid_index[2];
   dint *level4_particle_grid_z;
+  int **level4_hotspot_recv;
+  int *level4_hotspot_send;
+  int *level4_hotspot_recv_from_parent;
+  int *level4_hotspot_receiver;
   int *level4_first_neighbor;
   int *level4_grid_offset;
   void *level4_real_dst_neighbors;

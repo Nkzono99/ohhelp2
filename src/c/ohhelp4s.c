@@ -129,6 +129,10 @@ oh4s_state(void) {
     state->level4_particle_grid_index[0] = NOfPGridIndex[0];
     state->level4_particle_grid_index[1] = NOfPGridIndex[1];
     state->level4_particle_grid_z = NOfPGridZ;
+    state->level4_hotspot_recv = NULL;
+    state->level4_hotspot_send = NULL;
+    state->level4_hotspot_recv_from_parent = NULL;
+    state->level4_hotspot_receiver = NULL;
     state->level4_first_neighbor = FirstNeighbor;
     state->level4_grid_offset = &GridOffset[0][0];
     state->level4_real_dst_neighbors = RealDstNeighbors;

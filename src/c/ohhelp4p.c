@@ -132,6 +132,10 @@ oh4p_state(void) {
     state->level4_particle_grid_index[0] = NULL;
     state->level4_particle_grid_index[1] = NULL;
     state->level4_particle_grid_z = NULL;
+    state->level4_hotspot_recv = HSRecv;
+    state->level4_hotspot_send = HSSend;
+    state->level4_hotspot_recv_from_parent = HSRecvFromParent;
+    state->level4_hotspot_receiver = HSReceiver;
     state->level4_first_neighbor = FirstNeighbor;
     state->level4_grid_offset = &GridOffset[0][0];
     state->level4_real_dst_neighbors = RealDstNeighbors;
@@ -1031,6 +1035,8 @@ static int gather_hspot_recv(struct oh_state* state, const int currmode,
     int rreq = 0, nbx, nby, nbz, nx, ny, nz;
     const struct S_node* nodes = reb ? state->nodes_next : state->nodes;
     MPI_Request* reqs = state->requests;
+    int** hotspot_recv = state->level4_hotspot_recv;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
 
     if (Mode_Acc(currmode))
         nbx = nby = nbz = 0;
@@ -1053,16 +1059,17 @@ static int gather_hspot_recv(struct oh_state* state, const int currmode,
                 if (nid < 0)  nid = -(nid + 1);
                 if (nid >= nn)  continue;
                 if (nid != me)
-                    MPI_Irecv(HSRecv[nbr] + nid * ns, ns, MPI_INT, nid, nbr,
+                    MPI_Irecv(hotspot_recv[nbr] + nid * ns, ns, MPI_INT, nid, nbr,
                               state->comm, reqs + rreq++);
                 if (nbr == OH_NBR_SELF) {
-                    int s, * hsr = HSRecv[OH_NBR_SELF] + me * ns;
-                    for (s = 0; s < ns; s++)  hsr[s] = NOfPGrid[0][s][g];
+                    int s, * hsr = hotspot_recv[OH_NBR_SELF] + me * ns;
+                    for (s = 0; s < ns; s++)
+                        hsr[s] = state->level4_particle_grid[0][s][g];
                 }
                 if (psold && (nid != me || nbr == OH_NBR_SELF)) {
                     for (ch = nodes[nid].child; ch; ch = ch->sibling) {
                         const int chid = ch->id;
-                        MPI_Irecv(HSRecv[nbr] + chid * ns, ns, MPI_INT, chid,
+                        MPI_Irecv(hotspot_recv[nbr] + chid * ns, ns, MPI_INT, chid,
                                   nbr, state->comm, reqs + rreq++);
                     }
                 }
@@ -1101,17 +1108,20 @@ static void gather_hspot_send_body(struct oh_state* state, const int hsidx,
     const int nrev = OH_NEIGHBORS - 1 - n;
     struct S_commlist* hsl = *hslist;
     int sreq = *sreqptr;
+    int* hotspot_send = state->level4_hotspot_send;
+    int* hotspot_recv_from_parent = state->level4_hotspot_recv_from_parent;
     int np, s;
 
     if (hs->lev != hsidx || (ps == 0 && n == OH_NBR_SELF))  return;
     if (dst < 0)  dst = -(dst + 1);
     if (hs->self)
-        MPI_Irecv(HSRecvFromParent, ns, MPI_INT, dst, OH_NEIGHBORS << 1,
+        MPI_Irecv(hotspot_recv_from_parent, ns, MPI_INT, dst, OH_NEIGHBORS << 1,
                   state->comm, reqs + sreq++);
     hs->comm = NULL;
     if (sender) {
-        for (s = 0, np = 0; s < ns; s++)  np += (HSSend[s] = NOfPGrid[ps][s][g]);
-        MPI_Send(HSSend, ns, MPI_INT, dst, nrev, state->comm);
+        for (s = 0, np = 0; s < ns; s++)
+            np += (hotspot_send[s] = state->level4_particle_grid[ps][s][g]);
+        MPI_Send(hotspot_send, ns, MPI_INT, dst, nrev, state->comm);
         if (np) {
             MPI_Irecv(hsl, nrec, T_Commlist, dst, OH_NEIGHBORS + nrev,
                       state->comm, reqs + sreq++);
@@ -1128,46 +1138,50 @@ static void scatter_hspot_send(struct oh_state* state, const int rreq, int* nacc
     struct S_commlist* slhead = *hslist, * sl;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
     const int me = state->my_rank, g = hs->g, nr = hs->n;
+    dint** total_grid = state->level4_particle_grid_total[0];
+    int** grid_out = state->level4_particle_grid_out[0];
+    int** hotspot_recv = state->level4_hotspot_recv;
+    int* hotspot_receiver = state->level4_hotspot_receiver;
     int r, ri, s, sinc, * hsr, * nofr;
     dint hst;
 
     if (rreq)  MPI_Waitall(rreq, state->requests, state->statuses);
-    for (s = 0, hst = 0; s < ns; s++)  hst += NOfPGridTotal[0][s][g];
+    for (s = 0, hst = 0; s < ns; s++)  hst += total_grid[s][g];
     for (ri = 0, sinc = 0, nofr = state->n_of_recv; ri < nr; ri++, nofr += ns) {
         const int count = rl[ri].count, rid = rl[ri].rid;
         int nget = 0;
         for (s = 0; s < ns; s++) {
-            const int ng = nofr[s] = (NOfPGridTotal[0][s][g] * count) / hst;
-            nget += ng;  NOfPGridTotal[0][s][g] -= ng;
+            const int ng = nofr[s] = (total_grid[s][g] * count) / hst;
+            nget += ng;  total_grid[s][g] -= ng;
         }
         for (nget = count - nget; nget > 0;) {
-            if (NOfPGridTotal[0][sinc][g]) {
-                nofr[sinc]++;  NOfPGridTotal[0][sinc][g]--;  nget--;
+            if (total_grid[sinc][g]) {
+                nofr[sinc]++;  total_grid[sinc][g]--;  nget--;
             }
             if (++sinc >= ns)  sinc = 0;
         }
         hst -= count;
         if (rid == me) {
             for (s = 0; s < ns; s++) {
-                nget = NOfPGridOut[0][s][g] = nofr[s];
-                TotalPNext[s] += nget;
+                nget = grid_out[s][g] = nofr[s];
+                state->total_particles_next[s] += nget;
             }
             *nacc += count;
         } else {
             MPI_Send(nofr, ns, MPI_INT, rid, OH_NEIGHBORS << 1, state->comm);
         }
     }
-    for (s = 0; s < ns; s++)  HSReceiver[s] = 0;
+    for (s = 0; s < ns; s++)  hotspot_receiver[s] = 0;
     for (r = 0; r <= rreq; r++) {
         const int dst = r == rreq ? me : state->statuses[r].MPI_SOURCE;
         const int nbr = r == rreq ? OH_NBR_SELF : state->statuses[r].MPI_TAG;
         struct S_commlist* slsave;
         int tag;
-        hsr = HSRecv[nbr] + dst * ns;
+        hsr = hotspot_recv[nbr] + dst * ns;
         for (s = 0, sl = slsave = slhead, tag = 0; s < ns; s++, tag += nn) {
             int nput = hsr[s], nget = 0;
             if (nput == 0) continue;
-            for (ri = HSReceiver[s], nofr = state->n_of_recv + ri * ns; ;
+            for (ri = hotspot_receiver[s], nofr = state->n_of_recv + ri * ns; ;
                  ri++, nofr += ns) {
                 const int ng = nofr[s], ngetsave = nget;
                 if (ng) {
@@ -1175,7 +1189,8 @@ static void scatter_hspot_send(struct oh_state* state, const int rreq, int* nacc
                     if (nput > nget) {
                         nofr[s] = 0;  (sl++)->count = ng;
                     } else {
-                        nofr[s] -= ((sl++)->count = nput - ngetsave);  HSReceiver[s] = ri;
+                        nofr[s] -= ((sl++)->count = nput - ngetsave);
+                        hotspot_receiver[s] = ri;
                         break;
                     }
                 }
@@ -1220,14 +1235,16 @@ static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
     const int g = hs->g, self = hs->self;
     int nsend = *nsendptr;
     int slidx, s, si;
+    int* hotspot_recv_from_parent = state->level4_hotspot_recv_from_parent;
 
     if (hs->lev != hsidx)  return;
     HotSpot[psor2][n].head = hs->next;
     if (self && ps) {
         int nacc = *naccptr;
         for (s = 0; s < ns; s++) {
-            const int nget = NOfPGridOut[1][s][g] = HSRecvFromParent[s];
-            nacc += nget;  TotalPNext[ns + s] += nget;
+            const int nget = state->level4_particle_grid_out[1][s][g] =
+                hotspot_recv_from_parent[s];
+            nacc += nget;  state->total_particles_next[ns + s] += nget;
         }
         *naccptr = nacc;
     }
@@ -1236,8 +1253,8 @@ static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
     for (s = 0, si = 0; s < ns; s++) {
         int mysi = -1, r;
         const int nr = sl[si].sid;
-        if (NOfPGrid[ps][s][g] == 0)  continue;
-        NOfPGrid[ps][s][g] = slidx - si;
+        if (state->level4_particle_grid[ps][s][g] == 0)  continue;
+        state->level4_particle_grid[ps][s][g] = slidx - si;
         for (r = 0; r < nr; r++, si++) {
             const int rid = sl[si].rid, count = sl[si].count;
             sl[si].sid = nr;

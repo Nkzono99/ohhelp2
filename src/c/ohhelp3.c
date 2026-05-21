@@ -61,6 +61,7 @@ static void state_allreduce_field(struct oh_state *state, void *pfld,
 static void state_exchange_borders(struct oh_state *state, void *pfld,
                                    void *sfld, int ctype, int bcast);
 static void state_grid_size(struct oh_state *state, double size[OH_DIMENSION]);
+static void state_clear_border_exchange(struct oh_state *state);
 
 void
 oh3_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -731,8 +732,13 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
 }
 void
 clear_border_exchange() {
-  int ne=nOfExc, e, d, lu;
-  struct S_borderexc (*bx)[2][OH_DIMENSION][2] = BorderExc;
+  state_clear_border_exchange(oh1_state());
+}
+static void
+state_clear_border_exchange(struct oh_state *state) {
+  int ne=state->n_of_exchanges, e, d, lu;
+  struct S_borderexc (*bx)[2][OH_DIMENSION][2] =
+    (struct S_borderexc(*)[2][OH_DIMENSION][2])state->border_exchange;
 
   for (e=0; e<ne; e++) {
     for (d=0; d<OH_DIMENSION; d++) {
@@ -800,7 +806,7 @@ transbound3(struct oh_state *state, int currmode, int stats, int level) {
   oh1_sync_default_state();
   newp = state->region_id[1];
   if (oldp!=newp) {
-    if (oldp>=0)  clear_border_exchange();
+    if (oldp>=0)  state_clear_border_exchange(state);
     if (newp>=0)  set_field_descriptors(field_types, state->subdomains[newp],
                                         1);
   }

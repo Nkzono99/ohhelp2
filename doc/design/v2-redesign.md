@@ -126,6 +126,9 @@ The current code now has this first migration layer:
 - Level-3 transbound now keeps its Level-1/2 delegation wrapper but reads
   `excludeLevel2`, region ids, field types, and subdomain descriptors through
   `oh_state` when deciding whether to rebuild secondary field descriptors.
+- Level-3 secondary border-exchange clearing now reads exchange counts and
+  descriptors through `oh_state`, including the transbound path that invalidates
+  stale secondary datatypes after the secondary region changes.
 
 ## Particle Layout
 

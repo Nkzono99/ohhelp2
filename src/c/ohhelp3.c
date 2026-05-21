@@ -51,6 +51,14 @@ static int  state_map_irregular(struct oh_state *state, double p0, double p1,
                                 double p2, int dim, int from, int n);
 static int  state_map_irregular_range(struct oh_state *state, double p,
                                       int dim, int from, int to);
+static void state_bcast_field(struct oh_state *state, void *pfld, void *sfld,
+                              int ftype);
+static void state_reduce_field(struct oh_state *state, void *pfld, void *sfld,
+                               int ftype);
+static void state_allreduce_field(struct oh_state *state, void *pfld,
+                                  void *sfld, int ftype);
+static void state_exchange_borders(struct oh_state *state, void *pfld,
+                                   void *sfld, int ctype, int bcast);
 
 void
 oh3_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -1045,86 +1053,97 @@ state_map_irregular_range(struct oh_state *state, double p, int dim, int from,
 }
 void
 oh3_bcast_field_(void *pfld, void *sfld, int *ftype) {
-  int base=FieldDesc[*ftype-1].bc.base;
-  int *size=FieldDesc[*ftype-1].bc.size;
-
-  oh1_broadcast((double*)pfld+base, (double*)sfld+base, size[0], size[1],
-                MPI_DOUBLE, MPI_DOUBLE);
+  state_bcast_field(oh1_state(), pfld, sfld, *ftype-1);
 }
 void
 oh3_bcast_field(void *pfld, void *sfld, int ftype) {
-  int base=FieldDesc[ftype].bc.base;
-  int *size=FieldDesc[ftype].bc.size;
+  state_bcast_field(oh1_state(), pfld, sfld, ftype);
+}
+void
+oh3_reduce_field_(void *pfld, void *sfld, int *ftype) {
+  state_reduce_field(oh1_state(), pfld, sfld, *ftype-1);
+}
+void
+oh3_reduce_field(void *pfld, void *sfld, int ftype) {
+  state_reduce_field(oh1_state(), pfld, sfld, ftype);
+}
+void
+oh3_allreduce_field_(void *pfld, void *sfld, int *ftype) {
+  state_allreduce_field(oh1_state(), pfld, sfld, *ftype-1);
+}
+void
+oh3_allreduce_field(void *pfld, void *sfld, int ftype) {
+  state_allreduce_field(oh1_state(), pfld, sfld, ftype);
+}
+void
+oh3_exchange_borders_(void *pfld, void *sfld, int *ctype, int *bcast) {
+  state_exchange_borders(oh1_state(), pfld, sfld, *ctype-1, *bcast);
+}
+void
+oh3_exchange_borders(void *pfld, void *sfld, int ctype, int bcast) {
+  state_exchange_borders(oh1_state(), pfld, sfld, ctype, bcast);
+}
+static void
+state_bcast_field(struct oh_state *state, void *pfld, void *sfld, int ftype) {
+  int base=state->field_desc[ftype].bc.base;
+  int *size=state->field_desc[ftype].bc.size;
 
   oh1_broadcast((double*)pfld+base, (double*)sfld+base, size[0], size[1],
                 MPI_DOUBLE, MPI_DOUBLE);
 }
-void
-oh3_reduce_field_(void *pfld, void *sfld, int *ftype) {
-  int base=FieldDesc[*ftype-1].red.base;
-  int *size=FieldDesc[*ftype-1].red.size;
+static void
+state_reduce_field(struct oh_state *state, void *pfld, void *sfld, int ftype) {
+  int base=state->field_desc[ftype].red.base;
+  int *size=state->field_desc[ftype].red.size;
 
   oh1_reduce((double*)pfld+base, (double*)sfld+base, size[0], size[1],
              MPI_DOUBLE, MPI_DOUBLE, MPI_SUM, MPI_SUM);
 }
-void
-oh3_reduce_field(void *pfld, void *sfld, int ftype) {
-  int base=FieldDesc[ftype].red.base;
-  int *size=FieldDesc[ftype].red.size;
-
-  oh1_reduce((double*)pfld+base, (double*)sfld+base, size[0], size[1],
-             MPI_DOUBLE, MPI_DOUBLE, MPI_SUM, MPI_SUM);
-}
-void
-oh3_allreduce_field_(void *pfld, void *sfld, int *ftype) {
-  int base=FieldDesc[*ftype-1].red.base;
-  int *size=FieldDesc[*ftype-1].red.size;
+static void
+state_allreduce_field(struct oh_state *state, void *pfld, void *sfld,
+                      int ftype) {
+  int base=state->field_desc[ftype].red.base;
+  int *size=state->field_desc[ftype].red.size;
 
   oh1_all_reduce((double*)pfld+base, (double*)sfld+base, size[0], size[1],
                  MPI_DOUBLE, MPI_DOUBLE, MPI_SUM, MPI_SUM);
 }
-void
-oh3_allreduce_field(void *pfld, void *sfld, int ftype) {
-  int base=FieldDesc[ftype].red.base;
-  int *size=FieldDesc[ftype].red.size;
-
-  oh1_all_reduce((double*)pfld+base, (double*)sfld+base, size[0], size[1],
-                 MPI_DOUBLE, MPI_DOUBLE, MPI_SUM, MPI_SUM);
-}
-void
-oh3_exchange_borders_(void *pfld, void *sfld, int *ctype, int *bcast) {
-  oh3_exchange_borders(pfld, sfld, *ctype-1, *bcast);
-}
-void
-oh3_exchange_borders(void *pfld, void *sfld, int ctype, int bcast) {
+static void
+state_exchange_borders(struct oh_state *state, void *pfld, void *sfld,
+                       int ctype, int bcast) {
   MPI_Status st;
   int d, lu;
+  int (*adjacent)[2]=(int(*)[2])state->adjacent;
+  struct S_borderexc (*border_exchange)[2][OH_DIMENSION][2] =
+    (struct S_borderexc(*)[2][OH_DIMENSION][2])state->border_exchange;
   double *pf=(double*)pfld, *sf=(double*)sfld;
 
   for (d=0; d<OH_DIMENSION; d++) {
     for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
-      int dst=Adjacent[d][lu], src=Adjacent[d][1-lu];
-      struct S_borderexc *bx=&BorderExc[ctype][0][d][lu];
+      int dst=adjacent[d][lu], src=adjacent[d][1-lu];
+      struct S_borderexc *bx=&border_exchange[ctype][0][d][lu];
       int scount=bx->send.count;
       int rcount=bx->recv.count;
       if (scount && rcount)
         MPI_Sendrecv(pf+bx->send.buf, scount, bx->send.type, dst, 0,
                      pf+bx->recv.buf, rcount, bx->recv.type, src, 0,
-                     MCW, &st);
+                     state->comm, &st);
       else if (scount)
-        MPI_Send(pf+bx->send.buf, scount, bx->send.type, dst, 0, MCW);
+        MPI_Send(pf+bx->send.buf, scount, bx->send.type, dst, 0,
+                 state->comm);
       else if (rcount)
-        MPI_Recv(pf+bx->recv.buf, rcount, bx->recv.type, src, 0, MCW, &st);
+        MPI_Recv(pf+bx->recv.buf, rcount, bx->recv.type, src, 0, state->comm,
+                 &st);
     }
   }
-  if (Mode_PS(currMode) && bcast) {
-    if (RegionId[1]>=0 &&
-        BorderExc[ctype][1][OH_DIM_X][OH_LOWER].send.count<0)
+  if (Mode_PS(state->curr_mode) && bcast) {
+    if (state->region_id[1]>=0 &&
+        border_exchange[ctype][1][OH_DIM_X][OH_LOWER].send.count<0)
       set_border_exchange(ctype, 1, MPI_DOUBLE);
     for (d=0; d<OH_DIMENSION; d++) {
       for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
-        struct S_borderexc *bxp=&BorderExc[ctype][0][d][lu];
-        struct S_borderexc *bxs=&BorderExc[ctype][1][d][lu];
+        struct S_borderexc *bxp=&border_exchange[ctype][0][d][lu];
+        struct S_borderexc *bxs=&border_exchange[ctype][1][d][lu];
         oh1_broadcast(pf+bxp->recv.buf, sf+bxs->recv.buf,
                       bxp->recv.count, bxs->recv.count,
                       bxp->recv.type, bxs->recv.type);

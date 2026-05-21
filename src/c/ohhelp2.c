@@ -40,6 +40,15 @@ oh2_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
         *stats, *repiter, *verbose);
 }
 void
+oh2_set_particle_mpi_type_(int *type) {
+  oh2_set_particle_mpi_type(MPI_Type_f2c(*type));
+}
+void
+oh2_set_particle_mpi_type(MPI_Datatype type) {
+  CustomTParticle = type;
+  useCustomTParticle = 1;
+}
+void
 oh2_init(int **sdid, int nspec, int maxfrac, int **nphgram,
          int **totalp, struct S_particle **pbuf, int **pbase, int maxlocalp,
          void *mycomm, int **nbor, int *pcoord,
@@ -69,8 +78,12 @@ init2(int **sdid, int nspec, int maxfrac, int **nphgram,
       (struct S_particle*)mem_alloc(sizeof(struct S_particle),
                                     maxlocalp, "Particles");
 
-  MPI_Type_contiguous(sizeof(struct S_particle), MPI_BYTE, &T_Particle);
-  MPI_Type_commit(&T_Particle);
+  if (useCustomTParticle) {
+    T_Particle = CustomTParticle;
+  } else {
+    MPI_Type_contiguous(sizeof(struct S_particle), MPI_BYTE, &T_Particle);
+    MPI_Type_commit(&T_Particle);
+  }
 
   if (!*pbase)  *pbase = (int*)mem_alloc(sizeof(int), 3, "ParticleBase");
   (*pbase)[0] = (*pbase)[1] = (*pbase)[2] = 0;

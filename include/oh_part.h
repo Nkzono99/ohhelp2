@@ -13,13 +13,9 @@ typedef long long int OH_nid_t;
 typedef int OH_nid_t;
 #endif
 
-// struct S_particle {
-//   double x, y, z, vx, vy, vz;
-//   long long int pid;
-//   OH_nid_t nid;
-//   int spec;
-// };
-
+#ifdef OH_PARTICLE_HEADER
+#include OH_PARTICLE_HEADER
+#else
 struct S_particle {
   double x, y, z, vx, vy, vz;
   int pid, preside;
@@ -28,3 +24,4 @@ struct S_particle {
   int spec;
 };
 #define OH_HAS_SPEC
+#endif

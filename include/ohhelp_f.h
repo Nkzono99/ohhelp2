@@ -25,6 +25,7 @@
 #define oh_show_stats(A1,A2)    oh1_show_stats(A1,A2)
 #define oh_print_stats(A1)      oh1_print_stats(A1)
 #define oh_verbose(A1)          oh1_verbose(A1)
+#define oh_set_region_weights(A1) oh1_set_region_weights(A1)
 #if OH_LIB_LEVEL==1
 #define oh_init(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13) \
         oh1_init(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13)
@@ -33,6 +34,7 @@
 #define oh_set_total_particles oh2_set_total_particles
 #if OH_LIB_LEVEL!=4
 #define oh_max_local_particles(A1,A2,A3) oh2_max_local_particles(A1,A2,A3)
+#define oh_set_particle_mpi_type(A1)     oh2_set_particle_mpi_type(A1)
 #define oh_inject_particle(A1)           oh2_inject_particle(A1)
 #define oh_remap_injected_particle(A1)   oh2_remap_injected_particle(A1)
 #define oh_remove_injected_particle(A1)  oh2_remove_injected_particle(A1)

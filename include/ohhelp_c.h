@@ -7,6 +7,7 @@
    unchanged.
 */
 #include <mpi.h>
+#include "oh_context.h"
 struct S_mycommc {
   MPI_Comm prime, sec;
   int rank, root, black;
@@ -30,6 +31,7 @@ struct S_mycommc {
 #define oh_show_stats(A1,A2)    oh1_show_stats(A1,A2)
 #define oh_print_stats(A1)      oh1_print_stats(A1)
 #define oh_verbose(A1)          oh1_verbose(A1)
+#define oh_set_region_weights(A1) oh1_set_region_weights(A1)
 
 void oh1_neighbors(int **nbor);
 void oh1_families(int **famindex, int **members);
@@ -47,6 +49,7 @@ void oh1_stats_time(int key, int ps);
 void oh1_show_stats(int step, int currmode);
 void oh1_print_stats(int nstep);
 void oh1_verbose(char *message);
+void oh1_set_region_weights(const double *weights);
 
 #if OH_LIB_LEVEL==1
 #define oh_init(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13) \
@@ -64,10 +67,12 @@ void oh2_set_total_particles();
 
 #if OH_LIB_LEVEL!=4
 #define oh_max_local_particles(A1,A2,A3) oh2_max_local_particles(A1,A2,A3)
+#define oh_set_particle_mpi_type(A1)     oh2_set_particle_mpi_type(A1)
 #define oh_inject_particle(A1)           oh2_inject_particle(A1)
 #define oh_remap_injected_particle(A1)   oh2_remap_injected_particle(A1)
 #define oh_remove_injected_particle(A1)  oh2_remove_injected_particle(A1)
 int  oh2_max_local_particles(long long int npmax, int maxfrac, int minmargin);
+void oh2_set_particle_mpi_type(MPI_Datatype type);
 void oh2_remap_injected_particle(struct S_particle *part);
 void oh2_remove_injected_particle(struct S_particle *part);
 #endif

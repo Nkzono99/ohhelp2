@@ -35,3 +35,4 @@
 # Local tooling
 .venv/
 .codex-tmp/
+build/

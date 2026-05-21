@@ -18,6 +18,8 @@ EXTERN int *RecvBufDisps;               /* [nOfNodes] */
 EXTERN int nOfInjections;
 EXTERN int specBase;
 EXTERN MPI_Datatype T_Particle;
+EXTERN MPI_Datatype CustomTParticle;
+EXTERN int useCustomTParticle;
 EXTERN MPI_Request *Requests;           /* [nOfNodes*nOfSpecies*2*2] */
 EXTERN MPI_Status *Statuses;            /* [nOfNodes*nOfSpecies*2*2] */
 
@@ -50,6 +52,7 @@ EXTERN int AbsNeighbors[2][OH_NEIGHBORS];
 /* Prototypes for the functions called from simulator code */
 void oh2_set_total_particles();
 int  oh2_max_local_particles(dint npmax, int maxfrac, int minmargin);
+void oh2_set_particle_mpi_type(MPI_Datatype type);
 void oh2_inject_particle(struct S_particle *part);
 void oh2_remap_injected_particle(struct S_particle *part);
 void oh2_remove_injected_particle(struct S_particle *part);
@@ -61,6 +64,7 @@ int  oh2_transbound(int currmode, int stats);
 
 void oh2_set_total_particles_();
 int  oh2_max_local_particles_(dint *npmax, int *maxfrac, int *minmargin);
+void oh2_set_particle_mpi_type_(int *type);
 void oh2_inject_particle_(struct S_particle *part);
 void oh2_remap_injected_particle_(struct S_particle *part);
 void oh2_remove_injected_particle_(struct S_particle *part);

@@ -44,6 +44,10 @@ module ohhelp2
       integer,intent(in)   :: maxfrac
       integer,intent(in)   :: minmargin
     end function
+    subroutine oh2_set_particle_mpi_type(type)
+      implicit none
+      integer,intent(in) :: type
+    end subroutine
     integer function oh2_transbound(currmode, stats)
       implicit none
       integer,intent(in) :: currmode

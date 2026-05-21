@@ -9,6 +9,8 @@
 #define EXTERN
 #define OH_DEFINE_STATS
 #include "ohhelp1.h"
+#include "oh_context.h"
+#include "oh_load_balance.h"
 
 /* Prototypes for private functions. */
 static void  count_stay();
@@ -37,6 +39,12 @@ static void  stats_reduce_part(void* inarg, void* ioarg, int* len,
 static void  print_stats(struct S_statstotal *stotal, int cstep, int n);
 static void  stats_reduce_time(void* inarg, void* ioarg, int* len,
                                MPI_Datatype* type);
+static int   try_primary1_state(struct oh_state *state, int currmode,
+                                int level, int stats);
+static int   try_stable1_state(struct oh_state *state, int currmode,
+                               int level, int stats);
+static void  rebalance1_state(struct oh_state *state, int currmode,
+                              int level, int stats);
 
 void
 oh1_fam_comm_(MPI_Comm *fortran_comm) {
@@ -60,6 +68,52 @@ oh1_init(int **sdid, int nspec, int maxfrac, int **nphgram,
 }
 static int (*NeighborsShadow)[OH_NEIGHBORS] = NULL;
 static int *NeighborsTemp = NULL;
+static void
+sync_default_state(void) {
+  OhDefaultState.comm = MCW;
+  OhDefaultState.n_of_nodes = nOfNodes;
+  OhDefaultState.my_rank = myRank;
+  OhDefaultState.region_id = RegionId;
+  OhDefaultState.subdomain_id = SubdomainId;
+  OhDefaultState.curr_mode = currMode;
+  OhDefaultState.acc_mode = accMode;
+  OhDefaultState.n_of_species = nOfSpecies;
+  OhDefaultState.max_fraction = maxFraction;
+  OhDefaultState.n_of_particles_local = NOfPLocal;
+  OhDefaultState.n_of_primaries = NOfPrimaries;
+  OhDefaultState.total_particles_global = TotalPGlobal;
+  OhDefaultState.region_weights = RegionWeights;
+  OhDefaultState.total_load_global = TotalLoadGlobal;
+  OhDefaultState.n_of_particles = nOfParticles;
+  OhDefaultState.total_load = nOfLoad;
+  OhDefaultState.n_of_local_particles_max = nOfLocalPMax;
+  OhDefaultState.n_of_local_load_max = nOfLocalLoadMax;
+  OhDefaultState.weighted_load_balancing = weightedLoadBalancing;
+  OhDefaultState.n_of_particles_to_stay = NOfPToStay;
+  OhDefaultState.total_particles = TotalP;
+  OhDefaultState.total_particles_next = TotalPNext;
+  OhDefaultState.primary_parts = primaryParts;
+  OhDefaultState.total_parts = totalParts;
+}
+struct oh_state*
+oh1_state(void) {
+  sync_default_state();
+  return &OhDefaultState;
+}
+struct oh_state*
+oh_default_context(void) {
+  return oh1_state();
+}
+void
+oh_context_set_region_weights(struct oh_state *context, const double *weights) {
+  if (context && context!=&OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
+  oh1_set_region_weights(weights);
+}
+void
+oh1_state_(struct oh_state **state) {
+  *state = oh1_state();
+}
 void
 init1(int **sdid, int nspec, int maxfrac, int **nphgram,
       int **totalp, int **rcounts, int **scounts, struct S_mycommc *mycommc,
@@ -108,7 +162,14 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
 
   NOfPrimaries = (int*) mem_alloc(sizeof(int),  2*ns*nn, "NOfPrimaries");
   TotalPGlobal = (dint*)mem_alloc(sizeof(dint), nn+1, "TotalPGlobal");
+  RegionWeights = (double*)mem_alloc(sizeof(double), nn, "RegionWeights");
+  TotalLoadGlobal = (double*)mem_alloc(sizeof(double), nn, "TotalLoadGlobal");
   NOfPToStay   = (dint*)mem_alloc(sizeof(dint), nn, "NOfPToStay");
+  for (i=0; i<nn; i++) {
+    RegionWeights[i] = 1.0;
+    TotalLoadGlobal[i] = 0.0;
+  }
+  weightedLoadBalancing = FALSE;
   InjectedParticles = (int*)mem_alloc(sizeof(int), 4*ns, "InjectedParticles");
   for (s=0; s<ns*2; s++)  InjectedParticles[s] = 0;
 #ifndef OH_POS_AWARE
@@ -214,6 +275,27 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
   }
   statsMode = stats;
   reportIteration = repiter;
+  sync_default_state();
+}
+void
+oh1_set_region_weights_(double *weights) {
+  oh1_set_region_weights(weights);
+}
+void
+oh1_set_region_weights(const double *weights) {
+  int i, any = FALSE;
+
+  if (!RegionWeights)
+    local_errstop("oh1_set_region_weights() must be called after oh_init()");
+  for (i=0; i<nOfNodes; i++) {
+    double w = weights[i];
+    if (w<=0.0)
+      local_errstop("region weight[%d] must be greater than zero", i);
+    RegionWeights[i] = w;
+    if (w!=1.0) any = TRUE;
+  }
+  weightedLoadBalancing = any;
+  sync_default_state();
 }
 void*
 mem_alloc(int esize, int count, char* varname) {
@@ -301,6 +383,7 @@ set_total_particles() {
     primaryParts += tpp;  totalParts += tps;
   }
   totalParts += primaryParts;
+  sync_default_state();
 }
 int
 oh1_transbound_(int *currmode, int *stats) {
@@ -324,12 +407,17 @@ transbound1(int currmode, int stats, int level) {
     local_errstop("currmode given to oh_transbound() does not match with "
                   "that the library maintains");
 
-  for (i=0; i<nn; i++) TotalPGlobal[i] = 0;
+  for (i=0; i<nn; i++) {
+    TotalPGlobal[i] = 0;
+    TotalLoadGlobal[i] = 0.0;
+  }
   for (p=0,j=0,tp=0,tpn=0; p<=currmode; p++) {
     for (s=0; s<ns; s++) {
       for (i=0; i<nn; i++,j++) {
         int np=NOfPLocal[j];
-        TotalPGlobal[i] += np;  tp += np;
+        TotalPGlobal[i] += np;
+        TotalLoadGlobal[i] += oh_region_load(np, RegionWeights[i]);
+        tp += np;
       }
     }
     for (i=0,nbor=Neighbors[p]; i<OH_NEIGHBORS; i++) {
@@ -347,13 +435,19 @@ transbound1(int currmode, int stats, int level) {
 #endif
   MPI_Allreduce(MPI_IN_PLACE, TotalPGlobal, nn+1, MPI_LONG_LONG_INT, MPI_SUM,
                 MCW);
+  MPI_Allreduce(MPI_IN_PLACE, TotalLoadGlobal, nn, MPI_DOUBLE, MPI_SUM, MCW);
   if (TotalPGlobal[nn])  currmode = Mode_Set_Any(currmode);
 
-  for (i=0,nofp=0; i<nn; i++)  nofp += TotalPGlobal[i];
+  for (i=0,nofp=0,nOfLoad=0.0; i<nn; i++) {
+    nofp += TotalPGlobal[i];
+    nOfLoad += TotalLoadGlobal[i];
+  }
   nOfParticles = nofp;
   nOfLocalPMax = nofp*(maxFraction+100)/100/nn;
+  nOfLocalLoadMax = oh_load_limit(nOfLoad, maxFraction, nn);
   accMode = Mode_Is_Any(currmode) ? 1 : 0;
 
+  sync_default_state();
   if (level>1) return(currmode);
   if (try_primary1(currmode, 1, stats))  ret = MODE_NORM_PRI;
   else if (!Mode_PS(currmode) || !try_stable1(currmode, 1, stats)) {
@@ -363,23 +457,43 @@ transbound1(int currmode, int stats, int level) {
     NOfPLocal[i] = 0;  RecvCounts[i] = NOfRecv[i];  SendCounts[i] = NOfSend[i];
   }
   for (s=0; s<ns*2; s++) TotalP[s] = TotalPNext[s];
-  return((currMode=ret));
+  currMode = ret;
+  sync_default_state();
+  return(currMode);
 }
 int
 try_primary1(int currmode, int level, int stats) {
-  int nn=nOfNodes, ns=nOfSpecies, nnns=nn*ns, me=myRank, nlpmax=nOfLocalPMax;
+  return try_primary1_state(oh1_state(), currmode, level, stats);
+}
+static int
+try_primary1_state(struct oh_state *state, int currmode, int level, int stats) {
+  int nn=state->n_of_nodes, ns=state->n_of_species, nnns=nn*ns;
+  int me=state->my_rank, nlpmax=state->n_of_local_particles_max;
+  int weighted=state->weighted_load_balancing;
+  double nlpmax_weighted=state->n_of_local_load_max;
+  dint *totalp_global=state->total_particles_global;
+  double *total_load_global=state->total_load_global;
+  int *subdomain_id=state->subdomain_id;
+  int *region_id=state->region_id;
+  int *nofsend=NOfSend, *nofrecv=NOfRecv;
+  int *nofplocal=state->n_of_particles_local;
+  int *nofprimaries=state->n_of_primaries;
+  int *totalp_next=state->total_particles_next;
   int i, j, s;
 
   Verbose(2,vprint("try_primary(%s,%s)",
                    Mode_PS(currmode)?"secondary":"primary",
                    Mode_Acc(currmode)?"anywhere":"normal"));
   for (i=0; i<nn; i++) {
-    if (TotalPGlobal[i]>nlpmax) return(FALSE);
+    if (weighted) {
+      if (total_load_global[i]>nlpmax_weighted) return(FALSE);
+    } else if (totalp_global[i]>nlpmax) return(FALSE);
   }
   if (stats) stats_primary_comm(currmode);
   Verbose(2,vprint("try_primary=TRUE"));
 
-  SubdomainId[1] = RegionId[1] = -1;
+  subdomain_id[1] = region_id[1] = -1;
+  sync_default_state();
   if (Mode_PS(currmode) && FamIndex) {
     int *fidx = FamIndex,  *fmem = FamMembers;
     for (i=0; i<nn; i++)  fidx[i] = fmem[i] = i;
@@ -389,27 +503,34 @@ try_primary1(int currmode, int level, int stats) {
   for (i=0,s=0; s<ns; s++) {
     int t = 0;
     for (j=0; j<nn; j++,i++) {
-      NOfSend[i] = NOfPLocal[i] + NOfPLocal[i+nnns];
-      t += (NOfRecv[i] = NOfPrimaries[i] + NOfPrimaries[i+nnns]);
-      NOfSend[i+nnns] = NOfRecv[i+nnns] = 0;
+      nofsend[i] = nofplocal[i] + nofplocal[i+nnns];
+      t += (nofrecv[i] = nofprimaries[i] + nofprimaries[i+nnns]);
+      nofsend[i+nnns] = nofrecv[i+nnns] = 0;
       if (j==me) {
-        NOfSend[i] -= NOfPLocal[i];  NOfRecv[i] -= NOfPrimaries[i];
+        nofsend[i] -= nofplocal[i];  nofrecv[i] -= nofprimaries[i];
       }
     }
-    TotalPNext[s] = t;  TotalPNext[ns+s] = 0;
+    totalp_next[s] = t;  totalp_next[ns+s] = 0;
   }
   return(TRUE);
 }
 #define Special_Pexc_Sched(LEVEL) (LEVEL<0)
 int
 try_stable1(int currmode, int level, int stats) {
-  int nn=nOfNodes;
-  int nlpmax=nOfLocalPMax;
+  return try_stable1_state(oh1_state(), currmode, level, stats);
+}
+static int
+try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
+  int nn=state->n_of_nodes;
+  int nlpmax=state->n_of_local_particles_max;
+  dint *totalp_global=state->total_particles_global;
+  dint *nofp_to_stay=state->n_of_particles_to_stay;
   struct S_node *node, *ch;
   int i;
 
   if (stats) oh1_stats_time(STATS_TRY_STABLE, 0);
   Verbose(2,vprint("try_stable"));
+  if (state->weighted_load_balancing) return(FALSE);
   count_stay();
 
   for (i=0; ; i++) {                    /* bottom up traversal of node tree */
@@ -424,7 +545,7 @@ try_stable1(int currmode, int level, int stats) {
     stayprime = node->stay.prime;
     staysec = node->stay.sec;
     parent = node->parent;
-    floating = TotalPGlobal[nid] - NOfPToStay[nid];
+    floating = totalp_global[nid] - nofp_to_stay[nid];
     putprime = putprimemax - floating;
     if (putprime>stayprime)  putprime = stayprime;
     node->get.prime = -putprime;
@@ -440,7 +561,7 @@ try_stable1(int currmode, int level, int stats) {
                                            and thus number of parant's to-stay
                                            is decremented to make its getprime
                                            larger in the result */
-      NOfPToStay[node->parentid] += getsec;
+      nofp_to_stay[node->parentid] += getsec;
     } else {                            /* getsec is 0 to mean the node has
                                            some room to get secondaries */
       parent->get.prime += room;
@@ -457,7 +578,7 @@ try_stable1(int currmode, int level, int stats) {
                                            of primaries is equal to the
                                            average */
     nid = node->id;
-    floating = TotalPGlobal[nid] - NOfPToStay[nid];
+    floating = totalp_global[nid] - nofp_to_stay[nid];
                                         /* # of transboundaries + overflows */
     nproot = node->stay.prime + node->stay.sec + node->get.sec;
     if (nproot>nlpmax) {                /* secondary assignment made primary
@@ -844,23 +965,98 @@ oh1_broadcast(void* pbuf, void* sbuf, int pcount, int scount,
 }
 void
 rebalance1(int currmode, int level, int stats) {
-  int nn=nOfNodes;
-  dint nofp=nOfParticles;
+  rebalance1_state(oh1_state(), currmode, level, stats);
+}
+static void
+rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
+  int nn=state->n_of_nodes;
+  dint nofp=state->n_of_particles;
   dint npavefloor=nofp/nn;
   dint npfracin=nofp-npavefloor*nn, npfracout=npfracin;
   dint npavein=npavefloor+(npfracin==0 ? 0 : 1), npaveout=npavein;
-  int ns=nOfSpecies;
-  int i, j, k, s, bot, pm=Mode_PS(currmode)-1, me=myRank;
+  int ns=state->n_of_species;
+  int i, j, k, s, bot, pm=Mode_PS(currmode)-1, me=state->my_rank;
+  int weighted=state->weighted_load_balancing;
+  double total_load=state->total_load;
+  dint *totalp_global=state->total_particles_global;
+  double *total_load_global=state->total_load_global;
+  double *region_weights=state->region_weights;
+  int *nofplocal=state->n_of_particles_local;
   struct S_node *node, *mynode=NodesNext+me, *root;
 
   if (stats) oh1_stats_time(STATS_REBALANCE, 0);
   Verbose(2,vprint("rebalance"));
 
+  if (weighted) {
+    double target = total_load / nn;
+
+    LessHeap.n = GreaterHeap.n = 0;
+    for (i=0; i<nn; i++) GreaterHeap.index[i] = 0;
+
+    for (i=0,bot=0,node=NodesNext; i<nn; i++,node++) {
+      if (total_load_global[i]<target) {
+        push_heap(i, &LessHeap, 0);
+        NodeQueue[bot++] = node;
+      } else {
+        push_heap(i, &GreaterHeap, 1);
+      }
+      *node = Nodes[i];
+      node->child = NULL;
+      if (pm) node->parentid = -1;
+    }
+    while (LessHeap.n) {
+      struct S_node *parent;
+      double deficit;
+      int get, h;
+      j = pop_heap(&LessHeap, 0);
+      node = NodesNext + j;
+      if ((k=node->parentid)>=0 && (h=GreaterHeap.index[k]))
+        remove_heap(&GreaterHeap, 1, h);
+      else
+        k = pop_heap(&GreaterHeap, 1);
+      deficit = target - total_load_global[j];
+      get = oh_particles_for_load(deficit, region_weights[k], totalp_global[k]);
+      node->get.sec = get;
+      parent = NodesNext + k;
+      node->parentid = k;  node->parent = parent;
+      node->sibling = parent->child;
+      parent->child = node;
+      totalp_global[k] -= get;
+      total_load_global[k] -= (double)get * region_weights[k];
+      if (total_load_global[k]<target && GreaterHeap.n>0) {
+        push_heap(k, &LessHeap, 0);  NodeQueue[bot++] = parent;
+      } else {
+        push_heap(k, &GreaterHeap, 1);
+      }
+    }
+    root = NodesNext + GreaterHeap.node[1];
+    root->parentid = -1;  root->parent = root->sibling = NULL;
+    root->get.sec = 0;
+    k = root->id;
+    for (i=2; i<=GreaterHeap.n; i++) {
+      j = GreaterHeap.node[i];
+      node = NodesNext + j;
+      node->get.sec = 0;
+      node->parentid = k;  node->parent = root;
+      node->sibling = root->child;  root->child = node;
+      NodeQueue[bot++] = node;
+    }
+    NodeQueue[bot] = root;
+
+    mynode->get.prime = totalp_global[me] -
+                        (mynode->stay.prime=count_real_stay(nofplocal+me));
+    if (Special_Pexc_Sched(level)) return;
+    schedule_particle_exchange(currmode==MODE_NORM_SEC ?
+                               1 : (currmode==MODE_NORM_PRI ? 2 : 3));
+    build_new_comm(currmode, level, 1, stats);
+    return;
+  }
+
   LessHeap.n = GreaterHeap.n = 0;
   for (i=0; i<nn; i++) GreaterHeap.index[i] = 0;
 
   for (i=0,bot=0,node=NodesNext; i<nn; i++,node++) {
-    dint npg=TotalPGlobal[i];
+    dint npg=totalp_global[i];
     if (npg<npavein) {
       if (--npfracin==0) npavein--;
       push_heap(i, &LessHeap, 0);
@@ -878,7 +1074,7 @@ rebalance1(int currmode, int level, int stats) {
     int get, pid, h;
     j = pop_heap(&LessHeap, 0);
     node = NodesNext + j;
-    get = npaveout - TotalPGlobal[j];
+    get = npaveout - totalp_global[j];
     if (--npfracout==0) npaveout--;
     if ((k=node->parentid)>=0 && (h=GreaterHeap.index[k]))
       remove_heap(&GreaterHeap, 1, h);
@@ -889,7 +1085,7 @@ rebalance1(int currmode, int level, int stats) {
     node->parentid = k;  node->parent = parent;
     node->sibling = parent->child;
     parent->child = node;
-    npg = (TotalPGlobal[k] -= get);
+    npg = (totalp_global[k] -= get);
     if (npg<npavein) {
       if (--npfracin==0) npavein--;
       push_heap(k, &LessHeap, 0);  NodeQueue[bot++] = parent;
@@ -911,8 +1107,8 @@ rebalance1(int currmode, int level, int stats) {
   }
   NodeQueue[bot] = root;
 
-  mynode->get.prime = TotalPGlobal[me] -
-                      (mynode->stay.prime=count_real_stay(NOfPLocal+me));
+  mynode->get.prime = totalp_global[me] -
+                      (mynode->stay.prime=count_real_stay(nofplocal+me));
   if (Special_Pexc_Sched(level)) return;
   schedule_particle_exchange(currmode==MODE_NORM_SEC ?
                              1 : (currmode==MODE_NORM_PRI ? 2 : 3));
@@ -991,6 +1187,7 @@ build_new_comm(int currmode, int level, int nbridx, int stats) {
     oh1_broadcast(nb[0], nb[1], OH_NEIGHBORS, OH_NEIGHBORS, MPI_INT, MPI_INT);
   }
   SubdomainId[1] = RegionId[1] = mynode->parentid;
+  sync_default_state();
 
   if (!Special_Pexc_Sched(level))
     make_comm_count(currmode, level, 1,
@@ -1000,12 +1197,15 @@ static void
 push_heap(int r, struct S_heap* heap, int greater) {
   int n=heap->n, *hnode=heap->node, *index=heap->index;
   dint np=TotalPGlobal[r];
+  double load=TotalLoadGlobal[r];
   int m, q, g;
 
   heap->n = ++n;
   for (; n>1; n=m) {
     m = n>>1;  q = hnode[m];
-    g = (np>TotalPGlobal[q]) ? 1 : 0;
+    g = weightedLoadBalancing ?
+        ((load>TotalLoadGlobal[q]) ? 1 : 0) :
+        ((np>TotalPGlobal[q]) ? 1 : 0);
     if (g!=greater) break;
     hnode[n] = q;  index[q] = n;
   }
@@ -1023,6 +1223,7 @@ remove_heap(struct S_heap* heap, int greater, int rem) {
   int n=heap->n, *hnode=heap->node, *index=heap->index;
   int id=hnode[n];
   dint np=TotalPGlobal[id];
+  double load=TotalLoadGlobal[id];
   int i;
 
   heap->n = --n;  index[hnode[rem]] = 0;
@@ -1032,7 +1233,10 @@ remove_heap(struct S_heap* heap, int greater, int rem) {
     if (right<=n) {
       int lid=hnode[left], rid=hnode[right];
       dint lnp=TotalPGlobal[lid], rnp=TotalPGlobal[rid];
-      int cgl=(np>lnp)?1:0, cgr=(np>rnp)?1:0, lgr=(lnp>rnp)?1:0;
+      double lload=TotalLoadGlobal[lid], rload=TotalLoadGlobal[rid];
+      int cgl=weightedLoadBalancing ? ((load>lload)?1:0) : ((np>lnp)?1:0);
+      int cgr=weightedLoadBalancing ? ((load>rload)?1:0) : ((np>rnp)?1:0);
+      int lgr=weightedLoadBalancing ? ((lload>rload)?1:0) : ((lnp>rnp)?1:0);
       if (cgl==greater) {
         if (cgr==greater) {
           hnode[i] = id;  index[id] = i;  return;
@@ -1047,7 +1251,9 @@ remove_heap(struct S_heap* heap, int greater, int rem) {
     } else {
       if (left<=n) {
         int lid=hnode[left];
-        int cgl=(np>TotalPGlobal[lid])?1:0;
+        int cgl=weightedLoadBalancing ?
+                ((load>TotalLoadGlobal[lid])?1:0) :
+                ((np>TotalPGlobal[lid])?1:0);
         if (cgl==greater) {
           hnode[i] = id;  index[id] = i;
         } else {                /* we know left node has no children. */

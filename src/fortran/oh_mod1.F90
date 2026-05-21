@@ -120,5 +120,9 @@ module ohhelp1
       implicit none
       character(*),intent(in) :: message
     end subroutine
+    subroutine oh1_set_region_weights(weights)
+      implicit none
+      real*8,intent(in) :: weights(*)
+    end subroutine
   end interface
 end module

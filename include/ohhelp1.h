@@ -50,6 +50,34 @@ typedef long long int dint;     /* shorthand of 64-bit integer */
 #define EXTERN extern
 #endif
 
+struct oh_state {
+  MPI_Comm comm;
+  int n_of_nodes;
+  int my_rank;
+  int *region_id;
+  int *subdomain_id;
+  int curr_mode;
+  int acc_mode;
+  int n_of_species;
+  int max_fraction;
+  int *n_of_particles_local;
+  int *n_of_primaries;
+  dint *total_particles_global;
+  double *region_weights;
+  double *total_load_global;
+  dint n_of_particles;
+  double total_load;
+  int n_of_local_particles_max;
+  double n_of_local_load_max;
+  int weighted_load_balancing;
+  dint *n_of_particles_to_stay;
+  int *total_particles;
+  int *total_particles_next;
+  int primary_parts;
+  int total_parts;
+};
+EXTERN struct oh_state OhDefaultState;
+
 /* Basic process configuration variables */
 EXTERN int nOfNodes;
 EXTERN int myRank;
@@ -75,8 +103,13 @@ EXTERN int  maxFraction;
 EXTERN int  *NOfPLocal;                 /* [2][nOfSpecies][nOfNodes] */
 EXTERN int  *NOfPrimaries;              /* [2][nOfSpecies][nOfNodes] */
 EXTERN dint *TotalPGlobal;              /* [nOfNodes+1] */
+EXTERN double *RegionWeights;           /* [nOfNodes] */
+EXTERN double *TotalLoadGlobal;         /* [nOfNodes] */
 EXTERN dint nOfParticles;
+EXTERN double nOfLoad;
 EXTERN int  nOfLocalPMax;
+EXTERN double nOfLocalLoadMax;
+EXTERN int  weightedLoadBalancing;
 EXTERN dint *NOfPToStay;                /* [nOfNodes] */
 EXTERN int  *TotalP;                    /* [2][nOfSpecies] */
 EXTERN int  *TotalPNext;                /* [2][nOfSpecies] */
@@ -226,6 +259,11 @@ void oh1_stats_time(int key, int ps);
 void oh1_show_stats(int step, int currmode);
 void oh1_print_stats(int nstep);
 void oh1_verbose(char *message);
+void oh1_set_region_weights(const double *weights);
+struct oh_state *oh1_state(void);
+struct oh_state *oh_default_context(void);
+void oh_context_set_region_weights(struct oh_state *context,
+                                   const double *weights);
 
 void oh1_fam_comm(MPI_Comm *fortran_comm);
 
@@ -248,6 +286,8 @@ void oh1_stats_time_(int *key, int *ps);
 void oh1_show_stats_(int *step, int *currmode);
 void oh1_print_stats_(int *nstep);
 void oh1_verbose_(char *message);
+void oh1_set_region_weights_(double *weights);
+void oh1_state_(struct oh_state **state);
 void oh1_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
                int *totalp, int *rcounts, int *scounts,
                struct S_mycommf *mycomm, int *nbor, int *pcoord, int *stats,

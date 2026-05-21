@@ -41,8 +41,8 @@ static void add_population(dint* npd, const int xl, const int xu,
                            const int zu, const int src);
 static void make_recv_list(const int currmode, const int level, const int reb,
                            const int oldp, const int newp, const int stats);
-static void sched_recv(const int reb, const int get, const int stay,
-                       const int nid, const int tag,
+static void sched_recv(struct oh_state* state, const int reb, const int get,
+                       const int stay, const int nid, const int tag,
                        struct S_recvsched_context* context);
 static void make_send_sched(const int reb, const int pcode, const int oldp,
                             const int newp, struct S_commlist* rlist[2],
@@ -788,20 +788,23 @@ static void make_recv_list(const int currmode, const int level, const int reb,
     struct S_node* mynode = nodes + me;
     struct S_node* ch;
     int* first_neighbor = state->level4_first_neighbor;
+    int* rl_index = state->rl_index;
     MPI_Comm comm = state->comm;
     struct S_recvsched_context
         context = { 0, 0, 0, state->comm_list };
     int rlsize, rlidx;
-    const int ft = nOfFields - 1;
-    const int npgbase = FieldDesc[ft].bc.base;
-    const int* npgsize = FieldDesc[ft].bc.size;
-    const int zmax = GridDesc[0].z - 1;
+    const int ft = state->n_of_fields - 1;
+    const int npgbase = state->field_desc[ft].bc.base;
+    const int* npgsize = state->field_desc[ft].bc.size;
+    const int zmax = state->level4_grid_desc[0].z - 1;
     struct S_commlist* lastrl;
     int i;
 
     for (ch = mynode->child; ch; ch = ch->sibling)
-        sched_recv(reb, ch->get.sec, ch->stay.sec, ch->id, nnns, &context);
-    sched_recv(0, mynode->get.prime, mynode->stay.prime, me, 0, &context);
+        sched_recv(state, reb, ch->get.sec, ch->stay.sec, ch->id, nnns,
+                   &context);
+    sched_recv(state, 0, mynode->get.prime, mynode->stay.prime, me, 0,
+               &context);
 
     rlidx = rlsize = context.cptr - state->comm_list;  lastrl = context.cptr - 1;
     if (rlsize == 0) {
@@ -817,10 +820,10 @@ static void make_recv_list(const int currmode, const int level, const int reb,
         int rc;
         MPI_Status st;
         if (dst == me) {
-            RLIndex[i] = 0;  continue;
+            rl_index[i] = 0;  continue;
         }
         if (src >= 0) {
-            RLIndex[i] = rlidx;
+            rl_index[i] = rlidx;
             if (dst >= 0)
                 MPI_Sendrecv(state->comm_list, rlsize, T_Commlist, dst, 0,
                              state->comm_list + rlidx, nn2, T_Commlist, src, 0,
@@ -832,16 +835,16 @@ static void make_recv_list(const int currmode, const int level, const int reb,
         } else {
             if (dst >= 0)
                 MPI_Send(state->comm_list, rlsize, T_Commlist, dst, 0, comm);
-            RLIndex[i] = (src < -nn) ? rlidx : RLIndex[first_neighbor[i]];
+            rl_index[i] = (src < -nn) ? rlidx : rl_index[first_neighbor[i]];
         }
     }
-    RLIndex[OH_NEIGHBORS] = rlidx;  SecRLIndex[OH_NEIGHBORS] = 0;
-    AltSecRList = SecRList = state->comm_list + rlidx;
+    rl_index[OH_NEIGHBORS] = rlidx;  SecRLIndex[OH_NEIGHBORS] = 0;
+    AltSecRList = state->sec_recv_list = SecRList = state->comm_list + rlidx;
     AltSecRLIndex[OH_NEIGHBORS] = 0;
     if (Mode_PS(currmode)) {
-        oh1_broadcast(RLIndex, SecRLIndex, OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
+        oh1_broadcast(rl_index, SecRLIndex, OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
                       MPI_INT, MPI_INT);
-        oh1_broadcast(state->comm_list, SecRList, rlidx,
+        oh1_broadcast(state->comm_list, state->sec_recv_list, rlidx,
                       SecRLIndex[OH_NEIGHBORS], T_Commlist, T_Commlist);
         AltSecRList += SecRLIndex[OH_NEIGHBORS];
     }
@@ -850,24 +853,28 @@ static void make_recv_list(const int currmode, const int level, const int reb,
         update_descriptors(oldp, newp);
         set_grid_descriptor(2, newp);
         update_real_neighbors(state, URN_TRN, Mode_PS(currmode), oldp, newp);
-        oh1_broadcast(RLIndex, AltSecRLIndex, OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
+        oh1_broadcast(rl_index, AltSecRLIndex, OH_NEIGHBORS + 1,
+                      OH_NEIGHBORS + 1,
                       MPI_INT, MPI_INT);
-        oh1_broadcast(state->comm_list, AltSecRList, RLIndex[OH_NEIGHBORS],
+        oh1_broadcast(state->comm_list, AltSecRList, rl_index[OH_NEIGHBORS],
                       AltSecRLIndex[OH_NEIGHBORS], T_Commlist, T_Commlist);
     }
-    oh1_broadcast(NOfPGridTotal[0][0] + npgbase, NOfPGridTotal[1][0] + npgbase,
+    oh1_broadcast(state->level4_particle_grid_total[0][0] + npgbase,
+                  state->level4_particle_grid_total[1][0] + npgbase,
                   npgsize[0], npgsize[1], MPI_LONG_LONG_INT, MPI_LONG_LONG_INT);
 }
 
-static void sched_recv(const int reb, const int get, const int stay, const int nid,
-                       const int tag, struct S_recvsched_context* context) {
+static void sched_recv(struct oh_state* state, const int reb, const int get,
+                       const int stay, const int nid, const int tag,
+                       struct S_recvsched_context* context) {
     const int z0 = context->z;
     dint nptotal = context->nptotal;
     dint nplimit = context->nplimit;
     struct S_commlist* cptr = context->cptr;
-    const int ns = nOfSpecies;
+    const int ns = state->n_of_species;
+    dint* npgz = state->level4_particle_grid_z;
     int z;
-    const int zz = GridDesc[0].z;
+    const int zz = state->level4_grid_desc[0].z;
 
     if (reb)
         nplimit += get;
@@ -878,7 +885,7 @@ static void sched_recv(const int reb, const int get, const int stay, const int n
     if (nptotal >= nplimit)  return;
     cptr->rid = nid;  cptr->tag = tag;  cptr->sid = 0;  cptr->count = 0;
     for (z = z0; z < zz; z++) {
-        nptotal += NOfPGridZ[z];
+        nptotal += npgz[z];
         if (nptotal >= nplimit) {
             cptr->region = z;  context->z = z + 1;
             context->nptotal = nptotal;  context->cptr = cptr + 1;

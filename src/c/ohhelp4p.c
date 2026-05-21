@@ -47,7 +47,8 @@ static struct S_commlist* make_recv_list(const int currmode,
                                          const int level, const int reb,
                                          const int oldp, const int newp,
                                          const int stats);
-static void sched_recv(const int currmode, const int reb, const int get,
+static void sched_recv(struct oh_state* state, const int currmode,
+                       const int reb, const int get,
                        const int stay, const int nid, const int tag,
                        struct S_recvsched_context* context);
 static void make_send_sched(const int currmode, const int reb, const int pcode,
@@ -719,24 +720,26 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
     struct S_node* mynode = nodes + me;
     struct S_node* ch;
     int* first_neighbor = state->level4_first_neighbor;
+    int* rl_index = state->rl_index;
     MPI_Comm comm = state->comm;
     struct S_recvsched_context
         context = { 0, 0, 0, 0, 0, 0, 0, 0, state->comm_list };
     int rlsize, rlidx;
-    const int ft = nOfFields - 1;
-    const int npgbase = FieldDesc[ft].bc.base;
-    const int* npgsize = FieldDesc[ft].bc.size;
+    const int ft = state->n_of_fields - 1;
+    const int npgbase = state->field_desc[ft].bc.base;
+    const int* npgsize = state->field_desc[ft].bc.size;
+    const struct S_griddesc* grid_desc = state->level4_grid_desc;
     const int lastg =
-        Coord_To_Index(GridDesc[0].x - 1, GridDesc[0].y - 1, GridDesc[0].z - 1,
-                       GridDesc[0].w, GridDesc[0].dw);
+        Coord_To_Index(grid_desc[0].x - 1, grid_desc[0].y - 1,
+                       grid_desc[0].z - 1, grid_desc[0].w, grid_desc[0].dw);
     struct S_commlist* lastrl;
     int i;
 
     for (ch = mynode->child; ch; ch = ch->sibling)
-        sched_recv(currmode, reb, ch->get.sec, ch->stay.sec, ch->id, nnns,
-                   &context);
-    sched_recv(currmode, reb, mynode->get.prime, mynode->stay.prime, me, 0,
-               &context);
+        sched_recv(state, currmode, reb, ch->get.sec, ch->stay.sec, ch->id,
+                   nnns, &context);
+    sched_recv(state, currmode, reb, mynode->get.prime, mynode->stay.prime, me,
+               0, &context);
     rlidx = rlsize = context.cptr - state->comm_list;  lastrl = context.cptr - 1;
     if (rlsize == 0 || (lastrl->region < lastg && lastrl->count)) {
         struct S_commlist* rl = lastrl + 1;
@@ -746,21 +749,21 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
     } else
         lastrl->region = lastg;
     if (Mode_Acc(currmode)) {
-        SecRList = state->comm_list + rlidx;  rlsize = 0;
+        state->sec_recv_list = SecRList = state->comm_list + rlidx;  rlsize = 0;
         oh1_broadcast(&rlidx, &rlsize, 1, 1, MPI_INT, MPI_INT);
-        oh1_broadcast(state->comm_list, SecRList, rlidx, rlsize,
+        oh1_broadcast(state->comm_list, state->sec_recv_list, rlidx, rlsize,
                       T_Commlist, T_Commlist);
-        return(SecRList + rlsize);
+        return(state->sec_recv_list + rlsize);
     }
     for (i = 0; i < OH_NEIGHBORS; i++) {
         const int dst = state->dst_neighbors[i], src = state->src_neighbors[i];
         int rc;
         MPI_Status st;
         if (dst == me) {
-            RLIndex[i] = 0;  continue;
+            rl_index[i] = 0;  continue;
         }
         if (src >= 0) {
-            RLIndex[i] = rlidx;
+            rl_index[i] = rlidx;
             if (dst >= 0)
                 MPI_Sendrecv(state->comm_list, rlsize, T_Commlist, dst, 0,
                              state->comm_list + rlidx, nn2, T_Commlist, src, 0,
@@ -772,15 +775,15 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
         } else {
             if (dst >= 0)
                 MPI_Send(state->comm_list, rlsize, T_Commlist, dst, 0, comm);
-            RLIndex[i] = (src < -nn) ? rlidx : RLIndex[first_neighbor[i]];
+            rl_index[i] = (src < -nn) ? rlidx : rl_index[first_neighbor[i]];
         }
     }
-    RLIndex[OH_NEIGHBORS] = rlidx;  SecRLIndex[OH_NEIGHBORS] = 0;
-    AltSecRList = SecRList = state->comm_list + rlidx;
+    rl_index[OH_NEIGHBORS] = rlidx;  SecRLIndex[OH_NEIGHBORS] = 0;
+    AltSecRList = state->sec_recv_list = SecRList = state->comm_list + rlidx;
     if (Mode_PS(currmode)) {
-        oh1_broadcast(RLIndex, SecRLIndex, OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
+        oh1_broadcast(rl_index, SecRLIndex, OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
                       MPI_INT, MPI_INT);
-        oh1_broadcast(state->comm_list, SecRList, rlidx,
+        oh1_broadcast(state->comm_list, state->sec_recv_list, rlidx,
                       SecRLIndex[OH_NEIGHBORS], T_Commlist, T_Commlist);
         AltSecRList = state->comm_list + (rlidx += SecRLIndex[OH_NEIGHBORS]);
     }
@@ -795,7 +798,8 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
                       T_Commlist, T_Commlist);
         rlidx += altrlsize;
     }
-    oh1_broadcast(NOfPGridTotal[0][0] + npgbase, NOfPGridTotal[1][0] + npgbase,
+    oh1_broadcast(state->level4_particle_grid_total[0][0] + npgbase,
+                  state->level4_particle_grid_total[1][0] + npgbase,
                   npgsize[0], npgsize[1], MPI_LONG_LONG_INT, MPI_LONG_LONG_INT);
     return(state->comm_list + rlidx);
 }
@@ -836,16 +840,19 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
           (fag_yidx++, fag_gy+=fag_w, fag_gx=fag_gy, fag_x0=0))\
       for (fag_xidx=fag_x0; fag_xidx<fag_x1; fag_xidx++,fag_gx++)
 
-static void sched_recv(const int currmode, const int reb, const int get, const int stay,
-                       const int nid, const int tag, struct S_recvsched_context* context) {
+static void sched_recv(struct oh_state* state, const int currmode,
+                       const int reb, const int get, const int stay,
+                       const int nid, const int tag,
+                       struct S_recvsched_context* context) {
     const int x0 = context->x, y0 = context->y, z0 = context->z, g = context->g;
     const int ovflimit = gridOverflowLimit;
     dint nptotal = context->nptotal;
     dint nplimit = context->nplimit;
     dint carryover = context->carryover;
-    dint** npg = NOfPGridTotal[0];
+    dint** npg = state->level4_particle_grid_total[0];
     struct S_commlist* cptr = context->cptr;
-    const int ns = nOfSpecies;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    const int ns = state->n_of_species;
     int s, npt = carryover, ret = 0;
     Decl_For_All_Grid();
     int fag_x0, fag_y0, fag_z0;

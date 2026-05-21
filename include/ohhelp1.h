@@ -76,7 +76,7 @@ struct oh_state {
   int primary_parts;
   int total_parts;
 };
-EXTERN struct oh_state OhDefaultState;
+extern struct oh_state OhDefaultState;
 
 /* Basic process configuration variables */
 EXTERN int nOfNodes;

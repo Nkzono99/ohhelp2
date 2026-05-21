@@ -5,6 +5,7 @@ mkdir -p build/docker
 
 mpicc -Iinclude -c src/c/oh_load_balance.c -o build/docker/oh_load_balance.o
 mpicc -Iinclude -c src/c/oh_particle_adapter.c -o build/docker/oh_particle_adapter.o
+mpicc -Iinclude -c src/c/oh_context.c -o build/docker/oh_context.o
 mpicc -Iinclude -c src/c/ohhelp1.c -o build/docker/ohhelp1.o
 mpicc -Iinclude -c src/c/ohhelp2.c -o build/docker/ohhelp2.o
 mpicc -Iinclude -c src/c/ohhelp3.c -o build/docker/ohhelp3.o

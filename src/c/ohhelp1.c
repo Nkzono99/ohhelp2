@@ -9,7 +9,7 @@
 #define EXTERN
 #define OH_DEFINE_STATS
 #include "ohhelp1.h"
-#include "oh_context.h"
+#include "oh_context_internal.h"
 #include "oh_load_balance.h"
 
 /* Prototypes for private functions. */
@@ -68,52 +68,6 @@ oh1_init(int **sdid, int nspec, int maxfrac, int **nphgram,
 }
 static int (*NeighborsShadow)[OH_NEIGHBORS] = NULL;
 static int *NeighborsTemp = NULL;
-static void
-sync_default_state(void) {
-  OhDefaultState.comm = MCW;
-  OhDefaultState.n_of_nodes = nOfNodes;
-  OhDefaultState.my_rank = myRank;
-  OhDefaultState.region_id = RegionId;
-  OhDefaultState.subdomain_id = SubdomainId;
-  OhDefaultState.curr_mode = currMode;
-  OhDefaultState.acc_mode = accMode;
-  OhDefaultState.n_of_species = nOfSpecies;
-  OhDefaultState.max_fraction = maxFraction;
-  OhDefaultState.n_of_particles_local = NOfPLocal;
-  OhDefaultState.n_of_primaries = NOfPrimaries;
-  OhDefaultState.total_particles_global = TotalPGlobal;
-  OhDefaultState.region_weights = RegionWeights;
-  OhDefaultState.total_load_global = TotalLoadGlobal;
-  OhDefaultState.n_of_particles = nOfParticles;
-  OhDefaultState.total_load = nOfLoad;
-  OhDefaultState.n_of_local_particles_max = nOfLocalPMax;
-  OhDefaultState.n_of_local_load_max = nOfLocalLoadMax;
-  OhDefaultState.weighted_load_balancing = weightedLoadBalancing;
-  OhDefaultState.n_of_particles_to_stay = NOfPToStay;
-  OhDefaultState.total_particles = TotalP;
-  OhDefaultState.total_particles_next = TotalPNext;
-  OhDefaultState.primary_parts = primaryParts;
-  OhDefaultState.total_parts = totalParts;
-}
-struct oh_state*
-oh1_state(void) {
-  sync_default_state();
-  return &OhDefaultState;
-}
-struct oh_state*
-oh_default_context(void) {
-  return oh1_state();
-}
-void
-oh_context_set_region_weights(struct oh_state *context, const double *weights) {
-  if (context && context!=&OhDefaultState)
-    local_errstop("only the default oh_context is implemented yet");
-  oh1_set_region_weights(weights);
-}
-void
-oh1_state_(struct oh_state **state) {
-  *state = oh1_state();
-}
 void
 init1(int **sdid, int nspec, int maxfrac, int **nphgram,
       int **totalp, int **rcounts, int **scounts, struct S_mycommc *mycommc,
@@ -275,7 +229,7 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
   }
   statsMode = stats;
   reportIteration = repiter;
-  sync_default_state();
+  oh1_sync_default_state();
 }
 void
 oh1_set_region_weights_(double *weights) {
@@ -295,7 +249,7 @@ oh1_set_region_weights(const double *weights) {
     if (w!=1.0) any = TRUE;
   }
   weightedLoadBalancing = any;
-  sync_default_state();
+  oh1_sync_default_state();
 }
 void*
 mem_alloc(int esize, int count, char* varname) {
@@ -383,7 +337,7 @@ set_total_particles() {
     primaryParts += tpp;  totalParts += tps;
   }
   totalParts += primaryParts;
-  sync_default_state();
+  oh1_sync_default_state();
 }
 int
 oh1_transbound_(int *currmode, int *stats) {
@@ -447,7 +401,7 @@ transbound1(int currmode, int stats, int level) {
   nOfLocalLoadMax = oh_load_limit(nOfLoad, maxFraction, nn);
   accMode = Mode_Is_Any(currmode) ? 1 : 0;
 
-  sync_default_state();
+  oh1_sync_default_state();
   if (level>1) return(currmode);
   if (try_primary1(currmode, 1, stats))  ret = MODE_NORM_PRI;
   else if (!Mode_PS(currmode) || !try_stable1(currmode, 1, stats)) {
@@ -458,7 +412,7 @@ transbound1(int currmode, int stats, int level) {
   }
   for (s=0; s<ns*2; s++) TotalP[s] = TotalPNext[s];
   currMode = ret;
-  sync_default_state();
+  oh1_sync_default_state();
   return(currMode);
 }
 int
@@ -493,7 +447,7 @@ try_primary1_state(struct oh_state *state, int currmode, int level, int stats) {
   Verbose(2,vprint("try_primary=TRUE"));
 
   subdomain_id[1] = region_id[1] = -1;
-  sync_default_state();
+  oh1_sync_default_state();
   if (Mode_PS(currmode) && FamIndex) {
     int *fidx = FamIndex,  *fmem = FamMembers;
     for (i=0; i<nn; i++)  fidx[i] = fmem[i] = i;
@@ -1187,7 +1141,7 @@ build_new_comm(int currmode, int level, int nbridx, int stats) {
     oh1_broadcast(nb[0], nb[1], OH_NEIGHBORS, OH_NEIGHBORS, MPI_INT, MPI_INT);
   }
   SubdomainId[1] = RegionId[1] = mynode->parentid;
-  sync_default_state();
+  oh1_sync_default_state();
 
   if (!Special_Pexc_Sched(level))
     make_comm_count(currmode, level, 1,

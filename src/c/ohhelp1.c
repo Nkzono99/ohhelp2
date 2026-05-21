@@ -64,6 +64,16 @@ static void  rebalance1_state(struct oh_state *state, int currmode,
                               int level, int stats);
 static void  build_new_comm_state(struct oh_state *state, int currmode,
                                   int level, int nbridx, int stats);
+static void  oh1_broadcast_state(struct oh_state *state, void* pbuf,
+                                 void* sbuf, int pcount, int scount,
+                                 MPI_Datatype ptype, MPI_Datatype stype);
+static void  oh1_all_reduce_state(struct oh_state *state, void *pbuf,
+                                  void *sbuf, int pcount, int scount,
+                                  MPI_Datatype ptype, MPI_Datatype stype,
+                                  MPI_Op pop, MPI_Op sop);
+static void  oh1_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
+                              int pcount, int scount, MPI_Datatype ptype,
+                              MPI_Datatype stype, MPI_Op pop, MPI_Op sop);
 
 void
 oh1_fam_comm_(MPI_Comm *fortran_comm) {
@@ -972,17 +982,24 @@ oh1_broadcast_(void* pbuf, void* sbuf, int *pcount, int *scount,
 void
 oh1_broadcast(void* pbuf, void* sbuf, int pcount, int scount,
               MPI_Datatype ptype, MPI_Datatype stype) {
+  oh1_broadcast_state(oh1_state(), pbuf, sbuf, pcount, scount, ptype, stype);
+}
+static void
+oh1_broadcast_state(struct oh_state *state, void* pbuf, void* sbuf,
+                    int pcount, int scount,
+                    MPI_Datatype ptype, MPI_Datatype stype) {
+  struct S_mycommc *mycomm=state->my_comm;
 
-  if (MyComm->black) {
-    if (MyComm->prime!=MPI_COMM_NULL && pcount)
-      MPI_Bcast(pbuf, pcount, ptype, MyComm->rank, MyComm->prime);
-    if (MyComm->sec!=MPI_COMM_NULL && scount)
-      MPI_Bcast(sbuf, scount, stype, MyComm->root, MyComm->sec);
+  if (mycomm->black) {
+    if (mycomm->prime!=MPI_COMM_NULL && pcount)
+      MPI_Bcast(pbuf, pcount, ptype, mycomm->rank, mycomm->prime);
+    if (mycomm->sec!=MPI_COMM_NULL && scount)
+      MPI_Bcast(sbuf, scount, stype, mycomm->root, mycomm->sec);
   } else {
-    if (MyComm->sec!=MPI_COMM_NULL && scount)
-      MPI_Bcast(sbuf, scount, stype, MyComm->root, MyComm->sec);
-    if (MyComm->prime!=MPI_COMM_NULL && pcount)
-      MPI_Bcast(pbuf, pcount, ptype, MyComm->rank, MyComm->prime);
+    if (mycomm->sec!=MPI_COMM_NULL && scount)
+      MPI_Bcast(sbuf, scount, stype, mycomm->root, mycomm->sec);
+    if (mycomm->prime!=MPI_COMM_NULL && pcount)
+      MPI_Bcast(pbuf, pcount, ptype, mycomm->rank, mycomm->prime);
   }
 }
 void
@@ -1329,17 +1346,26 @@ void
 oh1_all_reduce(void *pbuf, void *sbuf, int pcount, int scount,
                MPI_Datatype ptype, MPI_Datatype stype,
                MPI_Op pop, MPI_Op sop) {
+  oh1_all_reduce_state(oh1_state(), pbuf, sbuf, pcount, scount,
+                       ptype, stype, pop, sop);
+}
+static void
+oh1_all_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
+                     int pcount, int scount,
+                     MPI_Datatype ptype, MPI_Datatype stype,
+                     MPI_Op pop, MPI_Op sop) {
+  struct S_mycommc *mycomm=state->my_comm;
 
-  if (MyComm->black) {
-    if (MyComm->prime!=MPI_COMM_NULL)
-      MPI_Allreduce(MPI_IN_PLACE, pbuf, pcount, ptype, pop, MyComm->prime);
-    if (MyComm->sec!=MPI_COMM_NULL)
-      MPI_Allreduce(MPI_IN_PLACE, sbuf, scount, stype, sop, MyComm->sec);
+  if (mycomm->black) {
+    if (mycomm->prime!=MPI_COMM_NULL)
+      MPI_Allreduce(MPI_IN_PLACE, pbuf, pcount, ptype, pop, mycomm->prime);
+    if (mycomm->sec!=MPI_COMM_NULL)
+      MPI_Allreduce(MPI_IN_PLACE, sbuf, scount, stype, sop, mycomm->sec);
   } else {
-    if (MyComm->sec!=MPI_COMM_NULL)
-      MPI_Allreduce(MPI_IN_PLACE, sbuf, scount, stype, sop, MyComm->sec);
-    if (MyComm->prime!=MPI_COMM_NULL)
-      MPI_Allreduce(MPI_IN_PLACE, pbuf, pcount, ptype, pop, MyComm->prime);
+    if (mycomm->sec!=MPI_COMM_NULL)
+      MPI_Allreduce(MPI_IN_PLACE, sbuf, scount, stype, sop, mycomm->sec);
+    if (mycomm->prime!=MPI_COMM_NULL)
+      MPI_Allreduce(MPI_IN_PLACE, pbuf, pcount, ptype, pop, mycomm->prime);
   }
 }
 void
@@ -1352,19 +1378,28 @@ oh1_reduce_(void *pbuf, void *sbuf, int *pcount, int *scount,
 void
 oh1_reduce(void *pbuf, void *sbuf, int pcount, int scount,
            MPI_Datatype ptype, MPI_Datatype stype, MPI_Op pop, MPI_Op sop) {
+  oh1_reduce_state(oh1_state(), pbuf, sbuf, pcount, scount,
+                   ptype, stype, pop, sop);
+}
+static void
+oh1_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
+                 int pcount, int scount,
+                 MPI_Datatype ptype, MPI_Datatype stype,
+                 MPI_Op pop, MPI_Op sop) {
+  struct S_mycommc *mycomm=state->my_comm;
 
-  if (MyComm->black) {
-    if (MyComm->prime!=MPI_COMM_NULL)
-      MPI_Reduce(MPI_IN_PLACE, pbuf, pcount, ptype, pop, MyComm->rank,
-                 MyComm->prime);
-    if (MyComm->sec!=MPI_COMM_NULL)
-      MPI_Reduce(sbuf, NULL, scount, stype, sop, MyComm->root, MyComm->sec);
+  if (mycomm->black) {
+    if (mycomm->prime!=MPI_COMM_NULL)
+      MPI_Reduce(MPI_IN_PLACE, pbuf, pcount, ptype, pop, mycomm->rank,
+                 mycomm->prime);
+    if (mycomm->sec!=MPI_COMM_NULL)
+      MPI_Reduce(sbuf, NULL, scount, stype, sop, mycomm->root, mycomm->sec);
   } else {
-    if (MyComm->sec!=MPI_COMM_NULL)
-      MPI_Reduce(sbuf, NULL, scount, stype, sop, MyComm->root, MyComm->sec);
-    if (MyComm->prime!=MPI_COMM_NULL)
-      MPI_Reduce(MPI_IN_PLACE, pbuf, pcount, ptype, pop, MyComm->rank,
-                 MyComm->prime);
+    if (mycomm->sec!=MPI_COMM_NULL)
+      MPI_Reduce(sbuf, NULL, scount, stype, sop, mycomm->root, mycomm->sec);
+    if (mycomm->prime!=MPI_COMM_NULL)
+      MPI_Reduce(MPI_IN_PLACE, pbuf, pcount, ptype, pop, mycomm->rank,
+                 mycomm->prime);
   }
 }
 void

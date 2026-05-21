@@ -57,6 +57,8 @@ The current code now has this first migration layer:
 - The communicator container now has a named type and is reachable from
   `oh_state`, along with `MyComm` C/Fortran mirrors. Rebuild writes through the
   context fields; collective wrappers still need to read from the context.
+- Level-1 broadcast/all-reduce/reduce wrappers now delegate to state-backed
+  helpers that read communicator state from `oh_state`.
 
 ## Particle Layout
 

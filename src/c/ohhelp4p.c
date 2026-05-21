@@ -57,7 +57,8 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
 static void make_send_sched_body(struct oh_state* state, const int psor2,
                                  const int n, const int sdid, const int self,
                                  const int sender, struct S_commlist* rlist,
-                                 int* maxhs, int* naccs, int* nsendptr);
+                                 int* maxhs, int* naccs, int* nsendptr,
+                                 struct S_hotspot** hotspot_top);
 static int  gather_hspot_recv(struct oh_state* state, const int currmode,
                               const int reb, const struct S_hotspot* hs);
 static void gather_hspot_send(struct oh_state* state, const int hsidx,
@@ -138,6 +139,9 @@ oh4p_state(void) {
     state->level4_hotspot_send = HSSend;
     state->level4_hotspot_recv_from_parent = HSRecvFromParent;
     state->level4_hotspot_receiver = HSReceiver;
+    state->level4_hotspot_list = HotSpotList;
+    state->level4_hotspot_top = HotSpotTop;
+    state->level4_hotspots = &HotSpot[0][0];
     state->level4_horizontal_planes = NULL;
     state->level4_vertical_planes = NULL;
     state->level4_vertical_plane_head = NULL;
@@ -918,9 +922,12 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
     int nfrom, nto;
     struct S_commlist* rlist[2] = { state->comm_list, state->sec_recv_list };
     int* rlidx[2] = { state->rl_index, SecRLIndex };
+    struct S_hotspotbase (*hotspots)[OH_NEIGHBORS] =
+        (struct S_hotspotbase (*)[OH_NEIGHBORS])state->level4_hotspots;
+    struct S_hotspot* hotspot_top = state->level4_hotspot_list;
 
     for (s = 0; s < ns2; s++)  state->total_particles_next[s] = 0;
-    HotSpotTop = HotSpotList;
+    state->level4_hotspot_top = hotspot_top;
     if (Mode_Acc(currmode)) {
         nfrom = OH_NBR_SELF;  nto = nfrom + 1;
     } else {
@@ -932,32 +939,34 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
             int nrev = OH_NEIGHBORS - 1 - n;
             int sdid = state->neighbors[ps][n];
             const int self = n == OH_NBR_SELF && (ps == 0 || Parent_New_Same(pcode));
-            struct S_hotspot* hs = HotSpotTop++;
+            struct S_hotspot* hs = hotspot_top++;
             hs->comm = NULL;  hs->next = NULL;  hs->g = 0;  hs->lev = INT_MAX;
-            HotSpot[ps][n].head = HotSpot[ps][n].tail = hs;
+            hotspots[ps][n].head = hotspots[ps][n].tail = hs;
             if (sdid < 0)  sdid = -(sdid + 1);
             if (sdid < nn && (sdid != root || n == OH_NBR_SELF))
                 make_send_sched_body(state, ps, n, sdid, self, 1,
                                      rlist[ps] + rlidx[ps][nrev], &maxhs,
-                                     nacc + ps, nsend);
+                                     nacc + ps, nsend, &hotspot_top);
         }
     }
     if (!Mode_Acc(currmode) && Parent_New_Diff(pcode)) {
-        struct S_hotspot* hs = HotSpotTop++;
+        struct S_hotspot* hs = hotspot_top++;
         hs->comm = NULL;  hs->next = NULL;  hs->g = 0;  hs->lev = INT_MAX;
-        HotSpot[2][OH_NBR_SELF].head = HotSpot[2][OH_NBR_SELF].tail = hs;
+        hotspots[2][OH_NBR_SELF].head = hotspots[2][OH_NBR_SELF].tail = hs;
         make_send_sched_body(state, 2, OH_NBR_SELF, newp, 1, 0, AltSecRList,
-                             &maxhs, nacc + 1, nsend);
+                             &maxhs, nacc + 1, nsend, &hotspot_top);
     }
     for (h = 0; h <= maxhs; h++) {
         int rreq = 0, sreq;
-        struct S_hotspot* hs = HotSpot[0][OH_NBR_SELF].head;
+        struct S_hotspot* hs = hotspots[0][OH_NBR_SELF].head;
         const int self = hs->lev == h;
         if (self)  rreq = gather_hspot_recv(state, currmode, reb, hs);
         gather_hspot_send(state, h, pcode, rreq, nfrom, nto, &hslist, &sreq);
         if (self)  scatter_hspot_send(state, rreq, nacc, &hslist);
         scatter_hspot_recv(state, h, pcode, rreq, sreq, nfrom, nto, nacc, nsend);
     }
+    state->level4_hotspot_top = hotspot_top;
+    HotSpotTop = hotspot_top;
 }
 
 #define Grid_Boundary(N, GS, SD, DIM, PL, PU, OFF) {\
@@ -972,7 +981,8 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
 static void make_send_sched_body(struct oh_state* state, const int psor2,
                                  const int n, const int sdid, const int self,
                                  const int sender, struct S_commlist* rlist,
-                                 int* maxhs, int* naccptr, int* nsendptr) {
+                                 int* maxhs, int* naccptr, int* nsendptr,
+                                 struct S_hotspot** hotspot_top_ptr) {
     const int me = state->my_rank, nn = state->n_of_nodes;
     const int ns = state->n_of_species;
     const int ps = psor2 == 2 ? 1 : psor2;
@@ -983,6 +993,9 @@ static void make_send_sched_body(struct oh_state* state, const int psor2,
     int xl, xu, yl, yu, zl, zu, xoff, yoff, zoff, ngoff;
     int rlg = rlist->region;
     int nacc = *naccptr, nsend = *nsendptr;
+    struct S_hotspotbase (*hotspots)[OH_NEIGHBORS] =
+        (struct S_hotspotbase (*)[OH_NEIGHBORS])state->level4_hotspots;
+    struct S_hotspot* hotspot_top = *hotspot_top_ptr;
     Decl_For_All_Grid();
 
     Grid_Boundary(nx, GridDesc[psor2].x, sdid, OH_DIM_X, xl, xu, xoff);
@@ -996,8 +1009,8 @@ static void make_send_sched_body(struct oh_state* state, const int psor2,
         const int ng = g + ngoff;
         while (rlg < ng)  rlg = (++rlist)->region;
         if (rlg == ng && rlist->count) {
-            struct S_hotspot* hs = HotSpot[psor2][n].tail;
-            struct S_hotspot* hst = HotSpot[psor2][n].tail = HotSpotTop++;
+            struct S_hotspot* hs = hotspots[psor2][n].tail;
+            struct S_hotspot* hst = hotspots[psor2][n].tail = hotspot_top++;
             struct S_commlist* rl = rlist;
             int involved = rlist->rid == me, lev, s;
             *hst = *hs;
@@ -1041,6 +1054,8 @@ static void make_send_sched_body(struct oh_state* state, const int psor2,
         }
     }
     *naccptr = nacc; *nsendptr = nsend;
+    *hotspot_top_ptr = hotspot_top;
+    state->level4_hotspot_top = hotspot_top;
 }
 
 #define Is_Boundary(P, B)  (P<OH_PGRID_EXT ? -1 :\
@@ -1121,7 +1136,9 @@ static void gather_hspot_send_body(struct oh_state* state, const int hsidx,
                                    const int psor2, const int n, int dst,
                                    const int sender, struct S_commlist** hslist,
                                    MPI_Request* reqs, int* sreqptr) {
-    struct S_hotspot* hs = HotSpot[psor2][n].head;
+    struct S_hotspotbase (*hotspots)[OH_NEIGHBORS] =
+        (struct S_hotspotbase (*)[OH_NEIGHBORS])state->level4_hotspots;
+    struct S_hotspot* hs = hotspots[psor2][n].head;
     const int ns = state->n_of_species, g = hs->g, nrec = hs->n * ns;
     const int ps = psor2 == 2 ? 1 : psor2;
     const int nrev = OH_NEIGHBORS - 1 - n;
@@ -1152,7 +1169,9 @@ static void gather_hspot_send_body(struct oh_state* state, const int hsidx,
 
 static void scatter_hspot_send(struct oh_state* state, const int rreq, int* nacc,
                                struct S_commlist** hslist) {
-    struct S_hotspot* hs = HotSpot[0][OH_NBR_SELF].head;
+    struct S_hotspotbase (*hotspots)[OH_NEIGHBORS] =
+        (struct S_hotspotbase (*)[OH_NEIGHBORS])state->level4_hotspots;
+    struct S_hotspot* hs = hotspots[0][OH_NBR_SELF].head;
     const struct S_commlist* rl = hs->comm;
     struct S_commlist* slhead = *hslist, * sl;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
@@ -1249,7 +1268,9 @@ static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
                                     int* naccptr, int* nsendptr) {
     const int ns = state->n_of_species, me = state->my_rank;
     const int ps = psor2 == 2 ? 1 : psor2;
-    const struct S_hotspot* hs = HotSpot[psor2][n].head;
+    struct S_hotspotbase (*hotspots)[OH_NEIGHBORS] =
+        (struct S_hotspotbase (*)[OH_NEIGHBORS])state->level4_hotspots;
+    const struct S_hotspot* hs = hotspots[psor2][n].head;
     struct S_commlist* sl = hs->comm;
     const int g = hs->g, self = hs->self;
     int nsend = *nsendptr;
@@ -1257,7 +1278,7 @@ static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
     int* hotspot_recv_from_parent = state->level4_hotspot_recv_from_parent;
 
     if (hs->lev != hsidx)  return;
-    HotSpot[psor2][n].head = hs->next;
+    hotspots[psor2][n].head = hs->next;
     if (self && ps) {
         int nacc = *naccptr;
         for (s = 0; s < ns; s++) {

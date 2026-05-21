@@ -135,6 +135,9 @@ oh4s_state(void) {
     state->level4_hotspot_send = NULL;
     state->level4_hotspot_recv_from_parent = NULL;
     state->level4_hotspot_receiver = NULL;
+    state->level4_hotspot_list = NULL;
+    state->level4_hotspot_top = NULL;
+    state->level4_hotspots = NULL;
     state->level4_horizontal_planes = &HPlane[0][0];
     state->level4_vertical_planes = VPlane;
     state->level4_vertical_plane_head = VPlaneHead;

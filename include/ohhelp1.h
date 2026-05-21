@@ -50,6 +50,8 @@ typedef long long int dint;     /* shorthand of 64-bit integer */
 #define EXTERN extern
 #endif
 
+struct S_node;
+
 struct oh_state {
   MPI_Comm comm;
   int n_of_nodes;
@@ -75,6 +77,10 @@ struct oh_state {
   int *total_particles_next;
   int primary_parts;
   int total_parts;
+  struct S_node *nodes;
+  struct S_node *nodes_next;
+  struct S_node **node_queue;
+  int *temp_array;
 };
 extern struct oh_state OhDefaultState;
 

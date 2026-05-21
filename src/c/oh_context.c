@@ -33,6 +33,10 @@ oh1_sync_default_state(void) {
   OhDefaultState.total_particles_next = TotalPNext;
   OhDefaultState.primary_parts = primaryParts;
   OhDefaultState.total_parts = totalParts;
+  OhDefaultState.nodes = Nodes;
+  OhDefaultState.nodes_next = NodesNext;
+  OhDefaultState.node_queue = NodeQueue;
+  OhDefaultState.temp_array = TempArray;
 }
 
 struct oh_state*

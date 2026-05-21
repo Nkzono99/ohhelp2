@@ -37,6 +37,8 @@ The current code now has this first migration layer:
   the internal sync hook during the migration away from process globals.
 - Level-1 rebalance heap ordering now receives explicit particle/load key arrays
   from `oh_state` instead of reading the balancing mode from globals.
+- Stable-secondary stay counting now takes `oh_state` and uses context-owned
+  rank, communicator, particle histograms, node descriptors, and scratch space.
 
 ## Particle Layout
 

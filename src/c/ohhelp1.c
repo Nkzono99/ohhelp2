@@ -13,7 +13,7 @@
 #include "oh_load_balance.h"
 
 /* Prototypes for private functions. */
-static void  count_stay();
+static void  count_stay_state(struct oh_state *state);
 static dint  assign_particles(dint npr, dint npt, struct S_node *ch, int incgp,
                               int *nget);
 static int   compare_int(const void* x, const void* y);
@@ -495,7 +495,7 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
   if (stats) oh1_stats_time(STATS_TRY_STABLE, 0);
   Verbose(2,vprint("try_stable"));
   if (state->weighted_load_balancing) return(FALSE);
-  count_stay();
+  count_stay_state(state);
 
   for (i=0; ; i++) {                    /* bottom up traversal of node tree */
     int nid, stayprime, staysec;
@@ -590,29 +590,34 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
   return(TRUE);
 }
 static void
-count_stay() {
-  int nn=nOfNodes, ns=nOfSpecies, me=myRank;
-  int *np, *stay=TempArray;
-  struct S_node *node;
+count_stay_state(struct oh_state *state) {
+  int nn=state->n_of_nodes, ns=state->n_of_species, me=state->my_rank;
+  int *np, *stay=state->temp_array;
+  int *nofplocal=state->n_of_particles_local;
+  dint *nofp_to_stay=state->n_of_particles_to_stay;
+  struct S_node *node, *nodes=state->nodes;
   int i, s, sec;
 
   stay[me] = 0;
-  for (s=0,np=NOfPLocal; s<ns; s++,np+=nn)  stay[me] += np[me];
+  for (s=0,np=nofplocal; s<ns; s++,np+=nn)  stay[me] += np[me];
                                                 /* NOfPLocal[0][s][me] */
-  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, stay, 1, MPI_INT, MCW);
-  for (i=0,node=Nodes; i<nn; i++,node++) {
-      node->stay.prime = NOfPToStay[i] = stay[i];
+  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, stay, 1, MPI_INT,
+                state->comm);
+  for (i=0,node=nodes; i<nn; i++,node++) {
+      node->stay.prime = nofp_to_stay[i] = stay[i];
       node->get.prime = 0;
   }
-  sec = RegionId[1];
+  sec = state->region_id[1];
   stay[me] = 0;
+  np = nofplocal + ns*nn;
   if (sec>=0)                                   /* np=&NOfPLocal[1][0][0] */
     for (s=0; s<ns; s++,np+=nn)  stay[me] += np[sec];
                                                 /* NOfPLocal[1][s][me] */
-  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, stay, 1, MPI_INT, MCW);
-  for (i=0,node=Nodes; i<nn; i++,node++) {
+  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, stay, 1, MPI_INT,
+                state->comm);
+  for (i=0,node=nodes; i<nn; i++,node++) {
     sec = node->parentid;
-    if (sec>=0)  NOfPToStay[sec] += (node->stay.sec = stay[i]);
+    if (sec>=0)  nofp_to_stay[sec] += (node->stay.sec = stay[i]);
     else         node->stay.sec = 0;
     node->get.sec = 0;
   }

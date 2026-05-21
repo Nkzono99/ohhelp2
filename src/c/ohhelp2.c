@@ -17,6 +17,8 @@
 static int   try_primary2(int currmode, int level, int stats);
 static int   try_stable2(int currmode, int level, int stats);
 static void  rebalance2(int currmode, int level, int stats);
+static void  exchange_primary_particles_state(struct oh_state *state,
+                                              int currmode, int stats);
 static void  move_to_sendbuf_secondary(int secondary, int stats);
 static void  move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase,
                                 int *ctp, int nbase, int *ntp,
@@ -174,38 +176,49 @@ try_primary2(int currmode, int level, int stats) {
 }
 void
 exchange_primary_particles(int currmode, int stats) {
-  int i, s, nn=nOfNodes, ns=nOfSpecies, nnns=nn*ns, me=myRank;
+  exchange_primary_particles_state(oh1_state(), currmode, stats);
+}
+static void
+exchange_primary_particles_state(struct oh_state *state, int currmode,
+                                 int stats) {
+  int i, s, nn=state->n_of_nodes, ns=state->n_of_species, nnns=nn*ns;
+  int me=state->my_rank;
   int *np, *rnp, *sbd;
+  MPI_Comm comm=state->comm;
+  MPI_Datatype particle_type=state->particle_mpi_type;
+  struct S_particle *sendbuf=state->send_buffer;
+  struct S_particle **recvbuf_bases=state->recv_buffer_bases;
+  int *recvbuf_disps=state->recv_buffer_disps;
 
   if (stats) oh1_stats_time(STATS_TB_COMM, 0);
-  np = NOfPLocal;                       /* &NOfPLocal[0][0][0] */
-  rnp = NOfPrimaries;                   /* &NOfPrimaries[0][0][0] */
-  sbd = SendBufDisps;                   /* SendBufDisps[0][0] */
+  np = state->n_of_particles_local;     /* &NOfPLocal[0][0][0] */
+  rnp = state->n_of_primaries;          /* &NOfPrimaries[0][0][0] */
+  sbd = state->send_buffer_disps;       /* SendBufDisps[0][0] */
   if (currmode==MODE_NORM_PRI) {
     for (s=0; s<ns; s++,np+=nn,rnp+=nn,sbd+=nn) {
                                         /* np=&NOfPLocal[0][s][0] */
                                         /* rnp=&NOfPrimaries[0][s][0] */
                                         /* sbd=&SendBufDisps[s][0] */
       struct S_particle *rb;
-      rb = RecvBufBases[s];             /* RecvBufBases[0][s] */
+      rb = recvbuf_bases[s];            /* RecvBufBases[0][s] */
       for (i=0; i<OH_NEIGHBORS; i++) {
-        int dst=DstNeighbors[i];
-        int src=SrcNeighbors[i];
+        int dst=state->dst_neighbors[i];
+        int src=state->src_neighbors[i];
         int rc;
         MPI_Status st;
         if (dst==me) continue;
         if (src>=0) {
           rc = rnp[src];                /* NOfPrimaries[0][s][src] */
           if (dst>=0)
-            MPI_Sendrecv(particle_at(SendBuf, sbd[dst]), np[dst],
-                         T_Particle, dst, 0,
-                         rb, rc, T_Particle, src, 0, MCW, &st);
+            MPI_Sendrecv(particle_at(sendbuf, sbd[dst]), np[dst],
+                         particle_type, dst, 0,
+                         rb, rc, particle_type, src, 0, comm, &st);
           else
-            MPI_Recv(rb, rc, T_Particle, src, 0, MCW, &st);
+            MPI_Recv(rb, rc, particle_type, src, 0, comm, &st);
           rb = particle_at(rb, rc);
         } else if (dst>=0)
-          MPI_Send(particle_at(SendBuf, sbd[dst]), np[dst], T_Particle, dst,
-                   0, MCW);
+          MPI_Send(particle_at(sendbuf, sbd[dst]), np[dst], particle_type,
+                   dst, 0, comm);
       }
     }
   } else {
@@ -218,13 +231,14 @@ exchange_primary_particles(int currmode, int stats) {
       for (i=0; i<nn; i++) {
         int rc = rnp[i] + rnp[i+nnns];
                         /* NOfPrimaries[0][s][i]+ NofPrimaries[1][s][i] */
-        TempArray[i] = rc;
-        RecvBufDisps[i] = rdisp;
+        state->temp_array[i] = rc;
+        recvbuf_disps[i] = rdisp;
         rdisp += rc;
         np[i] += np[i+nnns];            /* += NOfPLocal[1][s][i] */
       }
-      MPI_Alltoallv(SendBuf, np, sbd, T_Particle,
-                    RecvBufBases[s], TempArray, RecvBufDisps, T_Particle, MCW);
+      MPI_Alltoallv(sendbuf, np, sbd, particle_type,
+                    recvbuf_bases[s], state->temp_array, recvbuf_disps,
+                    particle_type, comm);
     }
   }
 }

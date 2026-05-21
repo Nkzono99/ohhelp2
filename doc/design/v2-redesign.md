@@ -69,6 +69,9 @@ The current code now has this first migration layer:
   now mirrored into `oh_state`. Level-2 code still reads the globals directly;
   the mirror is the next migration bridge for threading state through movement
   and exchange helpers.
+- Primary-mode Level-2 particle exchange now has a state-backed internal path
+  for communicator, rank, particle histograms, neighbor arrays, particle MPI
+  datatype, send/receive buffers, displacement arrays, and scratch counts.
 
 ## Particle Layout
 

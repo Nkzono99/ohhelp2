@@ -254,6 +254,10 @@ The current code now has this first migration layer:
   Level-1 rebalance call and use context mirrors for rank/species counts,
   region IDs, node trees, injection counters, and particle buffers when
   repairing secondary injection counts.
+- Level-4p/4s transbound finalization now refreshes `oh_state` after the
+  Level-1 transition decision and uses context mirrors for local-particle
+  histograms, total-count arrays, injection counters, Level-4 per-grid counts,
+  particle-buffer index tables, and the final particle/send-buffer swap.
 - Level-4p/4s primary and stable transition entry points now read parent
   regions, node/species counts, local particle histograms, particle limits, and
   primary-part synchronization through the context mirror.

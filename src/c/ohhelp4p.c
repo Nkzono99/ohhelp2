@@ -77,10 +77,12 @@ static void scatter_hspot_recv(struct oh_state* state, const int hsidx,
 static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
                                     const int psor2, const int n,
                                     int* naccptr, int* nsendptr);
-static void update_descriptors(const int oldp, const int newp);
+static void update_descriptors(struct oh_state* state, const int oldp,
+                               const int newp);
 static void update_neighbors(struct oh_state* state, const int ps);
-static void set_grid_descriptor(const int idx, const int nid);
-static void adjust_field_descriptor(const int ps);
+static void set_grid_descriptor(struct oh_state* state, const int idx,
+                                const int nid);
+static void adjust_field_descriptor(struct oh_state* state, const int ps);
 static void update_real_neighbors(struct oh_state* state, const int mode,
                                   const int dosec, const int oldp,
                                   const int newp);
@@ -332,7 +334,7 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
 
     me = myRank;
     PbufIndex = NULL;
-    set_grid_descriptor(0, me);
+    set_grid_descriptor(oh4p_state(), 0, me);
     size = GridDesc[0].dw * GridDesc[0].h;
     Allocate_NOfPGrid(npgdummy, NOfPGrid, dint, size, "NOfPGrid");
     Allocate_NOfPGrid(npgtdummy, NOfPGridTotal, dint, size, "NOfPGridTotal");
@@ -366,7 +368,7 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
     }
 
     logGrid = loggrid;  gridMask = (1 << loggrid) - 1;
-    adjust_field_descriptor(0);
+    adjust_field_descriptor(oh4p_state(), 0);
 
     HotSpotList = (struct S_hotspot*)mem_alloc(sizeof(struct S_hotspot),
                                                2 * nn + 2 * OH_NEIGHBORS + 1,
@@ -563,7 +565,7 @@ static void rebalance4p(const int currmode, const int level, const int stats) {
     exchange_particles4p(currmode, level, 1, oldp, newp, stats);
     if (!amode) {
         state = oh4p_state();
-        set_grid_descriptor(1, newp);
+        set_grid_descriptor(state, 1, newp);
         for (n = 0; n < OH_NEIGHBORS; n++)
             state->neighbors[1][n] = state->neighbors[2][n];
         update_neighbors(state, 1);
@@ -591,8 +593,8 @@ static void exchange_particles4p(const int currmode, const int level, int reb,
         if (reb) {
             exchange_particles(state->sec_recv_list, *state->sec_rl_size,
                                oldp, 0, currmode, stats);
-            update_descriptors(oldp, newp);
-            set_grid_descriptor(1, newp);
+            update_descriptors(state, oldp, newp);
+            set_grid_descriptor(state, 1, newp);
             state = oh4p_state();
             update_neighbors(state, 1);
             update_real_neighbors(state, URN_SEC, 0, -1, newp);
@@ -794,8 +796,8 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
     if (reb) {
         int altrlsize = 0;
         build_new_comm(currmode, -level, 2, stats);
-        update_descriptors(oldp, newp);
-        set_grid_descriptor(2, newp);
+        update_descriptors(state, oldp, newp);
+        set_grid_descriptor(state, 2, newp);
         update_real_neighbors(state, URN_TRN, Mode_PS(currmode), oldp, newp);
         oh1_broadcast(&rlsize, &altrlsize, 1, 1, MPI_INT, MPI_INT);
         oh1_broadcast(state->comm_list, AltSecRList, rlsize, altrlsize,
@@ -1271,14 +1273,16 @@ static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
     *nsendptr = nsend;
 }
 
-static void update_descriptors(const int oldp, const int newp) {
+static void update_descriptors(struct oh_state* state, const int oldp,
+                               const int newp) {
     int n;
 
     if (oldp != newp) {
         if (oldp >= 0)  clear_border_exchange();
         if (newp >= 0) {
-            set_field_descriptors(FieldTypes, SubDomains[newp], 1);
-            adjust_field_descriptor(1);
+            set_field_descriptors((int (*)[OH_FTYPE_N])state->field_types,
+                                  state->subdomains[newp], 1);
+            adjust_field_descriptor(state, 1);
         }
     }
 }
@@ -1310,8 +1314,12 @@ static void update_neighbors(struct oh_state* state, const int ps) {
     }
 }
 
-static void set_grid_descriptor(const int idx, const int nid) {
+static void set_grid_descriptor(struct oh_state* state, const int idx,
+                                const int nid) {
     const int exto2 = OH_PGRID_EXT << 2;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    struct S_grid* Grid = state->grid;
+    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
     const int w = GridDesc[idx].w = Grid[OH_DIM_X].size + (exto2);
     const int d = GridDesc[idx].d =
         If_Dim(OH_DIM_Y, Grid[OH_DIM_Y].size + (exto2), 1);
@@ -1333,8 +1341,9 @@ static void set_grid_descriptor(const int idx, const int nid) {
     }
 }
 
-static void adjust_field_descriptor(const int ps) {
-    const int f = nOfFields - 1, ns = nOfSpecies;
+static void adjust_field_descriptor(struct oh_state* state, const int ps) {
+    const int f = state->n_of_fields - 1, ns = state->n_of_species;
+    struct S_flddesc* FieldDesc = state->field_desc;
     int d, fs;
 
     for (d = 0, fs = 1; d < OH_DIMENSION; d++)  fs *= FieldDesc[f].size[d];

@@ -185,6 +185,11 @@ The current code now has this first migration layer:
   first-neighbor routing. The receive-list builders and `sched_recv()` now also
   read receive-list indices, field descriptors, grid descriptors, and Level-4
   population histograms through the context mirror.
+- Level-4p/4s receive-list helper storage for secondary and transition paths is
+  now mirrored into `oh_state`, including Level-4 `SecRLIndex`, alternate
+  secondary receive lists, and the Level-4s primary receive-list descriptors.
+  The arrays are still allocated in the existing Level-4 translation units, but
+  schedule construction now consumes them through the context mirror.
 - Level-4p hotspot gather/scatter scheduling now threads `oh_state` through the
   hotspot communication helpers for communicator, requests/statuses,
   rank/node/species counts, neighbor/region mirrors, receive counts, and send

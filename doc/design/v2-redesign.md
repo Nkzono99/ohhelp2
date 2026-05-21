@@ -79,6 +79,9 @@ The current code now has this first migration layer:
 - Level-2 send-buffer displacement construction now has a state-backed helper
   and uses context-owned particle histograms, injection counters, rank/node
   counts, and displacement storage.
+- Level-2 injected-particle buffer movement now receives `oh_state` and uses
+  context-owned particle buffers, injection counters, node/species counts, and
+  send-buffer displacements.
 
 ## Particle Layout
 

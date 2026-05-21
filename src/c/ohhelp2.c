@@ -27,8 +27,9 @@ static void  move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase,
                                 struct S_particle **rbb);
 static void  move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail,
                                 int *ctp, int ntail, int *ntp);
-static void  move_injected_to_sendbuf();
-static void  move_injected_from_sendbuf(int *injected, int mysd,
+static void  move_injected_to_sendbuf(struct oh_state *state);
+static void  move_injected_from_sendbuf(struct oh_state *state,
+                                        int *injected, int mysd,
                                         struct S_particle **rbb);
 static void  receive_particles(struct oh_state *state,
                                struct S_commlist *rlist, int rlsize,
@@ -286,7 +287,7 @@ move_to_sendbuf_primary(int secondary, int stats) {
     TotalPNext[ns+s] = 0;                       /* TotalPNext[1][s] */
   }
   set_sendbuf_disps(secondary, -1);
-  if (nOfInjections)  move_injected_to_sendbuf();
+  if (nOfInjections)  move_injected_to_sendbuf(oh1_state());
 
   move_to_sendbuf_uw(0, me, NOfPLocal+me, 0, TotalP, 0, TotalPNext,
                      RecvBufBases);
@@ -299,7 +300,8 @@ move_to_sendbuf_primary(int secondary, int stats) {
 
   set_sendbuf_disps(secondary, -1);
   if (nOfInjections)
-    move_injected_from_sendbuf(InjectedParticles, me, RecvBufBases);
+    move_injected_from_sendbuf(oh1_state(), InjectedParticles, me,
+                               RecvBufBases);
 }
 static void
 move_to_sendbuf_secondary(int secondary, int stats) {
@@ -342,7 +344,7 @@ move_to_sendbuf_secondary(int secondary, int stats) {
     pnext[ps] = npnext;
   }
   set_sendbuf_disps(secondary, sec);
-  if (nOfInjections)  move_injected_to_sendbuf();
+  if (nOfInjections)  move_injected_to_sendbuf(oh1_state());
 
   move_to_sendbuf_uw(0, me, mynp[0],            /* &NOfPLocal[0][0][me] */
                      0, TotalP, 0, TotalPNext, RecvBufBases);
@@ -365,9 +367,10 @@ move_to_sendbuf_secondary(int secondary, int stats) {
 
   set_sendbuf_disps(secondary, sec);
   if (nOfInjections) {
-    move_injected_from_sendbuf(InjectedParticles+ns2, me, RecvBufBases);
+    move_injected_from_sendbuf(oh1_state(), InjectedParticles+ns2, me,
+                               RecvBufBases);
     if (sec>=0)
-      move_injected_from_sendbuf(InjectedParticles+ns2+ns, sec,
+      move_injected_from_sendbuf(oh1_state(), InjectedParticles+ns2+ns, sec,
                                  RecvBufBases+ns);
   }
   primaryParts = *secondaryBase = pnext[0];
@@ -559,9 +562,9 @@ move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail, int *ctp, int ntail,
   }
 }
 static void
-move_injected_to_sendbuf() {
-  struct S_particle *pbuf=particle_at(Particles, totalParts);
-  int ninj=nOfInjections, nn=nOfNodes;
+move_injected_to_sendbuf(struct oh_state *state) {
+  struct S_particle *pbuf=particle_at(state->particles, state->total_parts);
+  int ninj=state->n_of_injections, nn=state->n_of_nodes;
   int i;
 
   for (i=0; i<ninj; i++) {
@@ -569,18 +572,20 @@ move_injected_to_sendbuf() {
     int dst = map_injected_particle_to_subdomain(part);
     int s = particle_species(part);
     if (dst<0) continue;
-    copy_particle(particle_at(SendBuf, SendBufDisps[dst+s*nn]++), part);
+    copy_particle(particle_at(state->send_buffer,
+                              state->send_buffer_disps[dst+s*nn]++), part);
   }
 }
 static void
-move_injected_from_sendbuf(int *injected, int mysd, struct S_particle **rbb) {
-  int nn=nOfNodes, ns=nOfSpecies;
-  int *sdisp=SendBufDisps+mysd;
+move_injected_from_sendbuf(struct oh_state *state, int *injected, int mysd,
+                           struct S_particle **rbb) {
+  int nn=state->n_of_nodes, ns=state->n_of_species;
+  int *sdisp=state->send_buffer_disps+mysd;
   int s, i;
 
   for (s=0; s<ns; s++,sdisp+=nn) {
     struct S_particle *rbuf=rbb[s];
-    struct S_particle *sbuf=particle_at(SendBuf, *sdisp);
+    struct S_particle *sbuf=particle_at(state->send_buffer, *sdisp);
     int inj=injected[s];
     copy_particles(rbuf, sbuf, inj);
     rbb[s] = particle_at(rbb[s], inj);  *sdisp += inj;

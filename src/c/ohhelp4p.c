@@ -371,14 +371,17 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
     MPI_Type_commit(&T_Hgramhalf);
     for (n = 0; n < nnns2; n++)  NOfSend[n] = 0;
 
-    for (n = 0; n < OH_NEIGHBORS; n++) {
-        const int snbr = SrcNeighbors[n];
-        if (snbr >= 0)        FirstNeighbor[n] = TempArray[snbr] = n;
-        else if (snbr < -nn)  FirstNeighbor[n] = n;
-        else                FirstNeighbor[n] = TempArray[-(snbr + 1)];
-    }
     {
         struct oh_state* state = oh4p_state();
+        for (n = 0; n < OH_NEIGHBORS; n++) {
+            const int snbr = state->src_neighbors[n];
+            if (snbr >= 0)
+                FirstNeighbor[n] = state->temp_array[snbr] = n;
+            else if (snbr < -nn)
+                FirstNeighbor[n] = n;
+            else
+                FirstNeighbor[n] = state->temp_array[-(snbr + 1)];
+        }
         update_neighbors(state, 0);
     }
     rnbr = (int*)mem_alloc(sizeof(int), nn * 2 * 2 * 2, "RealNeighbors");
@@ -534,9 +537,11 @@ static void rebalance4p(const int currmode, const int level, const int stats) {
     }
     exchange_particles4p(currmode, level, 1, oldp, newp, stats);
     if (!amode) {
+        struct oh_state* state = oh4p_state();
         set_grid_descriptor(1, newp);
-        for (n = 0; n < OH_NEIGHBORS; n++)  Neighbors[1][n] = Neighbors[2][n];
-        update_neighbors(oh4p_state(), 1);
+        for (n = 0; n < OH_NEIGHBORS; n++)
+            state->neighbors[1][n] = state->neighbors[2][n];
+        update_neighbors(state, 1);
     }
 }
 
@@ -561,8 +566,11 @@ static void exchange_particles4p(const int currmode, const int level, int reb,
             exchange_particles(SecRList, SecRLSize, oldp, 0, currmode, stats);
             update_descriptors(oldp, newp);
             set_grid_descriptor(1, newp);
-            update_neighbors(oh4p_state(), 1);
-            update_real_neighbors(oh4p_state(), URN_SEC, 0, -1, newp);
+            {
+                struct oh_state* state = oh4p_state();
+                update_neighbors(state, 1);
+                update_real_neighbors(state, URN_SEC, 0, -1, newp);
+            }
         } else
             exchange_particles(CommList + SLHeadTail[1], SecSLHeadTail[0], oldp, 0,
                                currmode, stats);
@@ -711,7 +719,7 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
         return(SecRList + rlsize);
     }
     for (i = 0; i < OH_NEIGHBORS; i++) {
-        const int dst = DstNeighbors[i], src = SrcNeighbors[i];
+        const int dst = state->dst_neighbors[i], src = state->src_neighbors[i];
         int rc;
         MPI_Status st;
         if (dst == me) {
@@ -992,7 +1000,7 @@ static int gather_hspot_recv(struct oh_state* state, const int currmode,
             if (ny && ny != nby)  continue;
             for (nx = -1; nx < 2; nx++) {
                 const int nbr = (nx + 1) + 3 * ((ny + 1) + 3 * (nz + 1));
-                int nid = DstNeighbors[nbr];
+                int nid = state->dst_neighbors[nbr];
                 struct S_node* ch;
                 if (nx && nx != nbx)  continue;
                 if (nid < 0)  nid = -(nid + 1);

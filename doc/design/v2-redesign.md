@@ -196,6 +196,9 @@ The current code now has this first migration layer:
 - Level-4p/4s neighbor refresh now receives `oh_state`, so first-hop grid
   offsets and real-neighbor transfer lists read rank/node/neighborhood mirrors
   instead of the legacy process globals.
+- Level-4p/4s transfer setup now consumes destination/source neighbor arrays
+  through `oh_state`; the active Level-4 translation units no longer read the
+  legacy `Neighbors`, `DstNeighbors`, or `SrcNeighbors` globals directly.
 
 ## Particle Layout
 

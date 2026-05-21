@@ -374,45 +374,49 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     MPI_Type_commit(&T_Hgramhalf);
     for (n = 0; n < nnns2; n++)  NOfSend[n] = 0;
 
-    for (z = 0, n = 0; z < 3; z++) {
-        int(*bd)[OH_DIMENSION][2] = Boundaries;
-        const int nonpz = z != 1 && bd[me][OH_DIM_Z][z >> 1];
-        for (y = 0; y < 3; y++) {
-            const int nonpy = nonpz || (y != 1 && bd[me][OH_DIM_Y][y >> 1]);
-            for (x = 0; x < 3; x++, n++) {
-                int dnbr = DstNeighbors[n];
-                const int nrev = OH_NEIGHBORS - 1 - n;
-                if (nonpy || (x != 1 && bd[me][OH_DIM_X][x >> 1]))
-                    DstNeighbors[n] = SrcNeighbors[nrev] = -(nn + 1);
-                else if (dnbr < 0 && dnbr >= -nn)
-                    DstNeighbors[n] = SrcNeighbors[nrev] = -(dnbr + 1);
-                else
-                    SrcNeighbors[nrev] = dnbr;
-            }
-        }
-    }
-    for (i = 0; i < nn; i++)  TempArray[i] = 0;
-    for (n = 0; n < OH_NEIGHBORS; n++) {
-        const int dnbr = DstNeighbors[n], snbr = SrcNeighbors[n];
-        int* sfirst = TempArray + nn;
-        if (dnbr >= 0) {
-            if (TempArray[dnbr] & 1)  DstNeighbors[n] = -(dnbr + 1);
-            else                    TempArray[dnbr] |= 1;
-        }
-        if (snbr >= 0) {
-            if (TempArray[snbr] & 2) {
-                SrcNeighbors[n] = -(snbr + 1);
-                FirstNeighbor[n] = sfirst[snbr];
-            } else {
-                FirstNeighbor[n] = sfirst[snbr] = n;
-                TempArray[snbr] |= 2;
-            }
-        } else
-            FirstNeighbor[n] = n;
-        PrimaryRLIndex[n] = n;
-    }
     {
         struct oh_state* state = oh4s_state();
+        int* dst_neighbors = state->dst_neighbors;
+        int* src_neighbors = state->src_neighbors;
+        int* temp_array = state->temp_array;
+        for (z = 0, n = 0; z < 3; z++) {
+            int(*bd)[OH_DIMENSION][2] = Boundaries;
+            const int nonpz = z != 1 && bd[me][OH_DIM_Z][z >> 1];
+            for (y = 0; y < 3; y++) {
+                const int nonpy =
+                    nonpz || (y != 1 && bd[me][OH_DIM_Y][y >> 1]);
+                for (x = 0; x < 3; x++, n++) {
+                    int dnbr = dst_neighbors[n];
+                    const int nrev = OH_NEIGHBORS - 1 - n;
+                    if (nonpy || (x != 1 && bd[me][OH_DIM_X][x >> 1]))
+                        dst_neighbors[n] = src_neighbors[nrev] = -(nn + 1);
+                    else if (dnbr < 0 && dnbr >= -nn)
+                        dst_neighbors[n] = src_neighbors[nrev] = -(dnbr + 1);
+                    else
+                        src_neighbors[nrev] = dnbr;
+                }
+            }
+        }
+        for (i = 0; i < nn; i++)  temp_array[i] = 0;
+        for (n = 0; n < OH_NEIGHBORS; n++) {
+            const int dnbr = dst_neighbors[n], snbr = src_neighbors[n];
+            int* sfirst = temp_array + nn;
+            if (dnbr >= 0) {
+                if (temp_array[dnbr] & 1)  dst_neighbors[n] = -(dnbr + 1);
+                else                    temp_array[dnbr] |= 1;
+            }
+            if (snbr >= 0) {
+                if (temp_array[snbr] & 2) {
+                    src_neighbors[n] = -(snbr + 1);
+                    FirstNeighbor[n] = sfirst[snbr];
+                } else {
+                    FirstNeighbor[n] = sfirst[snbr] = n;
+                    temp_array[snbr] |= 2;
+                }
+            } else
+                FirstNeighbor[n] = n;
+            PrimaryRLIndex[n] = n;
+        }
         update_neighbors(state, 0);
     }
     rnbr = (int*)mem_alloc(sizeof(int), nn * 2 * 2 * 2, "RealNeighbors");
@@ -558,9 +562,11 @@ static void rebalance4s(const int currmode, const int level, const int stats) {
     }
     exchange_particles4s(currmode, 1, level, 1, oldp, newp, stats);
     if (!amode) {
+        struct oh_state* state = oh4s_state();
         set_grid_descriptor(1, newp);
-        for (n = 0; n < OH_NEIGHBORS; n++)  Neighbors[1][n] = Neighbors[2][n];
-        update_neighbors(oh4s_state(), 1);
+        for (n = 0; n < OH_NEIGHBORS; n++)
+            state->neighbors[1][n] = state->neighbors[2][n];
+        update_neighbors(state, 1);
     }
 }
 
@@ -589,8 +595,11 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
                 exchange_particles(SecRList, SecRLSize, oldp, 0, currmode, stats);
                 update_descriptors(oldp, newp);
                 set_grid_descriptor(1, newp);
-                update_neighbors(oh4s_state(), 1);
-                update_real_neighbors(oh4s_state(), URN_SEC, 0, -1, newp);
+                {
+                    struct oh_state* state = oh4s_state();
+                    update_neighbors(state, 1);
+                    update_real_neighbors(state, URN_SEC, 0, -1, newp);
+                }
             } else
                 exchange_particles(CommList + SLHeadTail[1], SecSLHeadTail[0], oldp, 0,
                                    currmode, stats);
@@ -776,7 +785,7 @@ static void make_recv_list(const int currmode, const int level, const int reb,
         lastrl->region = zmax;
 
     for (i = 0; i < OH_NEIGHBORS; i++) {
-        const int dst = DstNeighbors[i], src = SrcNeighbors[i];
+        const int dst = state->dst_neighbors[i], src = state->src_neighbors[i];
         int rc;
         MPI_Status st;
         if (dst == me) {

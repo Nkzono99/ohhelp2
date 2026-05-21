@@ -51,10 +51,10 @@ static void sched_recv(const int currmode, const int reb, const int get,
 static void make_send_sched(const int currmode, const int reb, const int pcode,
                             const int oldp, const int newp,
                             struct S_commlist* hslist, int* nacc, int* nsend);
-static void make_send_sched_body(const int psor2, const int n, const int sdid,
-                                 const int self, const int sender,
-                                 struct S_commlist* rlist, int* maxhs,
-                                 int* naccs, int* nsendptr);
+static void make_send_sched_body(struct oh_state* state, const int psor2,
+                                 const int n, const int sdid, const int self,
+                                 const int sender, struct S_commlist* rlist,
+                                 int* maxhs, int* naccs, int* nsendptr);
 static int  gather_hspot_recv(struct oh_state* state, const int currmode,
                               const int reb, const struct S_hotspot* hs);
 static void gather_hspot_send(struct oh_state* state, const int hsidx,
@@ -860,16 +860,17 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
             HotSpot[ps][n].head = HotSpot[ps][n].tail = hs;
             if (sdid < 0)  sdid = -(sdid + 1);
             if (sdid < nn && (sdid != root || n == OH_NBR_SELF))
-                make_send_sched_body(ps, n, sdid, self, 1, rlist[ps] + rlidx[ps][nrev],
-                                     &maxhs, nacc + ps, nsend);
+                make_send_sched_body(state, ps, n, sdid, self, 1,
+                                     rlist[ps] + rlidx[ps][nrev], &maxhs,
+                                     nacc + ps, nsend);
         }
     }
     if (!Mode_Acc(currmode) && Parent_New_Diff(pcode)) {
         struct S_hotspot* hs = HotSpotTop++;
         hs->comm = NULL;  hs->next = NULL;  hs->g = 0;  hs->lev = INT_MAX;
         HotSpot[2][OH_NBR_SELF].head = HotSpot[2][OH_NBR_SELF].tail = hs;
-        make_send_sched_body(2, OH_NBR_SELF, newp, 1, 0, AltSecRList, &maxhs,
-                             nacc + 1, nsend);
+        make_send_sched_body(state, 2, OH_NBR_SELF, newp, 1, 0, AltSecRList,
+                             &maxhs, nacc + 1, nsend);
     }
     for (h = 0; h <= maxhs; h++) {
         int rreq = 0, sreq;
@@ -891,11 +892,12 @@ static void make_send_sched(const int currmode, const int reb, const int pcode,
   else           { PL = (GS);  PU = e;      OFF = -(GS); }\
 }
 
-static void make_send_sched_body(const int psor2, const int n, const int sdid,
-                                 const int self, const int sender,
-                                 struct S_commlist* rlist, int* maxhs, int* naccptr,
-                                 int* nsendptr) {
-    const int me = myRank, nn = nOfNodes, ns = nOfSpecies;
+static void make_send_sched_body(struct oh_state* state, const int psor2,
+                                 const int n, const int sdid, const int self,
+                                 const int sender, struct S_commlist* rlist,
+                                 int* maxhs, int* naccptr, int* nsendptr) {
+    const int me = state->my_rank, nn = state->n_of_nodes;
+    const int ns = state->n_of_species;
     const int ps = psor2 == 2 ? 1 : psor2;
     const int nsor0 = ps ? ns : 0;
     const int nx = n % 3, ny = n / 3 % 3, nz = n / 9;
@@ -948,7 +950,7 @@ static void make_send_sched_body(const int psor2, const int n, const int sdid,
                     int nofsidx = rlist->tag + rid;               /* [ps][0][rid] */
                     for (s = 0; s < ns; s++, nofsidx += nn) {
                         int nsendinc = NOfPGrid[ps][s][g];
-                        nsend += nsendinc;  NOfSend[nofsidx] += nsendinc;
+                        nsend += nsendinc;  state->n_of_send[nofsidx] += nsendinc;
                         NOfPGrid[ps][s][g] = nofsidx + 1;
                     }
                 }

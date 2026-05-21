@@ -179,6 +179,8 @@ The current code now has this first migration layer:
   hotspot communication helpers for communicator, requests/statuses,
   rank/node/species counts, neighbor/region mirrors, receive counts, and send
   count accumulation.
+- Level-4p send-schedule body now receives `oh_state` and updates send counters
+  through the context mirror for hotspot and direct send regions.
 - Level-4s primary send-schedule construction now synchronizes `oh_state` and
   threads it through the regular and horizontal-plane scheduling helpers for
   rank/node/species counts, neighbor mirrors, and send-count accumulation.

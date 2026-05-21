@@ -45,6 +45,9 @@ The current code now has this first migration layer:
 - Particle-exchange schedule construction now receives `oh_state` for rank,
   communicator, histograms, node descriptors, neighbor lists, and the schedule
   buffer. The remaining global schedule counters are a migration target.
+- Communication-count construction now receives `oh_state` for receive/send
+  histograms, local particle histograms, `TotalPNext`, and the schedule buffer;
+  the head/tail counters remain as a smaller follow-up migration.
 
 ## Particle Layout
 

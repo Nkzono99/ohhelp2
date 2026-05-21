@@ -24,9 +24,15 @@ static void  sched_comm_state(struct oh_state *state, int toget, int rid,
                               struct S_commsched_context *context);
 static void  make_comm_count(int currmode, int level, int reb, int oldparent,
                              int stats);
-static void  make_recv_count(struct S_commlist* rlist, int rlsize);
-static void  make_send_count(struct S_commlist* slist, int slsize);
-static void  count_next_particles(struct S_commlist* rlist, int rlsize);
+static void  make_comm_count_state(struct oh_state *state, int currmode,
+                                   int level, int reb, int oldparent,
+                                   int stats);
+static void  make_recv_count_state(struct oh_state *state,
+                                   struct S_commlist* rlist, int rlsize);
+static void  make_send_count_state(struct oh_state *state,
+                                   struct S_commlist* slist, int slsize);
+static void  count_next_particles_state(struct oh_state *state,
+                                        struct S_commlist* rlist, int rlsize);
 struct S_heap_key {
   dint *particles;
   double *loads;
@@ -591,7 +597,8 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
   }
   if (Special_Pexc_Sched(level)) return(TRUE);
   schedule_particle_exchange_state(state, currmode==MODE_NORM_SEC ? 0 : -1);
-  make_comm_count(currmode, level, 0, nodes[state->my_rank].parentid, stats);
+  make_comm_count_state(state, currmode, level, 0,
+                        nodes[state->my_rank].parentid, stats);
   return(TRUE);
 }
 static void
@@ -838,8 +845,18 @@ sched_comm_state(struct oh_state *state, int toget, int rid, int tag, int reb,
 }
 static void
 make_comm_count(int currmode, int level, int reb, int oldparent, int stats) {
-  int nn=nOfNodes, ns=nOfSpecies, nnns=nn*ns, nnns2=nnns*2, me=myRank;
-  struct S_node *mynode=Nodes+me;
+  make_comm_count_state(oh1_state(), currmode, level, reb, oldparent, stats);
+}
+static void
+make_comm_count_state(struct oh_state *state, int currmode, int level, int reb,
+                      int oldparent, int stats) {
+  int nn=state->n_of_nodes, ns=state->n_of_species, nnns=nn*ns;
+  int nnns2=nnns*2, me=state->my_rank;
+  int *nofrecv=state->n_of_recv, *nofsend=state->n_of_send;
+  int *nofplocal=state->n_of_particles_local;
+  int *totalp_next=state->total_particles_next;
+  struct S_commlist *comm_list=state->comm_list;
+  struct S_node *mynode=state->nodes+me;
   int newparent=mynode->parentid;
   int ps, s, i;
 
@@ -847,53 +864,55 @@ make_comm_count(int currmode, int level, int reb, int oldparent, int stats) {
     SecRLSize = 0;
     oh1_broadcast(SLHeadTail, &SecRLSize, 1, 1, MPI_INT, MPI_INT);
     if (currmode==MODE_NORM_PRI)
-      SecRList = CommList + SLHeadTail[1];
+      SecRList = comm_list + SLHeadTail[1];
     else if (currmode==MODE_NORM_SEC)
-      SecRList = CommList + SLHeadTail[1] + SecSLHeadTail[1];
+      SecRList = comm_list + SLHeadTail[1] + SecSLHeadTail[1];
     else
-      SecRList = CommList + SLHeadTail[0];
-    oh1_broadcast(CommList, SecRList, SLHeadTail[0], SecRLSize,
+      SecRList = comm_list + SLHeadTail[0];
+    oh1_broadcast(comm_list, SecRList, SLHeadTail[0], SecRLSize,
                   T_Commlist, T_Commlist);
   } else {
-    SecRList = CommList + SLHeadTail[1];
+    SecRList = comm_list + SLHeadTail[1];
     SecRLSize = SecSLHeadTail[0];
   }
-  for (s=0; s<ns*2; s++) TotalPNext[s] = 0;             /* TotalPNext[p][s] */
+  for (s=0; s<ns*2; s++) totalp_next[s] = 0;            /* TotalPNext[p][s] */
   if (level==1 || Mode_Is_Any(currmode) || stats) {
-    for (i=0; i<nnns2; i++)  NOfRecv[i] = NOfSend[i] = 0;
-    make_recv_count(CommList, SLHeadTail[0]);
+    for (i=0; i<nnns2; i++)  nofrecv[i] = nofsend[i] = 0;
+    make_recv_count_state(state, comm_list, SLHeadTail[0]);
     if (newparent>=0)
-      make_recv_count(SecRList, SecRLSize);
+      make_recv_count_state(state, SecRList, SecRLSize);
     if (oldparent!=newparent && oldparent>=0)
-      make_recv_count(CommList+SLHeadTail[1], SecSLHeadTail[0]);
+      make_recv_count_state(state, comm_list+SLHeadTail[1], SecSLHeadTail[0]);
     if (Mode_Is_Any(currmode)) {
-      MPI_Alltoall(NOfRecv, 1, T_Histogram, NOfSend, 1, T_Histogram, MCW);
+      MPI_Alltoall(nofrecv, 1, T_Histogram, nofsend, 1, T_Histogram,
+                   state->comm);
 #ifndef INTEL_MPI_BUG_FIXED
       for (ps=0,i=me; ps<2; ps++)  for (s=0; s<ns; s++,i+=nn)
-        NOfSend[i] = NOfRecv[i];
+        nofsend[i] = nofrecv[i];
 #endif
     } else {
-      make_send_count(CommList+SLHeadTail[0], SLHeadTail[1]-SLHeadTail[0]);
+      make_send_count_state(state, comm_list+SLHeadTail[0],
+                            SLHeadTail[1]-SLHeadTail[0]);
       if (oldparent>=0)
-        make_send_count(CommList+SLHeadTail[1]+SecSLHeadTail[0],
-                        SecSLHeadTail[1]-SecSLHeadTail[0]);
+        make_send_count_state(state, comm_list+SLHeadTail[1]+SecSLHeadTail[0],
+                              SecSLHeadTail[1]-SecSLHeadTail[0]);
     }
   } else {
-    count_next_particles(CommList, SLHeadTail[0]);
+    count_next_particles_state(state, comm_list, SLHeadTail[0]);
     if (newparent>=0)
-      count_next_particles(SecRList, SecRLSize);
+      count_next_particles_state(state, SecRList, SecRLSize);
   }
   if (stats) stats_secondary_comm(currmode, reb);
   if (level==1) {
     for (ps=0,i=0; ps<(newparent<0?1:2); ps++) {
       int putme = ps==0 ? -mynode->get.prime : -mynode->get.sec;
-      int *mynps = ps==0 ? NOfPLocal+me : NOfPLocal+nnns+newparent;
+      int *mynps = ps==0 ? nofplocal+me : nofplocal+nnns+newparent;
       if (putme<0) putme = 0;
       for (s=0; s<ns; s++,i++,mynps+=nn) {
         int stay=*mynps;
-        int tpni=TotalPNext[i];
+        int tpni=totalp_next[i];
         if (putme<stay) {
-          TotalPNext[i] = tpni + stay - putme;  putme = 0;
+          totalp_next[i] = tpni + stay - putme;  putme = 0;
         }
         else putme -= stay;
       }
@@ -901,38 +920,45 @@ make_comm_count(int currmode, int level, int reb, int oldparent, int stats) {
   }
 }
 static void
-make_recv_count(struct S_commlist* rlist, int rlsize) {
-  int me=myRank, nn=nOfNodes;
+make_recv_count_state(struct oh_state *state, struct S_commlist* rlist,
+                      int rlsize) {
+  int me=state->my_rank, nn=state->n_of_nodes;
+  int *nofrecv=state->n_of_recv, *nofsend=state->n_of_send;
+  int *totalp_next=state->total_particles_next;
   int i;
 
   for (i=0; i<rlsize; i++) {
     int rid=rlist[i].rid, sid=rlist[i].sid;
     int tag=rlist[i].tag, count=rlist[i].count;
     if (rid==me) {
-      NOfRecv[tag*nn+sid] = count;
-      TotalPNext[tag] += count;
+      nofrecv[tag*nn+sid] = count;
+      totalp_next[tag] += count;
     }
     if (sid==me)
-      NOfSend[tag*nn+rid] = count;
+      nofsend[tag*nn+rid] = count;
   }
 }
 static void
-make_send_count(struct S_commlist* slist, int slsize) {
-  int me=myRank, nn=nOfNodes;
+make_send_count_state(struct oh_state *state, struct S_commlist* slist,
+                      int slsize) {
+  int me=state->my_rank, nn=state->n_of_nodes;
+  int *nofsend=state->n_of_send;
   int i;
 
   for (i=0; i<slsize; i++) {
     if (slist[i].sid==me)
-      NOfSend[slist[i].tag*nn+slist[i].rid] = slist[i].count;
+      nofsend[slist[i].tag*nn+slist[i].rid] = slist[i].count;
   }
 }
 static void
-count_next_particles(struct S_commlist* rlist, int rlsize) {
-  int me=myRank, i;
+count_next_particles_state(struct oh_state *state, struct S_commlist* rlist,
+                           int rlsize) {
+  int me=state->my_rank, i;
+  int *totalp_next=state->total_particles_next;
 
   for (i=0; i<rlsize; i++) {
     if (rlist[i].rid==me)
-      TotalPNext[rlist[i].tag] += rlist[i].count;
+      totalp_next[rlist[i].tag] += rlist[i].count;
   }
 }
 void

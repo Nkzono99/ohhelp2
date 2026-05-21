@@ -31,6 +31,8 @@ oh1_sync_default_state(void) {
   OhDefaultState.n_of_particles_to_stay = NOfPToStay;
   OhDefaultState.total_particles = TotalP;
   OhDefaultState.total_particles_next = TotalPNext;
+  OhDefaultState.n_of_recv = NOfRecv;
+  OhDefaultState.n_of_send = NOfSend;
   OhDefaultState.primary_parts = primaryParts;
   OhDefaultState.total_parts = totalParts;
   OhDefaultState.nodes = Nodes;

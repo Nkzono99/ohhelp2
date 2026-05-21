@@ -960,7 +960,6 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     }
     while (LessHeap.n) {
       struct S_node *parent;
-      double deficit;
       int get, h;
       j = pop_heap(&LessHeap, 0);
       node = NodesNext + j;
@@ -968,15 +967,16 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
         remove_heap(&GreaterHeap, 1, h);
       else
         k = pop_heap(&GreaterHeap, 1);
-      deficit = target - total_load_global[j];
-      get = oh_particles_for_load(deficit, region_weights[k], totalp_global[k]);
+      get = oh_weighted_transfer_count(target, total_load_global[j],
+                                       region_weights[k], totalp_global[k]);
       node->get.sec = get;
       parent = NodesNext + k;
       node->parentid = k;  node->parent = parent;
       node->sibling = parent->child;
       parent->child = node;
       totalp_global[k] -= get;
-      total_load_global[k] -= (double)get * region_weights[k];
+      total_load_global[k] = oh_load_after_transfer(total_load_global[k],
+                                                    get, region_weights[k]);
       if (total_load_global[k]<target && GreaterHeap.n>0) {
         push_heap(k, &LessHeap, 0);  NodeQueue[bot++] = parent;
       } else {

@@ -30,3 +30,21 @@ oh_particles_for_load(double load, double region_weight, long long max_available
   if (count > INT_MAX) count = INT_MAX;
   return (int)count;
 }
+
+double
+oh_load_after_transfer(double current_load, long long particle_count,
+                       double region_weight) {
+  double moved_load = oh_region_load(particle_count, region_weight);
+
+  if (moved_load >= current_load) return 0.0;
+  return current_load - moved_load;
+}
+
+int
+oh_weighted_transfer_count(double target_load, double receiver_load,
+                           double donor_region_weight,
+                           long long donor_particles) {
+  double deficit = target_load - receiver_load;
+
+  return oh_particles_for_load(deficit, donor_region_weight, donor_particles);
+}

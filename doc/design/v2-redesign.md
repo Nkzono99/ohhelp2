@@ -90,6 +90,14 @@ Transfer schedules still move integer particle counts. If a helper needs
 ceil(load_deficit / region_weight[p])
 ```
 
+The arithmetic for this conversion lives in `oh_load_balance` so the
+count-to-load policy is testable outside the MPI scheduling code:
+
+- `oh_weighted_transfer_count()` converts target/receiver load into an integer
+  particle transfer count.
+- `oh_load_after_transfer()` updates the donor load using the same weight
+  convention and clamps numerical underflow at zero.
+
 The first implementation applies weighted load to primary-mode eligibility and
 secondary assignment rebuilding. The old stable-secondary check remains
 count-based and is bypassed while custom weights are active, so weighted runs

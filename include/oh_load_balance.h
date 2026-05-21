@@ -12,6 +12,11 @@ double oh_region_load(long long particle_count, double region_weight);
 double oh_load_limit(double total_load, int max_fraction, int node_count);
 int oh_particles_for_load(double load, double region_weight,
                           long long max_available);
+double oh_load_after_transfer(double current_load, long long particle_count,
+                              double region_weight);
+int oh_weighted_transfer_count(double target_load, double receiver_load,
+                               double donor_region_weight,
+                               long long donor_particles);
 
 #ifdef __cplusplus
 }

@@ -84,9 +84,11 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold,
                                const int psnew, const int trans,
                                const int oldp, const int* nacc,
                                const int nsend, const int stats);
-static void move_to_sendbuf_uw4s(const int ps, const int mysd, const int cbase,
+static void move_to_sendbuf_uw4s(struct oh_state* state, const int ps,
+                                 const int mysd, const int cbase,
                                  const int nbase);
-static void move_to_sendbuf_dw4s(const int ps, const int mysd, const int ctail,
+static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
+                                 const int mysd, const int ctail,
                                  const int ntail);
 static void sort_particles(const int nextmode, const int psnew,
                            const int stats);
@@ -1461,10 +1463,10 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
   dst = npg[g];\
   if (dst==0)  { ACT; }\
   else if (!PIL) {\
-    if (TOSB)  sb[NOfSend[dst-1]++] = *P;\
+    if (TOSB)  sb[state->n_of_send[dst-1]++] = *P;\
   }\
   else if (dst>0)\
-    sb[NOfSend[Pillar_Lower(dst)-1]++] = *P;\
+    sb[state->n_of_send[Pillar_Lower(dst)-1]++] = *P;\
   else {\
     ACT;\
     const dint bsbidx = -dst;\
@@ -1483,7 +1485,8 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
                                const int trans, const int oldp, const int* nacc,
                                const int nsend, const int stats) {
     struct oh_state* state = oh4s_state();
-    const int me = myRank, ns = nOfSpecies, nn = nOfNodes, sbase = specBase;
+    const int me = state->my_rank, ns = state->n_of_species;
+    const int nn = state->n_of_nodes, sbase = specBase;
     const int ninj = nOfInjections, nplim = nOfLocalPLimit;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
@@ -1522,10 +1525,10 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
             Move_Or_Do(p, ps, me, 1,
                        (sb[nsend + ninjp++] = *p, InteriorParts[s].size++), 0);
     }
-    move_to_sendbuf_uw4s(0, me, 0, 0);
+    move_to_sendbuf_uw4s(state, 0, me, 0, 0);
     if (psold) {
-        move_to_sendbuf_uw4s(1, oldp, primaryParts, nacc[0]);
-        move_to_sendbuf_dw4s(1, oldp, totalParts, nacc[1]);
+        move_to_sendbuf_uw4s(state, 1, oldp, primaryParts, nacc[0]);
+        move_to_sendbuf_dw4s(state, 1, oldp, totalParts, nacc[1]);
     } else {
         struct S_particle* rbb = Particles + nacc[0];
         int s;
@@ -1534,7 +1537,7 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
             rbb += TotalPNext[ns + s];
         }
     }
-    move_to_sendbuf_dw4s(0, me, primaryParts, nacc[0]);
+    move_to_sendbuf_dw4s(state, 0, me, primaryParts, nacc[0]);
 
     for (i = 0, p = SendBuf + nsend; i < ninjp; i++, p++)
         *(RecvBufBases[Particle_Spec(p->spec - sbase)]++) = *p;
@@ -1544,9 +1547,10 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
     primaryParts = *secondaryBase = nacc[0];
 }
 
-static void move_to_sendbuf_uw4s(const int ps, const int mysd, const int cbase,
+static void move_to_sendbuf_uw4s(struct oh_state* state, const int ps,
+                                 const int mysd, const int cbase,
                                  const int nbase) {
-    const int ns = nOfSpecies;
+    const int ns = state->n_of_species;
     const int nsor0 = ps ? ns : 0;
     const int* ctp = TotalP + nsor0, * ntp = TotalPNext + nsor0;
     struct S_interiorp* ip = InteriorParts + nsor0;
@@ -1577,9 +1581,10 @@ static void move_to_sendbuf_uw4s(const int ps, const int mysd, const int cbase,
     }
 }
 
-static void move_to_sendbuf_dw4s(const int ps, const int mysd, const int ctail,
+static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
+                                 const int mysd, const int ctail,
                                  const int ntail) {
-    const int ns = nOfSpecies;
+    const int ns = state->n_of_species;
     const int nsor0 = ps ? ns : 0;
     const int* ctp = TotalP + nsor0, * ntp = TotalPNext + nsor0;
     struct S_interiorp* ip = InteriorParts + nsor0;
@@ -1637,7 +1642,8 @@ static void sort_particles(const int nextmode, const int psnew, const int stats)
 static void move_and_sort(const int nextmode, const int psold, const int psnew,
                           const int oldp, const int* nacc, const int stats) {
     struct oh_state* state = oh4s_state();
-    const int me = myRank, ns = nOfSpecies, nn = nOfNodes, sbase = specBase;
+    const int me = state->my_rank, ns = state->n_of_species;
+    const int nn = state->n_of_nodes, sbase = specBase;
     const int mysubdom[2] = { me, oldp }, ninj = nOfInjections;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;

@@ -188,6 +188,9 @@ The current code now has this first migration layer:
 - Level-4p secondary particle movement now threads `oh_state` through the
   movement helpers so the shared move macro updates send counters and resolves
   hotspot communication-list entries through the context mirror.
+- Level-4s particle movement now threads `oh_state` through the primary
+  movement helpers so the shared move macro updates send counters through the
+  context mirror.
 
 ## Particle Layout
 

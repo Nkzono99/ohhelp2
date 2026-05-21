@@ -75,6 +75,11 @@ oh1_sync_default_state(void) {
   OhDefaultState.requests = Requests;
   OhDefaultState.statuses = Statuses;
   OhDefaultState.exclude_level2 = excludeLevel2;
+#ifdef OH_POS_AWARE
+  OhDefaultState.abs_neighbors = AbsNeighbors;
+#else
+  OhDefaultState.abs_neighbors = NULL;
+#endif
   OhDefaultState.subdomains = SubDomains;
   OhDefaultState.subdomains_float = SubDomainsFloat;
   OhDefaultState.grid = Grid;

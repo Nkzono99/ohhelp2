@@ -1241,13 +1241,14 @@ static void update_descriptors(const int oldp, const int newp) {
 static void update_neighbors(struct oh_state* state, const int ps) {
     int n = 0, nx, ny = 0, nz = 0;
     const int nn = state->n_of_nodes;
+    int (*abs_neighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int* grid_offset = state->level4_grid_offset;
 
     Do_Z(for (nz = -1; nz < 2; nz++)) {
         Do_Y(for (ny = -1; ny < 2; ny++)) {
             for (nx = -1; nx < 2; nx++, n++) {
                 int nbr = state->neighbors[ps][n];
-                nbr = AbsNeighbors[ps][n] = nbr < 0 ? -(nbr + 1) : nbr;
+                nbr = abs_neighbors[ps][n] = nbr < 0 ? -(nbr + 1) : nbr;
                 if (nbr >= nn)  grid_offset[ps * OH_NEIGHBORS + n] = 0;
                 else
                     grid_offset[ps * OH_NEIGHBORS + n] =
@@ -1902,6 +1903,7 @@ int oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps, const i
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
     int (*Boundaries)[OH_DIMENSION][2] = state->boundaries;
+    int (*abs_neighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int x, y, z, w, d, dw, mysd;
     const int psnn = ps ? (s + ns) * nn : s * nn;
     int k = OH_NBR_SELF, idx = 0;
@@ -1935,7 +1937,7 @@ int oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps, const i
         return(mysd);
     } else if (k < 0)
         return(oh4p_map_particle_to_subdomain(part, ps, s));
-    sd = AbsNeighbors[ps][k];
+    sd = abs_neighbors[ps][k];
     if (sd >= nn) {
         part->nid = -1;  return(-1);
     }

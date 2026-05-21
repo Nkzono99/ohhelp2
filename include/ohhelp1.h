@@ -128,6 +128,7 @@ struct oh_state {
   MPI_Request *requests;
   MPI_Status *statuses;
   int exclude_level2;
+  int (*abs_neighbors)[OH_NEIGHBORS];
   int (*subdomains)[OH_DIMENSION][2];
   double (*subdomains_float)[OH_DIMENSION][2];
   struct S_grid *grid;

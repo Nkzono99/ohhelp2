@@ -174,6 +174,12 @@ The stride-aware storage helpers live in `src/c/oh_particle_buffer.h` so
 Level-2 movement code can share one implementation for element addressing,
 index validation, and byte-wise copies.
 
+Level-3 initialization now installs default `S_particle` coordinate mapping
+callbacks into the active default adapter after geometry setup. Custom adapters
+remain fully application-owned; if an application provides its own particle
+layout, it should also provide `map_to_neighbor` / `map_to_subdomain` callbacks
+when Level-3 particle remapping needs coordinate-aware behavior.
+
 ## Weighted Balancing
 
 For a region `r`, define:

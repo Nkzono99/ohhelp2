@@ -12,6 +12,7 @@
 #undef  EXTERN
 #define EXTERN
 #include "ohhelp3.h"
+#include "oh_context_internal.h"
 
 static void init_subdomain_actively(int (*sd)[OH_DIMENSION][2],
                                     int sc[OH_DIMENSION][2],
@@ -35,6 +36,11 @@ static int  transbound3(int currmode, int stats, int level);
 static int  map_irregular(double p0, double p1, double p2, int dim, int from,
                           int n);
 static int  map_irregular_range(double p, int dim, int from, int to);
+static void install_default_level3_particle_maps(void);
+static int  default_level3_map_particle_to_neighbor(
+  void *particle, int primary_or_secondary);
+static int  default_level3_map_particle_to_subdomain(
+  void *particle, int primary_or_secondary);
 
 void
 oh3_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -155,6 +161,14 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
     }
   }
   init_fields(ft, cfields, cfid, ct, nbound, sd[myRank], fsizes);
+  install_default_level3_particle_maps();
+  oh1_sync_default_state();
+}
+static void
+install_default_level3_particle_maps(void) {
+  if (excludeLevel2 || useCustomParticleAdapter) return;
+  ParticleAdapter.map_to_neighbor = default_level3_map_particle_to_neighbor;
+  ParticleAdapter.map_to_subdomain = default_level3_map_particle_to_subdomain;
 }
 static void
 init_subdomain_actively(int (*sd)[OH_DIMENSION][2], int sc[OH_DIMENSION][2],
@@ -910,6 +924,34 @@ oh3_map_particle_to_subdomain(double x, double y, double z) {
   return(sd);
 }
 #endif
+static int
+default_level3_map_particle_to_neighbor(void *particle,
+                                        int primary_or_secondary) {
+  struct S_particle *p = (struct S_particle*)particle;
+
+#if OH_DIMENSION==1
+  return oh3_map_particle_to_neighbor(&p->x, primary_or_secondary);
+#elif OH_DIMENSION==2
+  return oh3_map_particle_to_neighbor(&p->x, &p->y, primary_or_secondary);
+#else
+  return oh3_map_particle_to_neighbor(&p->x, &p->y, &p->z,
+                                      primary_or_secondary);
+#endif
+}
+static int
+default_level3_map_particle_to_subdomain(void *particle,
+                                         int primary_or_secondary) {
+  struct S_particle *p = (struct S_particle*)particle;
+
+  (void)primary_or_secondary;
+#if OH_DIMENSION==1
+  return oh3_map_particle_to_subdomain(p->x);
+#elif OH_DIMENSION==2
+  return oh3_map_particle_to_subdomain(p->x, p->y);
+#else
+  return oh3_map_particle_to_subdomain(p->x, p->y, p->z);
+#endif
+}
 int
 map_irregular_subdomain(double x, double y, double z) {
   return(map_irregular(x, y, z, OH_DIM_X, 0, nOfNodes));

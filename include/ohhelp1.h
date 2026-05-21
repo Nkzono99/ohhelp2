@@ -55,6 +55,8 @@ struct S_commlist;
 struct S_comms;
 struct S_mycommc;
 struct S_mycommf;
+struct S_particle;
+typedef struct oh_particle_adapter oh_particle_adapter;
 
 struct oh_state {
   MPI_Comm comm;
@@ -99,6 +101,24 @@ struct oh_state {
   struct S_mycommc *my_comm;
   struct S_mycommc *my_comm_c;
   struct S_mycommf *my_comm_f;
+  int n_of_local_particles_limit;
+  struct S_particle *particles;
+  struct S_particle *send_buffer;
+  struct S_particle **recv_buffer_bases;
+  int *secondary_base;
+  int *total_local_particles;
+  int *send_buffer_disps;
+  int *recv_buffer_disps;
+  int n_of_injections;
+  int spec_base;
+  MPI_Datatype particle_mpi_type;
+  MPI_Datatype custom_particle_mpi_type;
+  int use_custom_particle_mpi_type;
+  oh_particle_adapter *particle_adapter;
+  oh_particle_adapter *custom_particle_adapter;
+  int use_custom_particle_adapter;
+  MPI_Request *requests;
+  MPI_Status *statuses;
 };
 extern struct oh_state OhDefaultState;
 

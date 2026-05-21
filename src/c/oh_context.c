@@ -2,6 +2,7 @@
    v2 context facade for the current default OhHelp instance.
 */
 #include "ohhelp1.h"
+#include "ohhelp2.h"
 #include "oh_context_internal.h"
 #include "oh_context.h"
 
@@ -51,6 +52,24 @@ oh1_sync_default_state(void) {
   OhDefaultState.my_comm = MyComm;
   OhDefaultState.my_comm_c = MyCommC;
   OhDefaultState.my_comm_f = MyCommF;
+  OhDefaultState.n_of_local_particles_limit = nOfLocalPLimit;
+  OhDefaultState.particles = Particles;
+  OhDefaultState.send_buffer = SendBuf;
+  OhDefaultState.recv_buffer_bases = RecvBufBases;
+  OhDefaultState.secondary_base = secondaryBase;
+  OhDefaultState.total_local_particles = totalLocalParticles;
+  OhDefaultState.send_buffer_disps = SendBufDisps;
+  OhDefaultState.recv_buffer_disps = RecvBufDisps;
+  OhDefaultState.n_of_injections = nOfInjections;
+  OhDefaultState.spec_base = specBase;
+  OhDefaultState.particle_mpi_type = T_Particle;
+  OhDefaultState.custom_particle_mpi_type = CustomTParticle;
+  OhDefaultState.use_custom_particle_mpi_type = useCustomTParticle;
+  OhDefaultState.particle_adapter = &ParticleAdapter;
+  OhDefaultState.custom_particle_adapter = &CustomParticleAdapter;
+  OhDefaultState.use_custom_particle_adapter = useCustomParticleAdapter;
+  OhDefaultState.requests = Requests;
+  OhDefaultState.statuses = Statuses;
 }
 
 struct oh_state*

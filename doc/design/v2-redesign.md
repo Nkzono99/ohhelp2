@@ -64,6 +64,11 @@ The current code now has this first migration layer:
 - Level-1 schedule counters (`RLIndex`, `SLHeadTail`, `SecSLHeadTail`,
   `SecRLSize`) are now reachable through `oh_state` and used that way by the
   state-backed scheduling/count construction paths.
+- Level-2 particle buffers, displacement arrays, request/status buffers,
+  injection counters, particle MPI datatype, and particle adapter pointers are
+  now mirrored into `oh_state`. Level-2 code still reads the globals directly;
+  the mirror is the next migration bridge for threading state through movement
+  and exchange helpers.
 
 ## Particle Layout
 

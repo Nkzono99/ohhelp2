@@ -31,3 +31,7 @@
 *.out
 *.app
 *.i90
+
+# Local tooling
+.venv/
+.codex-tmp/

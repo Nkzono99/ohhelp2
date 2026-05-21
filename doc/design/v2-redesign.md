@@ -106,6 +106,11 @@ The Level-2 injection/remap/remove path now reads region/species and marks a
 removed particle through the active adapter. Bulk movement paths still contain
 direct `S_particle` field reads and are the next migration target.
 
+Level-2 bulk send-buffer construction now obtains particle destination regions
+through the active adapter. The default adapter preserves the old `nid`-based
+mapping, including the POS_AWARE primarization side effect for injected
+particles.
+
 ## Weighted Balancing
 
 For a region `r`, define:

@@ -33,6 +33,9 @@ static int   particle_region(const struct S_particle *part,
 static void  set_particle_region(struct S_particle *part, int region,
                                  int primary_or_secondary);
 static int   particle_species(const struct S_particle *part);
+static int   particle_subdomain(const struct S_particle *part,
+                                int primary_or_secondary);
+static int   map_injected_particle_to_subdomain(struct S_particle *part);
 
 void
 oh2_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -424,20 +427,19 @@ move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase, int *ctp,
                    int nbase, int *ntp, struct S_particle **rbb) {
   int i, in, j, jn, k, s;
   int ns=nOfSpecies, nn=nOfNodes, *sbd=SendBufDisps;
-  Decl_Grid_Info();
 
   for (s=0,i=cbase,j=nbase,k=0; s<ns; s++,i=in,j=jn,sbd+=nn,k+=nn) {
     int putme = putmes ? putmes[k] : 0; /* NOfPLocal[0/1][s][me/sec] */
     in = i + ctp[s];  jn = j + ntp[s];
     if (j<=i) {                         /* upward move only */
       for (; putme>0; i++) {            /* throw my particles to send buf */
-        int dst=Subdomain_Id(Particles[i].nid, ps);
+        int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
         SendBuf[sbd[dst]++] = Particles[i];
         if (dst==me) putme--;
       }
       for (; i<in; i++) {               /* move upward */
-        int dst=Subdomain_Id(Particles[i].nid, ps);
+        int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
         if (dst==me) Particles[j++] = Particles[i];
         else         SendBuf[sbd[dst]++] = Particles[i];
@@ -448,26 +450,26 @@ move_to_sendbuf_uw(int ps, int me, int *putmes, int cbase, int *ctp,
     } else {                            /* downward and upward */
       int ib, im, jm;
       for (; putme>0; i++) {            /* throw my particles to send buf */
-        int dst=Subdomain_Id(Particles[i].nid, ps);
+        int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
         SendBuf[sbd[dst]++] = Particles[i];
         if (dst==me) putme--;
       }
       ib = i;
       for (; i<j; i++) {                 /* skip downward movers if any */
-        int dst=Subdomain_Id(Particles[i].nid, ps);
+        int dst=particle_subdomain(Particles+i, ps);
         if (dst==me && dst>=0)  j++;
       }
       im = i-1; jm = j-1;
       for (; i<in; i++) {               /* move remainders upward */
-        int dst=Subdomain_Id(Particles[i].nid, ps);
+        int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
         if (dst==me) Particles[j++] = Particles[i];
         else         SendBuf[sbd[dst]++] = Particles[i];
       }
       rbb[s] = Particles + j;           /* receive to bottom */
       for (i=im,j=jm; i>=ib; i--) {     /* move first half downward if any */
-        int dst=Subdomain_Id(Particles[i].nid, ps);
+        int dst=particle_subdomain(Particles+i, ps);
         if (dst<0) continue;
         if (dst==me) Particles[j--] = Particles[i];
         else         SendBuf[sbd[dst]++] = Particles[i];
@@ -480,7 +482,6 @@ move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail, int *ctp, int ntail,
                    int *ntp) {
   int i, in, j, jn, k, s, ns=nOfSpecies, nn=nOfNodes, nnnsm1=nn*(ns-1);
   int *sbd=SendBufDisps+nnnsm1;
-  Decl_Grid_Info();
 
   in = ctail;  jn = ntail;
   for (s=ns-1,i=in-1,j=jn-1,k=nnnsm1; s>=0; s--,i=in-1,j=jn-1,sbd-=nn,k-=nn) {
@@ -488,13 +489,13 @@ move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail, int *ctp, int ntail,
     in -= ctp[s];  jn -= ntp[s];
     if (i>=j || in>=jn) continue;       /* not downward only and thus skip */
     for (; putme>0; i--) {              /* throw my particles to send buf */
-      int dst=Subdomain_Id(Particles[i].nid, ps);
+      int dst=particle_subdomain(Particles+i, ps);
       if (dst<0) continue;
       SendBuf[sbd[dst]++] = Particles[i];
       if (dst==me) putme--;
     }
     for (; i>=in; i--) {                /* move downward */
-      int dst=Subdomain_Id(Particles[i].nid, ps);
+      int dst=particle_subdomain(Particles+i, ps);
       if (dst<0) continue;
       if (dst==me) Particles[j--] = Particles[i];
       else         SendBuf[sbd[dst]++] = Particles[i];
@@ -504,17 +505,13 @@ move_to_sendbuf_dw(int ps, int me, int *putmes, int ctail, int *ctp, int ntail,
 static void
 move_injected_to_sendbuf() {
   struct S_particle *pbuf=Particles+totalParts;
-  int ninj=nOfInjections, nn=nOfNodes, sb=specBase;
+  int ninj=nOfInjections, nn=nOfNodes;
   int i;
-  Decl_Grid_Info();
 
   for (i=0; i<ninj; i++) {
-    int dst = Subdomain_Id(pbuf[i].nid, 0);
-    int s = Particle_Spec(pbuf[i].spec-sb);
+    int dst = map_injected_particle_to_subdomain(pbuf+i);
+    int s = particle_species(pbuf+i);
     if (dst<0) continue;
-#ifdef OH_POS_AWARE
-    if (dst>=nn)  Primarize_Id(pbuf+i, dst);
-#endif
     SendBuf[SendBufDisps[dst+s*nn]++] = pbuf[i];
   }
 }
@@ -678,6 +675,28 @@ particle_species(const struct S_particle *part) {
 #else
   return useCustomParticleAdapter ? species : 0;
 #endif
+}
+static int
+particle_subdomain(const struct S_particle *part, int primary_or_secondary) {
+  Decl_Grid_Info();
+
+  if (ParticleAdapter.map_to_subdomain)
+    return ParticleAdapter.map_to_subdomain((void*)part, primary_or_secondary);
+  return Subdomain_Id(particle_region(part, primary_or_secondary),
+                      primary_or_secondary);
+}
+static int
+map_injected_particle_to_subdomain(struct S_particle *part) {
+  int dst;
+  Decl_Grid_Info();
+
+  if (ParticleAdapter.map_to_subdomain)
+    return ParticleAdapter.map_to_subdomain(part, 0);
+  dst = Subdomain_Id(particle_region(part, 0), 0);
+#ifdef OH_POS_AWARE
+  if (dst>=nOfNodes)  Primarize_Id(part, dst);
+#endif
+  return dst;
 }
 void
 oh2_set_total_particles_() {

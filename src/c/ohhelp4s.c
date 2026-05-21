@@ -146,6 +146,9 @@ oh4s_state(void) {
     state->level4_sec_rl_index = SecRLIndex;
     state->level4_alt_sec_rl_index = AltSecRLIndex;
     state->level4_primary_rl_index = PrimaryRLIndex;
+    state->level4_histogram_half_type = T_Hgramhalf;
+    state->level4_interior_parts = InteriorParts;
+    state->level4_grid_overflow_limit = 0;
     state->level4_boundary_send_buffer = BoundarySendBuf;
     state->level4_first_neighbor = FirstNeighbor;
     state->level4_grid_offset = &GridOffset[0][0];
@@ -1402,8 +1405,8 @@ static void state_exchange_xfer_amount4s(struct oh_state* state,
         int i, * nrbase = state->n_of_recv + tag;
         for (i = 0; i < n; i++, req++) {
             const int nid = nbor[i];
-            MPI_Irecv(nrbase + nid, 1, T_Hgramhalf, nid, tag, state->comm,
-                      state->requests + req);
+            MPI_Irecv(nrbase + nid, 1, state->level4_histogram_half_type, nid,
+                      tag, state->comm, state->requests + req);
         }
     }
     for (ps = 0, tag = 0; ps <= nextmode; ps++, tag += nnns) {
@@ -1412,8 +1415,8 @@ static void state_exchange_xfer_amount4s(struct oh_state* state,
         int i, * nsbase = state->n_of_send + tag;
         for (i = 0; i < n; i++, req++) {
             const int nid = nbor[i];
-            MPI_Isend(nsbase + nid, 1, T_Hgramhalf, nid, tag, state->comm,
-                      state->requests + req);
+            MPI_Isend(nsbase + nid, 1, state->level4_histogram_half_type, nid,
+                      tag, state->comm, state->requests + req);
         }
     }
     MPI_Waitall(req, state->requests, state->statuses);
@@ -1625,6 +1628,7 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
     int* nofr;
     int ninjp = 0, ninjs = nplim;
     struct S_particle* sb = state->send_buffer, * p;
+    struct S_interiorp* interior_parts = state->level4_interior_parts;
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_MOVE, nextmode);
@@ -1637,10 +1641,10 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
             for (s = 0; s < ns; s++, t++, nofr += nn) {
                 int n, nrec;
                 for (n = 0, nrec = 0; n < nnbr; n++)  nrec += nofr[rnbr[n]];
-                InteriorParts[t].size = nrec;
+                interior_parts[t].size = nrec;
             }
         } else
-            for (s = 0; s < ns; s++, t++)  InteriorParts[t].size = 0;
+            for (s = 0; s < ns; s++, t++)  interior_parts[t].size = 0;
     }
     for (i = 0, p = state->particles + state->total_parts; i < ninj; i++, p++) {
         const int s = Particle_Spec(p->spec - sbase);
@@ -1651,10 +1655,10 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
         if (ps) {
             Primarize_Id_Only(p);
             Move_Or_Do(p, ps, oldp, 1,
-                       (sb[--ninjs] = *p, InteriorParts[ns + s].size++), 0);
+                       (sb[--ninjs] = *p, interior_parts[ns + s].size++), 0);
         } else
             Move_Or_Do(p, ps, me, 1,
-                       (sb[nsend + ninjp++] = *p, InteriorParts[s].size++), 0);
+                       (sb[nsend + ninjp++] = *p, interior_parts[s].size++), 0);
     }
     move_to_sendbuf_uw4s(state, 0, me, 0, 0);
     if (psold) {
@@ -1665,7 +1669,7 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
         int s;
         for (s = 0; s < ns; s++) {
             state->recv_buffer_bases[ns + s] = rbb;
-            InteriorParts[ns + s].head = rbb - state->particles;
+            interior_parts[ns + s].head = rbb - state->particles;
             rbb += state->total_particles_next[ns + s];
         }
     }
@@ -1686,7 +1690,7 @@ static void move_to_sendbuf_uw4s(struct oh_state* state, const int ps,
     const int nsor0 = ps ? ns : 0;
     const int* ctp = state->total_particles + nsor0;
     const int* ntp = state->total_particles_next + nsor0;
-    struct S_interiorp* ip = InteriorParts + nsor0;
+    struct S_interiorp* ip = state->level4_interior_parts + nsor0;
     struct S_particle* p, ** rbb = state->recv_buffer_bases + nsor0;
     struct S_particle* sb = state->send_buffer;
     int s, c, d, cn, dn;
@@ -1722,7 +1726,7 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
     const int nsor0 = ps ? ns : 0;
     const int* ctp = state->total_particles + nsor0;
     const int* ntp = state->total_particles_next + nsor0;
-    struct S_interiorp* ip = InteriorParts + nsor0;
+    struct S_interiorp* ip = state->level4_interior_parts + nsor0;
     struct S_particle* sb = state->send_buffer, * p;
     struct S_particle** rbb = state->recv_buffer_bases + nsor0;
     int s, c, d, cn, dn;
@@ -1770,8 +1774,8 @@ static void sort_particles(struct oh_state* state, const int nextmode,
         for (s = 0; s < ns; s++, t++) {
             dint* npg = state->level4_particle_grid[ps][s];
             dint* npgt = state->level4_particle_grid_total[ps][s];
-            const int ips = InteriorParts[t].size;
-            for (i = 0, p = state->particles + InteriorParts[t].head; i < ips;
+            const int ips = state->level4_interior_parts[t].size;
+            for (i = 0, p = state->particles + state->level4_interior_parts[t].head; i < ips;
                  i++, p++)
                 Sort_Particle(p);
         }

@@ -65,6 +65,7 @@ struct S_hplane;
 struct S_vplane;
 struct S_hotspot;
 struct S_hotspotbase;
+struct S_interiorp;
 typedef struct oh_particle_adapter oh_particle_adapter;
 
 struct oh_state {
@@ -169,6 +170,9 @@ struct oh_state {
   int *level4_sec_rl_index;
   int *level4_alt_sec_rl_index;
   int *level4_primary_rl_index;
+  MPI_Datatype level4_histogram_half_type;
+  struct S_interiorp *level4_interior_parts;
+  int level4_grid_overflow_limit;
   struct S_particle *level4_boundary_send_buffer;
   int *level4_first_neighbor;
   int *level4_grid_offset;

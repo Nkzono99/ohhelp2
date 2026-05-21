@@ -150,6 +150,9 @@ oh4p_state(void) {
     state->level4_sec_rl_index = SecRLIndex;
     state->level4_alt_sec_rl_index = NULL;
     state->level4_primary_rl_index = NULL;
+    state->level4_histogram_half_type = T_Hgramhalf;
+    state->level4_interior_parts = NULL;
+    state->level4_grid_overflow_limit = gridOverflowLimit;
     state->level4_boundary_send_buffer = NULL;
     state->level4_first_neighbor = FirstNeighbor;
     state->level4_grid_offset = &GridOffset[0][0];
@@ -880,7 +883,7 @@ static void sched_recv(struct oh_state* state, const int currmode,
                        const int nid, const int tag,
                        struct S_recvsched_context* context) {
     const int x0 = context->x, y0 = context->y, z0 = context->z, g = context->g;
-    const int ovflimit = gridOverflowLimit;
+    const int ovflimit = state->level4_grid_overflow_limit;
     dint nptotal = context->nptotal;
     dint nplimit = context->nplimit;
     dint carryover = context->carryover;
@@ -1507,8 +1510,8 @@ static void state_exchange_xfer_amount4p(struct oh_state* state,
         int i, * nrbase = state->n_of_recv + tag;
         for (i = 0; i < n; i++, req++) {
             const int nid = nbor[i];
-            MPI_Irecv(nrbase + nid, 1, T_Hgramhalf, nid, tag, state->comm,
-                      state->requests + req);
+            MPI_Irecv(nrbase + nid, 1, state->level4_histogram_half_type, nid,
+                      tag, state->comm, state->requests + req);
         }
     }
     for (ps = 0, tag = 0; ps < 2; ps++, tag += nnns) {
@@ -1517,8 +1520,8 @@ static void state_exchange_xfer_amount4p(struct oh_state* state,
         int i, * nsbase = state->n_of_send + tag;
         for (i = 0; i < n; i++, req++) {
             const int nid = nbor[i];
-            MPI_Isend(nsbase + nid, 1, T_Hgramhalf, nid, tag, state->comm,
-                      state->requests + req);
+            MPI_Isend(nsbase + nid, 1, state->level4_histogram_half_type, nid,
+                      tag, state->comm, state->requests + req);
         }
     }
     MPI_Waitall(req, state->requests, state->statuses);

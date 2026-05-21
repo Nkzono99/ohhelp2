@@ -366,6 +366,11 @@ remain fully application-owned; if an application provides its own particle
 layout, it should also provide `map_to_neighbor` / `map_to_subdomain` callbacks
 when Level-3 particle remapping needs coordinate-aware behavior.
 
+Level-4 now mirrors the POS-aware packed-grid id parameters (`gridMask` and
+`logGrid`) into `oh_state` as `grid_mask` and `log_grid`. The Level-4
+translation units override their local `Decl_Grid_Info()` expansion to read the
+state fields, while Level-2 keeps the legacy macro during the staged migration.
+
 ## Weighted Balancing
 
 For a region `r`, define:

@@ -83,6 +83,13 @@ oh1_sync_default_state(void) {
   OhDefaultState.subdomains = SubDomains;
   OhDefaultState.subdomains_float = SubDomainsFloat;
   OhDefaultState.grid = Grid;
+#ifdef OH_POS_AWARE
+  OhDefaultState.grid_mask = gridMask;
+  OhDefaultState.log_grid = logGrid;
+#else
+  OhDefaultState.grid_mask = 0;
+  OhDefaultState.log_grid = 0;
+#endif
   OhDefaultState.subdomain_desc = SubDomainDesc;
   OhDefaultState.n_of_boundaries = nOfBoundaries;
   OhDefaultState.boundaries = Boundaries;

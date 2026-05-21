@@ -163,6 +163,13 @@ oh4s_state(void) {
     return state;
 }
 
+#ifdef OH_POS_AWARE
+#undef Decl_Grid_Info
+#define Decl_Grid_Info() \
+  OH_nid_t nidelement;  int subdomid;\
+  const int gridmask = state->grid_mask, loggrid = state->log_grid
+#endif
+
 #define If_Dim(D, ET, EF)  (ET)
 #define For_Y(LINIT, LCONT, LNEXT) for(LINIT; LCONT; LNEXT)
 #define For_Z(LINIT, LCONT, LNEXT) for(LINIT; LCONT; LNEXT)
@@ -371,6 +378,7 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     }
 
     logGrid = loggrid;  gridMask = (1 << loggrid) - 1;
+    state->log_grid = loggrid;  state->grid_mask = gridMask;
 
     adjust_field_descriptor(state, 0);
 

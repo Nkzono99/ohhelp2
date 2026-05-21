@@ -167,6 +167,13 @@ oh4p_state(void) {
     return state;
 }
 
+#ifdef OH_POS_AWARE
+#undef Decl_Grid_Info
+#define Decl_Grid_Info() \
+  OH_nid_t nidelement;  int subdomid;\
+  const int gridmask = state->grid_mask, loggrid = state->log_grid
+#endif
+
 #define If_Dim(D, ET, EF)  (OH_DIMENSION>D ? (ET) : (EF))
 #define For_Y(LINIT, LCONT, LNEXT) LINIT;
 #define For_Z(LINIT, LCONT, LNEXT) LINIT;
@@ -391,6 +398,7 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
     }
 
     logGrid = loggrid;  gridMask = (1 << loggrid) - 1;
+    state->log_grid = loggrid;  state->grid_mask = gridMask;
     adjust_field_descriptor(state, 0);
 
     HotSpotList = (struct S_hotspot*)mem_alloc(sizeof(struct S_hotspot),

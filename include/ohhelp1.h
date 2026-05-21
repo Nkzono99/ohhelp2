@@ -137,6 +137,8 @@ struct oh_state {
   int (*subdomains)[OH_DIMENSION][2];
   double (*subdomains_float)[OH_DIMENSION][2];
   struct S_grid *grid;
+  int grid_mask;
+  int log_grid;
   struct S_subdomdesc *subdomain_desc;
   int n_of_boundaries;
   int (*boundaries)[OH_DIMENSION][2];

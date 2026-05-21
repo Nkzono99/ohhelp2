@@ -95,6 +95,9 @@ The current code now has this first migration layer:
 - Level-2 primary/secondary send-buffer movement now has state-backed entry
   points that use context-owned particle histograms, total particle arrays,
   injection counters, node descriptors, and primary/secondary base counters.
+- Level-2 transbound finalization now uses `oh_state` to reset particle
+  histograms, carry `TotalPNext` into `TotalP`, clear injection counters, and
+  update total-particle/current-mode mirrors.
 
 ## Particle Layout
 

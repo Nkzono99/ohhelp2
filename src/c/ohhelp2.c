@@ -17,6 +17,7 @@
 static int   try_primary2(int currmode, int level, int stats);
 static int   try_stable2(int currmode, int level, int stats);
 static void  rebalance2(int currmode, int level, int stats);
+static int   finish_transbound2_state(struct oh_state *state, int ret);
 static void  exchange_primary_particles_state(struct oh_state *state,
                                               int currmode, int stats);
 static void  set_sendbuf_disps_state(struct oh_state *state, int secondary,
@@ -188,8 +189,7 @@ oh2_transbound(int currmode, int stats) {
 }
 int
 transbound2(int currmode, int stats, int level) {
-  int ret=MODE_NORM_SEC, nn=nOfNodes, ns=nOfSpecies, nnns2=2*nn*ns;
-  int i, s, tp;
+  int ret=MODE_NORM_SEC;
 
   stats = stats && statsMode;
   currmode = transbound1(currmode, stats, level);
@@ -198,13 +198,31 @@ transbound2(int currmode, int stats, int level) {
   else if (!Mode_PS(currmode) || !try_stable2(currmode, level, stats)) {
     rebalance2(currmode, level, stats);  ret = MODE_REB_SEC;
   }
-  for (i=0; i<nnns2; i++) NOfPLocal[i] = 0;
+  return finish_transbound2_state(oh1_state(), ret);
+}
+static int
+finish_transbound2_state(struct oh_state *state, int ret) {
+  int ns=state->n_of_species, nn=state->n_of_nodes, nnns2=2*nn*ns;
+  int *n_of_particles_local=state->n_of_particles_local;
+  int *total_particles=state->total_particles;
+  int *total_particles_next=state->total_particles_next;
+  int *injected_particles=state->injected_particles;
+  int i, s, tp;
+
+  for (i=0; i<nnns2; i++) n_of_particles_local[i] = 0;
   for (s=0,tp=0; s<ns*2; s++) {
-    TotalP[s] = TotalPNext[s];  tp += TotalPNext[s];
+    total_particles[s] = total_particles_next[s];
+    tp += total_particles_next[s];
   }
-  for (s=0; s<ns*2; s++)  InjectedParticles[s] = 0;
-  totalParts = *totalLocalParticles = tp;  nOfInjections = 0;
-  return((currMode=ret));
+  for (s=0; s<ns*2; s++)  injected_particles[s] = 0;
+  state->total_parts = tp;
+  totalParts = tp;
+  *state->total_local_particles = tp;
+  state->n_of_injections = 0;
+  nOfInjections = 0;
+  state->curr_mode = ret;
+  currMode = ret;
+  return ret;
 }
 static int
 try_primary2(int currmode, int level, int stats) {

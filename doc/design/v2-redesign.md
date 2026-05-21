@@ -156,7 +156,9 @@ The current code now has this first migration layer:
   target.
 - Level-4s boundary particle exchange now uses `oh_state` for species count,
   particle/send buffers, particle MPI datatype, communicator, requests, and
-  statuses. The boundary-plane descriptors remain Level-4s-owned globals.
+  statuses. Boundary send-buffer staging is mirrored through `oh_state`, and
+  the boundary transfer helpers now receive the active state explicitly. The
+  boundary-plane descriptors remain Level-4s-owned globals.
 - Level-4 grid histogram/routing state is now mirrored into `oh_state` by
   Level-4p/4s-local sync helpers. `src/c/oh_context.c` deliberately does not
   include Level-4 headers because the Level-4p and Level-4s headers carry
@@ -170,7 +172,8 @@ The current code now has this first migration layer:
   tables.
 - Level-4s user border-data exchange now synchronizes `oh_state` at the public
   entry point and passes it through the vertical/horizontal exchange helpers for
-  communicator, request/status buffers, species count, and active region reads.
+  communicator, request/status buffers, species count, active region reads,
+  grid descriptors, z-boundary ranges, and Level-4 per-grid count/index arrays.
 - Level-4p/4s receive-list exchange now synchronizes `oh_state` before schedule
   construction and uses the context mirror for rank/node/species counts,
   communicator, communication-list storage, node-tree pointers, and Level-4
@@ -193,7 +196,9 @@ The current code now has this first migration layer:
   z-boundaries, Level-4 histograms, and next-total counters.
 - Level-4s vertical boundary transfer scheduling now receives `oh_state` for
   node/species counts and neighbor mirrors before building the vertical-plane
-  send/receive schedule descriptors.
+  send/receive schedule descriptors. The send/receive schedule builders also
+  read z-boundaries, grid descriptors, and Level-4 population histograms through
+  the context mirror.
 - Level-4p secondary particle movement now threads `oh_state` through the
   movement helpers so the shared move macro updates send counters and resolves
   hotspot communication-list entries through the context mirror.

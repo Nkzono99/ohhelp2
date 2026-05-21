@@ -280,6 +280,8 @@ The current code now has this first migration layer:
 - Level-4p/4s grid-offset lookups for neighboring grid positions now read the
   offset table through `oh_state`, including move/sort/remove paths that still
   use the legacy packed particle IDs.
+- Level-4p/4s neighbor geometry setup now binds subdomain and grid descriptor
+  tables from `oh_state` before computing grid-offset mirrors.
 - Level-4p/4s rebalance entry points now synchronize `oh_state` around the
   Level-1 rebalance call and use context mirrors for rank/species counts,
   region IDs, node trees, injection counters, and particle buffers when

@@ -6,6 +6,9 @@
    commercial purpose providing that the copyright notice above remains
    unchanged.
 */
+#ifndef OH_PART_H
+#define OH_PART_H
+
 #include "oh_config.h"
 #ifdef  OH_BIG_SPACE
 typedef long long int OH_nid_t;
@@ -24,4 +27,6 @@ struct S_particle {
   int spec;
 };
 #define OH_HAS_SPEC
+#endif
+
 #endif

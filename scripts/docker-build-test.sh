@@ -30,3 +30,7 @@ build/docker/test_oh_load_balance
 mpicc -Iinclude tests/test_oh_particle_adapter.c src/c/oh_particle_adapter.c \
   -o build/docker/test_oh_particle_adapter
 mpirun -n 1 build/docker/test_oh_particle_adapter
+
+mpicc -Iinclude -Isrc/c tests/test_oh_particle_buffer.c \
+  src/c/oh_particle_adapter.c -o build/docker/test_oh_particle_buffer
+mpirun -n 1 build/docker/test_oh_particle_buffer

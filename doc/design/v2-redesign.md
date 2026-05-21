@@ -122,6 +122,10 @@ Level-2 buffer allocation and internal element addressing now use
 extent to match the stride, because `MPI_Alltoallv` displacements are expressed
 in datatype units.
 
+The stride-aware storage helpers live in `src/c/oh_particle_buffer.h` so
+Level-2 movement code can share one implementation for element addressing,
+index validation, and byte-wise copies.
+
 ## Weighted Balancing
 
 For a region `r`, define:

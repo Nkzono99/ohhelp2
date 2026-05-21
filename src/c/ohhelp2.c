@@ -11,8 +11,7 @@
 #undef  EXTERN
 #define EXTERN
 #include "ohhelp2.h"
-#include <stddef.h>
-#include <string.h>
+#include "oh_particle_buffer.h"
 
 /* Prototypes for private functions. */
 static int   try_primary2(int currmode, int level, int stats);
@@ -40,8 +39,6 @@ static int   particle_subdomain(const struct S_particle *part,
 static int   map_injected_particle_to_subdomain(struct S_particle *part);
 static size_t particle_stride(void);
 static struct S_particle *particle_at(struct S_particle *base, int index);
-static const struct S_particle *const_particle_at(const struct S_particle *base,
-                                                  int index);
 static int   particle_buffer_index(const struct S_particle *part);
 static void  copy_particle(struct S_particle *dst,
                            const struct S_particle *src);
@@ -723,35 +720,23 @@ map_injected_particle_to_subdomain(struct S_particle *part) {
 }
 static size_t
 particle_stride(void) {
-  return ParticleAdapter.stride;
+  return oh_particle_buffer_stride(&ParticleAdapter);
 }
 static struct S_particle *
 particle_at(struct S_particle *base, int index) {
-  return (struct S_particle*)((char*)base + (size_t)index*particle_stride());
-}
-static const struct S_particle *
-const_particle_at(const struct S_particle *base, int index) {
-  return (const struct S_particle*)((const char*)base +
-                                    (size_t)index*particle_stride());
+  return oh_particle_buffer_at(&ParticleAdapter, base, index);
 }
 static int
 particle_buffer_index(const struct S_particle *part) {
-  ptrdiff_t offset = (const char*)part - (const char*)Particles;
-  size_t stride = particle_stride();
-
-  if (offset<0 || (size_t)offset%stride!=0) return -1;
-  return (int)((size_t)offset/stride);
+  return oh_particle_buffer_index(&ParticleAdapter, Particles, part);
 }
 static void
 copy_particle(struct S_particle *dst, const struct S_particle *src) {
-  memmove(dst, src, particle_stride());
+  oh_particle_buffer_copy(&ParticleAdapter, dst, src);
 }
 static void
 copy_particles(struct S_particle *dst, const struct S_particle *src, int count) {
-  int i;
-
-  for (i=0; i<count; i++)
-    copy_particle(particle_at(dst, i), const_particle_at(src, i));
+  oh_particle_buffer_copy_n(&ParticleAdapter, dst, src, count);
 }
 void
 oh2_set_total_particles_() {

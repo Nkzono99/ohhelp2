@@ -1584,20 +1584,22 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
 static void move_to_sendbuf_sec4p(const int psold, const int trans, const int oldp,
                                   const int* nacc, const int nsend, const int stats) {
     struct oh_state* state = oh4p_state();
-    const int me = state->my_rank, ns = state->n_of_species, sbase = specBase;
-    const int ninj = nOfInjections, nplim = nOfLocalPLimit;
+    const int me = state->my_rank, ns = state->n_of_species;
+    const int sbase = state->spec_base;
+    const int ninj = state->n_of_injections;
+    const int nplim = state->n_of_local_particles_limit;
     int ninjp = 0, ninjs = nplim, i;
-    struct S_particle* sb = SendBuf, * p;
+    struct S_particle* sb = state->send_buffer, * p;
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_MOVE, 1);
     state_set_sendbuf_disps4p(state, trans);
 
-    for (i = 0, p = Particles + totalParts; i < ninj; i++, p++) {
+    for (i = 0, p = state->particles + state->total_parts; i < ninj; i++, p++) {
         const int s = Particle_Spec(p->spec - sbase);
         const OH_nid_t nid = p->nid;
         const int ps = Secondary_Injected(nid) ? 1 : 0;
-        dint* npg = NOfPGrid[ps][s];
+        dint* npg = state->level4_particle_grid[ps][s];
         if (nid < 0) continue;
         if (ps) {
             Primarize_Id_Only(p);
@@ -1607,23 +1609,25 @@ static void move_to_sendbuf_sec4p(const int psold, const int trans, const int ol
     }
     move_to_sendbuf_uw4p(state, 0, me, 0, 0);
     if (psold) {
-        move_to_sendbuf_uw4p(state, 1, oldp, primaryParts, nacc[0]);
-        move_to_sendbuf_dw4p(state, 1, oldp, totalParts, nacc[0] + nacc[1]);
+        move_to_sendbuf_uw4p(state, 1, oldp, state->primary_parts, nacc[0]);
+        move_to_sendbuf_dw4p(state, 1, oldp, state->total_parts,
+                             nacc[0] + nacc[1]);
     } else {
-        struct S_particle* rbb = Particles + nacc[0];
+        struct S_particle* rbb = state->particles + nacc[0];
         int s;
         for (s = 0; s < ns; s++) {
-            RecvBufBases[ns + s] = rbb;  rbb += TotalPNext[ns + s];
+            state->recv_buffer_bases[ns + s] = rbb;
+            rbb += state->total_particles_next[ns + s];
         }
     }
-    move_to_sendbuf_dw4p(state, 0, me, primaryParts, nacc[0]);
+    move_to_sendbuf_dw4p(state, 0, me, state->primary_parts, nacc[0]);
 
-    for (i = 0, p = SendBuf + nsend; i < ninjp; i++, p++)
-        *(RecvBufBases[Particle_Spec(p->spec - sbase)]++) = *p;
-    for (i = ninjs, p = SendBuf + ninjs; i < nplim; i++, p++)
-        *(RecvBufBases[Particle_Spec(p->spec - sbase) + ns]++) = *p;
+    for (i = 0, p = state->send_buffer + nsend; i < ninjp; i++, p++)
+        *(state->recv_buffer_bases[Particle_Spec(p->spec - sbase)]++) = *p;
+    for (i = ninjs, p = state->send_buffer + ninjs; i < nplim; i++, p++)
+        *(state->recv_buffer_bases[Particle_Spec(p->spec - sbase) + ns]++) = *p;
 
-    primaryParts = *secondaryBase = nacc[0];
+    primaryParts = state->primary_parts = *state->secondary_base = nacc[0];
 }
 
 static void move_to_sendbuf_uw4p(struct oh_state* state, const int ps,
@@ -1631,30 +1635,33 @@ static void move_to_sendbuf_uw4p(struct oh_state* state, const int ps,
                                  const int nbase) {
     const int ns = state->n_of_species;
     const int nsor0 = ps ? ns : 0;
-    const int* ctp = TotalP + nsor0, * ntp = TotalPNext + nsor0;
-    struct S_particle* p, ** rbb = RecvBufBases + nsor0, * sb = SendBuf;
+    const int* ctp = state->total_particles + nsor0;
+    const int* ntp = state->total_particles_next + nsor0;
+    struct S_particle* p, ** rbb = state->recv_buffer_bases + nsor0;
+    struct S_particle* sb = state->send_buffer;
     int s, c, d, cn, dn;
     Decl_Grid_Info();
 
     for (s = 0, c = cbase, d = nbase; s < ns; s++, c = cn, d = dn) {
-        dint* npg = NOfPGrid[ps][s];
+        dint* npg = state->level4_particle_grid[ps][s];
         cn = c + ctp[s];  dn = d + ntp[s];
         if (d <= c) {
-            for (p = Particles + c; c < cn; c++, p++)
-                Move_Or_Do(p, ps, mysd, 1, (Particles[d++] = *p));
-            rbb[s] = Particles + d;
+            for (p = state->particles + c; c < cn; c++, p++)
+                Move_Or_Do(p, ps, mysd, 1, (state->particles[d++] = *p));
+            rbb[s] = state->particles + d;
         } else if (dn > cn) {
-            rbb[s] = Particles + d;
+            rbb[s] = state->particles + d;
         } else {
             const int cb = c;
             int cm, dm;
-            for (p = Particles + c; c < d; c++, p++)  Move_Or_Do(p, ps, mysd, -1, (d++));
+            for (p = state->particles + c; c < d; c++, p++)
+                Move_Or_Do(p, ps, mysd, -1, (d++));
             cm = c - 1;  dm = d - 1;
-            for (p = Particles + c; c < cn; c++, p++)
-                Move_Or_Do(p, ps, mysd, 1, (Particles[d++] = *p));
-            rbb[s] = Particles + d;
-            for (c = dm, d = dm, p = Particles + c; c >= cb; c--, p--)
-                Move_Or_Do(p, ps, mysd, 0, (Particles[d--] = *p));
+            for (p = state->particles + c; c < cn; c++, p++)
+                Move_Or_Do(p, ps, mysd, 1, (state->particles[d++] = *p));
+            rbb[s] = state->particles + d;
+            for (c = dm, d = dm, p = state->particles + c; c >= cb; c--, p--)
+                Move_Or_Do(p, ps, mysd, 0, (state->particles[d--] = *p));
         }
     }
 }
@@ -1664,18 +1671,19 @@ static void move_to_sendbuf_dw4p(struct oh_state* state, const int ps,
                                  const int ntail) {
     const int ns = state->n_of_species;
     const int nsor0 = ps ? ns : 0;
-    const int* ctp = TotalP + nsor0, * ntp = TotalPNext + nsor0;
-    struct S_particle* sb = SendBuf, * p;
+    const int* ctp = state->total_particles + nsor0;
+    const int* ntp = state->total_particles_next + nsor0;
+    struct S_particle* sb = state->send_buffer, * p;
     int s, c, d, cn, dn;
     Decl_Grid_Info();
 
     cn = ctail;  dn = ntail;
     for (s = ns - 1, c = cn - 1, d = dn - 1; s >= 0; s--, c = cn - 1, d = dn - 1) {
-        dint* npg = NOfPGrid[ps][s];
+        dint* npg = state->level4_particle_grid[ps][s];
         cn -= ctp[s];  dn -= ntp[s];
         if (c >= d || cn >= dn)  continue;
-        for (p = Particles + c; c >= cn; c--, p--)
-            Move_Or_Do(p, ps, mysd, 1, (Particles[d--] = *p));
+        for (p = state->particles + c; c >= cn; c--, p--)
+            Move_Or_Do(p, ps, mysd, 1, (state->particles[d--] = *p));
     }
 }
 

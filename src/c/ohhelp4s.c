@@ -47,12 +47,14 @@ static void sched_recv(const int reb, const int get, const int stay,
 static void make_send_sched(const int reb, const int pcode, const int oldp,
                             const int newp, struct S_commlist* rlist[2],
                             int* rlidx[2], int* nacc, int* nsendptr);
-static int  make_send_sched_body(const int ps, const int n, const int sdid,
+static int  make_send_sched_body(struct oh_state* state, const int ps,
+                                 const int n, const int sdid,
                                  struct S_commlist* rlist);
-static void make_send_sched_self(const int psor2, struct S_commlist* rlist,
-                                 int* naccptr);
-static void make_send_sched_hplane(const int psor2, const int z, int* naccptr,
-                                   int* np, int* buf);
+static void make_send_sched_self(struct oh_state* state, const int psor2,
+                                 struct S_commlist* rlist, int* naccptr);
+static void make_send_sched_hplane(struct oh_state* state, const int psor2,
+                                   const int z, int* naccptr, int* np,
+                                   int* buf);
 static void update_descriptors(const int oldp, const int newp);
 static void update_neighbors(const int ps);
 static void set_grid_descriptor(const int idx, const int nid);
@@ -844,9 +846,10 @@ static void sched_recv(const int reb, const int get, const int stay, const int n
 static void make_send_sched(const int reb, const int pcode, const int oldp,
                             const int newp, struct S_commlist* rlist[2],
                             int* rlidx[2], int* nacc, int* nsendptr) {
+    struct oh_state* state = oh4s_state();
     const int psold = Parent_Old(pcode) ? 1 : 0;
     const int psnew = Parent_New(pcode) ? 1 : 0;
-    const int ns = nOfSpecies, ns2 = ns << 1, nn = nOfNodes;
+    const int ns = state->n_of_species, ns2 = ns << 1, nn = state->n_of_nodes;
     const int tagt = OH_NBR_TCC * ns, tagb = OH_NBR_BCC * ns;
     const int tag1 = OH_NEIGHBORS * ns;
     int s, ps, n;
@@ -854,13 +857,14 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
 
     for (s = 0; s < ns2; s++)  TotalPNext[s] = 0;
     for (ps = 0; ps <= psold; ps++) {
-        const int root = ps ? oldp : myRank;
+        const int root = ps ? oldp : state->my_rank;
         for (n = 0; n < OH_NEIGHBORS; n++) {
             const int nrev = OH_NEIGHBORS - 1 - n;
-            int sdid = Neighbors[ps][n];
+            int sdid = state->neighbors[ps][n];
             if (sdid < 0)  sdid = -(sdid + 1);
             if (sdid < nn && (n == OH_NBR_SELF || sdid != root))
-                nsend += make_send_sched_body(ps, n, sdid, rlist[ps] + rlidx[ps][nrev]);
+                nsend += make_send_sched_body(state, ps, n, sdid,
+                                              rlist[ps] + rlidx[ps][nrev]);
         }
     }
     nacc[0] = nacc[1] = 0;
@@ -870,11 +874,13 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
         struct S_commlist* rl;
         struct S_hplane* hp = HPlane[ps];
         if (ps && Parent_New_Diff(pcode)) {
-            psor2 = 2;  nbors = Neighbors[2];  rl = AltSecRList;  ri = AltSecRLIndex;
+            psor2 = 2;  nbors = state->neighbors[2];
+            rl = AltSecRList;  ri = AltSecRLIndex;
         } else {
-            psor2 = ps;  nbors = Neighbors[ps];  rl = rlist[ps];  ri = rlidx[ps];
+            psor2 = ps;  nbors = state->neighbors[ps];
+            rl = rlist[ps];  ri = rlidx[ps];
         }
-        make_send_sched_self(psor2, rl + ri[OH_NBR_SELF], nacc + ps);
+        make_send_sched_self(state, psor2, rl + ri[OH_NBR_SELF], nacc + ps);
         if (ZBound[ps][OH_UPPER] == 0)  continue;
         if (hp[OH_LOWER].nbor == nn) {
             int sdid = nbors[OH_NBR_BCC];
@@ -947,13 +953,15 @@ static void make_send_sched(const int reb, const int pcode, const int oldp,
         nsendofs += npg[g];  npg[g] = nofsidx + 1;\
       }\
     }\
-    nsend += nsendofs;  NOfSend[nofsidx] += nsendofs;\
+    nsend += nsendofs;  state->n_of_send[nofsidx] += nsendofs;\
   }\
 }
 
-static int make_send_sched_body(const int ps, const int n, const int sdid,
+static int make_send_sched_body(struct oh_state* state, const int ps,
+                                const int n, const int sdid,
                                 struct S_commlist* rlist) {
-    const int me = myRank, ns = nOfSpecies, nn = nOfNodes;
+    const int me = state->my_rank, ns = state->n_of_species;
+    const int nn = state->n_of_nodes;
     const int nx = n % 3, ny = n / 3 % 3, nz = n / 9;
     int xl, xu, yl, yu, zl, zu, zn;
     int rlz = rlist->region, rid, ridp = -1, ridn = -1, nofsbase;
@@ -982,8 +990,10 @@ static int make_send_sched_body(const int ps, const int n, const int sdid,
     return(nsend);
 }
 
-static void make_send_sched_self(const int psor2, struct S_commlist* rlist, int* naccptr) {
-    const int me = myRank, nn = nOfNodes, ns = nOfSpecies;
+static void make_send_sched_self(struct oh_state* state, const int psor2,
+                                 struct S_commlist* rlist, int* naccptr) {
+    const int me = state->my_rank, nn = state->n_of_nodes;
+    const int ns = state->n_of_species;
     const int tag1 = OH_NEIGHBORS * ns;
     const int tagt = OH_NBR_TCC * ns, tagb = OH_NBR_BCC * ns;
     const int ps = psor2 == 0 ? 0 : 1, rtag = ps ? tag1 : 0;
@@ -1011,7 +1021,7 @@ static void make_send_sched_self(const int psor2, struct S_commlist* rlist, int*
         }
         if (rid == me) {
             if (ridp >= 0) {
-                make_send_sched_hplane(psor2, z, naccptr,
+                make_send_sched_hplane(state, psor2, z, naccptr,
                                        hp[OH_LOWER].nsend, hp[OH_LOWER].sbuf);
                 if (ridn >= 0) {
                     for (s = 0; s < ns; s++) {
@@ -1020,16 +1030,16 @@ static void make_send_sched_self(const int psor2, struct S_commlist* rlist, int*
                     }
                 }
             } else if (ridn >= 0)
-                make_send_sched_hplane(psor2, z, naccptr,
+                make_send_sched_hplane(state, psor2, z, naccptr,
                                        hp[OH_UPPER].nsend, hp[OH_UPPER].sbuf);
             else
-                make_send_sched_hplane(psor2, z, naccptr, NULL, NULL);
+                make_send_sched_hplane(state, psor2, z, naccptr, NULL, NULL);
         } else {
             if (ridp == me)
-                make_send_sched_hplane(psor2, z, naccptr,
+                make_send_sched_hplane(state, psor2, z, naccptr,
                                        hp[OH_UPPER].nrecv, hp[OH_UPPER].rbuf);
             else if (ridn == me)
-                make_send_sched_hplane(psor2, z, naccptr,
+                make_send_sched_hplane(state, psor2, z, naccptr,
                                        hp[OH_LOWER].nrecv, hp[OH_LOWER].rbuf);
             else {
                 for (s = 0; s < ns; s++) {
@@ -1067,9 +1077,10 @@ static void make_send_sched_self(const int psor2, struct S_commlist* rlist, int*
           (fag_yidx<fag_y1), (fag_yidx++,fag_gy+=fag_w))\
       for (fag_xidx=(X0),fag_gx=fag_gy; fag_xidx<fag_x1; fag_xidx++,fag_gx++)
 
-static void make_send_sched_hplane(const int psor2, const int z, int* naccptr,
-                                   int* np, int* buf) {
-    const int ns = nOfSpecies, exti = OH_PGRID_EXT;
+static void make_send_sched_hplane(struct oh_state* state, const int psor2,
+                                   const int z, int* naccptr, int* np,
+                                   int* buf) {
+    const int ns = state->n_of_species, exti = OH_PGRID_EXT;
     const int ps = psor2 == 0 ? 0 : 1, nsor0 = ps ? ns : 0;
     int nacc = *naccptr, s;
     Decl_For_All_Grid();

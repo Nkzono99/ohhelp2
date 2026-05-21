@@ -123,6 +123,9 @@ The current code now has this first migration layer:
   mode, region ids, and border-exchange descriptors are read through `oh_state`.
 - Level-3 grid-size scaling now updates grid geometry, floating subdomain
   bounds, and irregular subdomain descriptors through a state-backed helper.
+- Level-3 transbound now keeps its Level-1/2 delegation wrapper but reads
+  `excludeLevel2`, region ids, field types, and subdomain descriptors through
+  `oh_state` when deciding whether to rebuild secondary field descriptors.
 
 ## Particle Layout
 

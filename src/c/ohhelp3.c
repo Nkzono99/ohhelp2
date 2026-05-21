@@ -32,7 +32,8 @@ static void set_border_comm(int esize, int f, int *xyz, int *wdh,
                             int (*off)[2], int (*size)[2],
                             int lu, int sr, MPI_Datatype basetype,
                             struct S_borderexc bx[OH_DIMENSION][2]);
-static int  transbound3(int currmode, int stats, int level);
+static int  transbound3(struct oh_state *state, int currmode, int stats,
+                        int level);
 static int  map_irregular(double p0, double p1, double p2, int dim, int from,
                           int n);
 static int  map_irregular_range(double p, int dim, int from, int to);
@@ -783,22 +784,25 @@ state_grid_size(struct oh_state *state, double size[OH_DIMENSION]) {
 }
 int
 oh3_transbound_(int *currmode, int *stats) {
-  return(transbound3(*currmode, *stats, 3));
+  return(transbound3(oh1_state(), *currmode, *stats, 3));
 }
 int
 oh3_transbound(int currmode, int stats) {
-  return(transbound3(currmode, stats, 3));
+  return(transbound3(oh1_state(), currmode, stats, 3));
 }
 static int
-transbound3(int currmode, int stats, int level) {
-  int oldp=RegionId[1], newp;
+transbound3(struct oh_state *state, int currmode, int stats, int level) {
+  int oldp=state->region_id[1], newp;
+  int (*field_types)[OH_FTYPE_N]=(int(*)[OH_FTYPE_N])state->field_types;
 
-  currmode = excludeLevel2 ? transbound1(currmode, stats, 1) :
-                             transbound2(currmode, stats, level);
-  newp = RegionId[1];
+  currmode = state->exclude_level2 ? transbound1(currmode, stats, 1) :
+                                     transbound2(currmode, stats, level);
+  oh1_sync_default_state();
+  newp = state->region_id[1];
   if (oldp!=newp) {
     if (oldp>=0)  clear_border_exchange();
-    if (newp>=0)  set_field_descriptors(FieldTypes, SubDomains[newp], 1);
+    if (newp>=0)  set_field_descriptors(field_types, state->subdomains[newp],
+                                        1);
   }
   return(currmode);
 }

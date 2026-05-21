@@ -1523,8 +1523,10 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
     struct oh_state* state = oh4s_state();
     const int me = state->my_rank, ns = state->n_of_species;
     const int nn = state->n_of_nodes, sbase = state->spec_base;
+    const int nOfNodes = nn;
     const int ninj = state->n_of_injections;
     const int nplim = state->n_of_local_particles_limit;
+    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
     int ps, s, t, i;
@@ -1689,7 +1691,9 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
     struct oh_state* state = oh4s_state();
     const int me = state->my_rank, ns = state->n_of_species;
     const int nn = state->n_of_nodes, sbase = state->spec_base;
+    const int nOfNodes = nn;
     const int mysubdom[2] = { me, oldp }, ninj = state->n_of_injections;
+    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
     struct S_particle* p, * rbb;
@@ -2375,7 +2379,9 @@ void oh4s_remove_mapped_particle(struct S_particle* part, const int ps,
                                  const int s) {
     struct oh_state* state = oh4s_state();
     const int nn = state->n_of_nodes, ns = state->n_of_species;
+    const int nOfNodes = nn;
     const int inj = part >= state->particles + state->total_parts;
+    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     OH_nid_t nid = part->nid;
     int sd, g, psreal = ps, mysd, t;
     Decl_Grid_Info();

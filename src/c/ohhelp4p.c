@@ -1486,7 +1486,9 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
                                   const int psold, const int stats) {
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     const int nnns = nn * ns, me = state->my_rank;
+    const int nOfNodes = nn;
     const int ninj = state->n_of_injections, sbase = state->spec_base;
+    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     struct S_particle* rbb, * p, * sbuf;
     int ps, s, t, i, nacc, mysd, * sbd;
     Decl_For_All_Grid();
@@ -1599,9 +1601,11 @@ static void move_to_sendbuf_sec4p(const int psold, const int trans, const int ol
                                   const int* nacc, const int nsend, const int stats) {
     struct oh_state* state = oh4p_state();
     const int me = state->my_rank, ns = state->n_of_species;
+    const int nOfNodes = state->n_of_nodes;
     const int sbase = state->spec_base;
     const int ninj = state->n_of_injections;
     const int nplim = state->n_of_local_particles_limit;
+    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int ninjp = 0, ninjs = nplim, i;
     struct S_particle* sb = state->send_buffer, * p;
     Decl_Grid_Info();
@@ -1706,7 +1710,9 @@ static void move_and_sort_secondary(const int psold, const int psnew, const int 
     struct oh_state* state = oh4p_state();
     const int me = state->my_rank, ns = state->n_of_species;
     const int nn = state->n_of_nodes, sbase = state->spec_base;
+    const int nOfNodes = nn;
     const int mysubdom[2] = { me, oldp }, ninj = state->n_of_injections;
+    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
     struct S_particle* p, * rbb;
@@ -2105,7 +2111,9 @@ void oh4p_remove_mapped_particle_(struct S_particle* part, const int* ps, const 
 void oh4p_remove_mapped_particle(struct S_particle* part, const int ps, const int s) {
     struct oh_state* state = oh4p_state();
     const int nn = state->n_of_nodes, ns = state->n_of_species;
+    const int nOfNodes = nn;
     const int inj = part >= state->particles + state->total_parts;
+    int (*AbsNeighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     OH_nid_t nid = part->nid;
     int sd, g, psreal = ps, mysd, t;
     Decl_Grid_Info();

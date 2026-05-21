@@ -1001,10 +1001,12 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   double *total_load_global=state->total_load_global;
   double *region_weights=state->region_weights;
   int *nofplocal=state->n_of_particles_local;
+  struct S_node *nodes=state->nodes, *nodes_next=state->nodes_next;
+  struct S_node **node_queue=state->node_queue;
   struct S_heap_key heap_key = {
     totalp_global, total_load_global, weighted
   };
-  struct S_node *node, *mynode=NodesNext+me, *root;
+  struct S_node *node, *mynode=nodes_next+me, *root;
 
   if (stats) oh1_stats_time(STATS_REBALANCE, 0);
   Verbose(2,vprint("rebalance"));
@@ -1015,14 +1017,14 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     LessHeap.n = GreaterHeap.n = 0;
     for (i=0; i<nn; i++) GreaterHeap.index[i] = 0;
 
-    for (i=0,bot=0,node=NodesNext; i<nn; i++,node++) {
+    for (i=0,bot=0,node=nodes_next; i<nn; i++,node++) {
       if (total_load_global[i]<target) {
         push_heap(i, &LessHeap, 0, &heap_key);
-        NodeQueue[bot++] = node;
+        node_queue[bot++] = node;
       } else {
         push_heap(i, &GreaterHeap, 1, &heap_key);
       }
-      *node = Nodes[i];
+      *node = nodes[i];
       node->child = NULL;
       if (pm) node->parentid = -1;
     }
@@ -1030,7 +1032,7 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
       struct S_node *parent;
       int get, h;
       j = pop_heap(&LessHeap, 0, &heap_key);
-      node = NodesNext + j;
+      node = nodes_next + j;
       if ((k=node->parentid)>=0 && (h=GreaterHeap.index[k]))
         remove_heap(&GreaterHeap, 1, h, &heap_key);
       else
@@ -1038,7 +1040,7 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
       get = oh_weighted_transfer_count(target, total_load_global[j],
                                        region_weights[k], totalp_global[k]);
       node->get.sec = get;
-      parent = NodesNext + k;
+      parent = nodes_next + k;
       node->parentid = k;  node->parent = parent;
       node->sibling = parent->child;
       parent->child = node;
@@ -1046,24 +1048,24 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
       total_load_global[k] = oh_load_after_transfer(total_load_global[k],
                                                     get, region_weights[k]);
       if (total_load_global[k]<target && GreaterHeap.n>0) {
-        push_heap(k, &LessHeap, 0, &heap_key);  NodeQueue[bot++] = parent;
+        push_heap(k, &LessHeap, 0, &heap_key);  node_queue[bot++] = parent;
       } else {
         push_heap(k, &GreaterHeap, 1, &heap_key);
       }
     }
-    root = NodesNext + GreaterHeap.node[1];
+    root = nodes_next + GreaterHeap.node[1];
     root->parentid = -1;  root->parent = root->sibling = NULL;
     root->get.sec = 0;
     k = root->id;
     for (i=2; i<=GreaterHeap.n; i++) {
       j = GreaterHeap.node[i];
-      node = NodesNext + j;
+      node = nodes_next + j;
       node->get.sec = 0;
       node->parentid = k;  node->parent = root;
       node->sibling = root->child;  root->child = node;
-      NodeQueue[bot++] = node;
+      node_queue[bot++] = node;
     }
-    NodeQueue[bot] = root;
+    node_queue[bot] = root;
 
     mynode->get.prime = totalp_global[me] -
                         (mynode->stay.prime =
@@ -1078,16 +1080,16 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   LessHeap.n = GreaterHeap.n = 0;
   for (i=0; i<nn; i++) GreaterHeap.index[i] = 0;
 
-  for (i=0,bot=0,node=NodesNext; i<nn; i++,node++) {
+  for (i=0,bot=0,node=nodes_next; i<nn; i++,node++) {
     dint npg=totalp_global[i];
     if (npg<npavein) {
       if (--npfracin==0) npavein--;
       push_heap(i, &LessHeap, 0, &heap_key);
-      NodeQueue[bot++] = node;
+      node_queue[bot++] = node;
     } else {
       push_heap(i, &GreaterHeap, 1, &heap_key);
     }
-    *node = Nodes[i];
+    *node = nodes[i];
     node->child = NULL;
     if (pm) node->parentid = -1;
   }
@@ -1096,7 +1098,7 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     dint npg;
     int get, h;
     j = pop_heap(&LessHeap, 0, &heap_key);
-    node = NodesNext + j;
+    node = nodes_next + j;
     get = npaveout - totalp_global[j];
     if (--npfracout==0) npaveout--;
     if ((k=node->parentid)>=0 && (h=GreaterHeap.index[k]))
@@ -1104,31 +1106,31 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     else
       k = pop_heap(&GreaterHeap, 1, &heap_key);
     node->get.sec = get;
-    parent = NodesNext + k;
+    parent = nodes_next + k;
     node->parentid = k;  node->parent = parent;
     node->sibling = parent->child;
     parent->child = node;
     npg = (totalp_global[k] -= get);
     if (npg<npavein) {
       if (--npfracin==0) npavein--;
-      push_heap(k, &LessHeap, 0, &heap_key);  NodeQueue[bot++] = parent;
+      push_heap(k, &LessHeap, 0, &heap_key);  node_queue[bot++] = parent;
     } else {
       push_heap(k, &GreaterHeap, 1, &heap_key);
     }
   }
-  root = NodesNext + GreaterHeap.node[1];
+  root = nodes_next + GreaterHeap.node[1];
   root->parentid = -1;  root->parent = root->sibling = NULL;
   root->get.sec = 0;
   k = root->id;
   for (i=2; i<=GreaterHeap.n; i++) {
     j = GreaterHeap.node[i];
-    node = NodesNext + j;
+    node = nodes_next + j;
     node->get.sec = 0;
     node->parentid = k;  node->parent = root;
     node->sibling = root->child;  root->child = node;
-    NodeQueue[bot++] = node;
+    node_queue[bot++] = node;
   }
-  NodeQueue[bot] = root;
+  node_queue[bot] = root;
 
   mynode->get.prime = totalp_global[me] -
                       (mynode->stay.prime =

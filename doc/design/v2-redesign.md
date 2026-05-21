@@ -48,6 +48,8 @@ The current code now has this first migration layer:
 - Communication-count construction now receives `oh_state` for receive/send
   histograms, local particle histograms, `TotalPNext`, and the schedule buffer;
   the head/tail counters remain as a smaller follow-up migration.
+- Rebalance tree construction now takes node arrays and the node queue from
+  `oh_state`; communicator rebuilding is the next large Level-1 global user.
 
 ## Particle Layout
 

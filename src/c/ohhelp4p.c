@@ -572,6 +572,7 @@ static void rebalance4p(const int currmode, const int level, const int stats) {
 
 static void exchange_particles4p(const int currmode, const int level, int reb,
                                  int oldp, const int newp, const int stats) {
+    struct oh_state* state = oh4p_state();
     const int trans = !Mode_Acc(currmode) && reb ? 1 : 0;
     int pcode =
         (oldp >= 0 ? 4 : 0) + (newp >= 0 ? 2 : 0) + (oldp == newp ? 1 : 0);
@@ -581,40 +582,42 @@ static void exchange_particles4p(const int currmode, const int level, int reb,
 
     if (Mode_Acc(currmode)) {
         int i;
-        const int nnns2 = nOfNodes * nOfSpecies * 2;
+        const int nnns2 = state->n_of_nodes * state->n_of_species * 2;
         if (reb) {
-            exchange_particles(SecRList, SecRLSize, oldp, 0, currmode, stats);
+            exchange_particles(state->sec_recv_list, *state->sec_rl_size,
+                               oldp, 0, currmode, stats);
             update_descriptors(oldp, newp);
             set_grid_descriptor(1, newp);
-            {
-                struct oh_state* state = oh4p_state();
-                update_neighbors(state, 1);
-                update_real_neighbors(state, URN_SEC, 0, -1, newp);
-            }
+            state = oh4p_state();
+            update_neighbors(state, 1);
+            update_real_neighbors(state, URN_SEC, 0, -1, newp);
         } else
-            exchange_particles(CommList + SLHeadTail[1], SecSLHeadTail[0], oldp, 0,
+            exchange_particles(state->comm_list + state->sl_head_tail[1],
+                               state->sec_sl_head_tail[0], oldp, 0,
                                currmode, stats);
-        for (i = 0; i < nnns2; i++)  NOfSend[i] = 0;
-        count_population(oh4p_state(), 1, (Parent_New(pcode) ? 1 : 0), 0);
-        reduce_population(oh4p_state(), mpi_allreduce_wrapper);
+        for (i = 0; i < nnns2; i++)  state->n_of_send[i] = 0;
+        count_population(state, 1, (Parent_New(pcode) ? 1 : 0), 0);
+        reduce_population(state, mpi_allreduce_wrapper);
         reb = 0;  oldp = newp;  pcode = newp >= 0 ? 7 : 0;
     } else
-        exchange_population(oh4p_state(), currmode, 1);
+        exchange_population(state, currmode, 1);
 
     psold = Parent_Old(pcode) ? 1 : 0;
     psnew = Parent_New(pcode) ? 1 : 0;
     hslist = make_recv_list(currmode, level, reb, oldp, newp, stats);
     make_send_sched(currmode, reb, pcode, oldp, newp, hslist, nacc, &nsend);
-    exchange_xfer_amount(trans, psnew);
+    state_exchange_xfer_amount4p(state, trans, psnew);
 
-    if ((dint)nacc[0] + (dint)nacc[1] + nsend > (dint)nOfLocalPLimit) {
+    if ((dint)nacc[0] + (dint)nacc[1] + nsend >
+        (dint)state->n_of_local_particles_limit) {
         move_to_sendbuf_sec4p(psold, trans, oldp, nacc, nsend, stats);
-        xfer_particles(trans, psnew, SendBuf);
-        sort_particles(oh4p_state(), NULL, trans + 1, psnew, stats);
+        state_xfer_particles4p(state, trans, psnew, state->send_buffer);
+        sort_particles(state, NULL, trans + 1, psnew, stats);
     } else {
         move_and_sort_secondary(psold, psnew, trans, oldp, nacc, stats);
-        xfer_particles(trans, psnew, SendBuf + nacc[0] + nacc[1]);
-        sort_received_particles(oh4p_state(), 1, psnew, stats);
+        state_xfer_particles4p(state, trans, psnew,
+                               state->send_buffer + nacc[0] + nacc[1]);
+        sort_received_particles(state, 1, psnew, stats);
     }
 }
 

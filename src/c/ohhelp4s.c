@@ -588,7 +588,8 @@ static void rebalance4s(const int currmode, const int level, const int stats) {
 
 static void exchange_particles4s(int currmode, const int nextmode, const int level,
                                  int reb, int oldp, int newp, const int stats) {
-    const int ns = nOfSpecies, exti = OH_PGRID_EXT;
+    struct oh_state* state = oh4s_state();
+    const int ns = state->n_of_species, exti = OH_PGRID_EXT;
     const int trans = !Mode_Acc(currmode) && reb ? 1 : 0;
     int pcode =
         (oldp >= 0 ? 4 : 0) + (newp >= 0 ? 2 : 0) + (oldp == newp ? 1 : 0);
@@ -601,67 +602,72 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
     if (Mode_Acc(currmode)) {
         if (nextmode) {
             int i;
-            const int nnns2 = nOfNodes * nOfSpecies * 2;
+            const int nnns2 = state->n_of_nodes * state->n_of_species * 2;
             if (reb) {
-                exchange_particles(SecRList, SecRLSize, oldp, 0, currmode, stats);
+                exchange_particles(state->sec_recv_list, *state->sec_rl_size,
+                                   oldp, 0, currmode, stats);
                 update_descriptors(oldp, newp);
                 set_grid_descriptor(1, newp);
-                {
-                    struct oh_state* state = oh4s_state();
-                    update_neighbors(state, 1);
-                    update_real_neighbors(state, URN_SEC, 0, -1, newp);
-                }
+                state = oh4s_state();
+                update_neighbors(state, 1);
+                update_real_neighbors(state, URN_SEC, 0, -1, newp);
             } else
-                exchange_particles(CommList + SLHeadTail[1], SecSLHeadTail[0], oldp, 0,
+                exchange_particles(state->comm_list + state->sl_head_tail[1],
+                                   state->sec_sl_head_tail[0], oldp, 0,
                                    currmode, stats);
-            for (i = 0; i < nnns2; i++)  NOfSend[i] = 0;
+            for (i = 0; i < nnns2; i++)  state->n_of_send[i] = 0;
         } else {
             move_to_sendbuf_primary(Mode_PS(currmode), stats);
             exchange_primary_particles(currmode, stats);
         }
-        count_population(oh4s_state(), nextmode,
-                         (Parent_New(pcode) ? 1 : 0), 0);
+        state = oh4s_state();
+        count_population(state, nextmode, (Parent_New(pcode) ? 1 : 0), 0);
         currmode = Mode_Set_Any(nextmode);
         reb = 0;  oldp = newp;  pcode = newp >= 0 ? 7 : 0;
     }
-    exchange_population(oh4s_state(), currmode);
+    exchange_population(state, currmode);
     psold = Parent_Old(pcode) ? 1 : 0;
     psnew = Parent_New(pcode) ? 1 : 0;
     if (nextmode) {
         make_recv_list(currmode, level, reb, oldp, newp, stats);
-        rlist[0] = CommList;  rlist[1] = SecRList;
-        rlidx[0] = RLIndex;   rlidx[1] = SecRLIndex;
+        rlist[0] = state->comm_list;  rlist[1] = state->sec_recv_list;
+        rlidx[0] = state->rl_index;   rlidx[1] = SecRLIndex;
     } else {
         rlist[0] = PrimaryCommList[0];  rlist[1] = PrimaryCommList[1];
         rlidx[0] = rlidx[1] = PrimaryRLIndex;
     }
     make_send_sched(reb, pcode, oldp, newp, rlist, rlidx, nacc, &nsend);
-    exchange_xfer_amount(trans, psnew, nextmode);
+    state_exchange_xfer_amount4s(state, trans, psnew, nextmode);
 
     for (ps = 0, tp = 0; ps <= psnew; ps++) {
         const int psor2 = ps ? trans + 1 : 0;
-        const int sb = specBase;
+        const int sb = state->spec_base;
         for (s = 0; s < ns; s++) {
-            dint* npgt = NOfPGridTotal[ps][s];
-            int* npgo = NOfPGridOut[ps][s], * npgos = NOfPGridOutShadow[ps][s];
-            int* npgi = NOfPGridIndex[ps][s], * npgis = NOfPGridIndexShadow[ps][s];
+            dint* npgt = state->level4_particle_grid_total[ps][s];
+            int* npgo = state->level4_particle_grid_out[ps][s],
+                * npgos = NOfPGridOutShadow[ps][s];
+            int* npgi = state->level4_particle_grid_index[ps][s],
+                * npgis = NOfPGridIndexShadow[ps][s];
             For_All_Grid(psor2, -exti, -exti, -exti, exti, exti, exti) {
                 const int g = The_Grid(), np = npgo[g];
                 npgos[g] = np;  npgt[g] = npgi[g] = tp;  npgis[g] = tp + sb;  tp += np;
             }
         }
     }
-    if (trans || (dint)nacc[1] + (dint)nsend > (dint)nOfLocalPLimit) {
+    if (trans || (dint)nacc[1] + (dint)nsend >
+        (dint)state->n_of_local_particles_limit) {
         move_to_sendbuf_4s(nextmode, psold, psnew, trans, oldp, nacc, nsend,
                            stats);
-        xfer_particles(trans, psnew, nextmode, SendBuf);
-        make_bxfer_sched(oh4s_state(), trans, psnew, rlist, rlidx);
-        sort_particles(oh4s_state(), nextmode, psnew, stats);
+        state_xfer_particles4s(state, trans, psnew, nextmode,
+                               state->send_buffer);
+        make_bxfer_sched(state, trans, psnew, rlist, rlidx);
+        sort_particles(state, nextmode, psnew, stats);
     } else {
-        make_bxfer_sched(oh4s_state(), 0, psnew, rlist, rlidx);
+        make_bxfer_sched(state, 0, psnew, rlist, rlidx);
         move_and_sort(nextmode, psold, psnew, oldp, nacc, stats);
-        xfer_particles(trans, psnew, nextmode, SendBuf + nacc[1]);
-        sort_received_particles(oh4s_state(), nextmode, psnew, stats);
+        state_xfer_particles4s(state, trans, psnew, nextmode,
+                               state->send_buffer + nacc[1]);
+        sort_received_particles(state, nextmode, psnew, stats);
     }
     xfer_boundary_particles_v(psnew, trans, 0);
     xfer_boundary_particles_v(psnew, trans, 1);

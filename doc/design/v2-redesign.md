@@ -149,6 +149,11 @@ The current code now has this first migration layer:
   active `src/c`, `include`, and `src/fortran` trees. Docker verification now
   compiles both Level-4p and Level-4s active sources against the current public
   headers so future migration work cannot silently break them.
+- Level-4p/4s particle transfer now has state-backed internal exchange helpers
+  for node/species counts, receive/send histograms, receive buffer bases,
+  particle MPI datatype, communicator, requests, and statuses. Level-4 grid
+  routing tables are still Level-4 globals and remain a follow-up migration
+  target.
 
 ## Particle Layout
 

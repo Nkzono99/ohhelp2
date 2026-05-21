@@ -88,6 +88,9 @@ static void sort_received_particles(const int nextmode, const int psnew,
 static void set_sendbuf_disps4s(const int nextmode, const int trans);
 static void xfer_particles(const int trans, const int psnew,
                            const int nextmode, struct S_particle* sbuf);
+static void state_xfer_particles4s(struct oh_state* state, const int trans,
+                                   const int psnew, const int nextmode,
+                                   struct S_particle* sbuf);
 static void xfer_boundary_particles_v(const int psnew, const int pcode,
                                       const int d);
 static void xfer_boundary_particles_h(const int psnew);
@@ -1637,25 +1640,32 @@ static void set_sendbuf_disps4s(const int nextmode, const int trans) {
 
 static void xfer_particles(const int trans, const int psnew, const int nextmode,
                            struct S_particle* sbuf) {
-    const int nn = nOfNodes, ns = nOfSpecies;
+    state_xfer_particles4s(oh1_state(), trans, psnew, nextmode, sbuf);
+}
+
+static void state_xfer_particles4s(struct oh_state* state, const int trans,
+                                   const int psnew, const int nextmode,
+                                   struct S_particle* sbuf) {
+    const int nn = state->n_of_nodes, ns = state->n_of_species;
     int ps, s, t, i, req, sdisp, * nofr, * nofs;
 
-    for (ps = 0, t = 0, nofr = NOfRecv, req = 0; ps <= psnew; ps++) {
+    for (ps = 0, t = 0, nofr = state->n_of_recv, req = 0; ps <= psnew; ps++) {
         const int n = RealSrcNeighbors[trans][ps].n;
         const int* nbor = RealSrcNeighbors[trans][ps].nbor;
         for (s = 0; s < ns; s++, t++, nofr += nn) {
-            struct S_particle* rbuf = RecvBufBases[t];
+            struct S_particle* rbuf = state->recv_buffer_bases[t];
             for (i = 0; i < n; i++) {
                 const int nid = nbor[i];
                 const int nrecv = nofr[nid];
                 if (nrecv) {
-                    MPI_Irecv(rbuf, nrecv, T_Particle, nid, t, MCW, Requests + req++);
+                    MPI_Irecv(rbuf, nrecv, state->particle_mpi_type, nid, t,
+                              state->comm, state->requests + req++);
                     rbuf += nrecv;
                 }
             }
         }
     }
-    for (ps = 0, t = 0, sdisp = 0, nofs = NOfSend; ps <= nextmode; ps++) {
+    for (ps = 0, t = 0, sdisp = 0, nofs = state->n_of_send; ps <= nextmode; ps++) {
         const int n = RealDstNeighbors[trans][ps].n;
         const int* nbor = RealDstNeighbors[trans][ps].nbor;
         for (s = 0; s < ns; s++, t++, nofs += nn) {
@@ -1665,14 +1675,14 @@ static void xfer_particles(const int trans, const int psnew, const int nextmode,
                 const int nsend = sdnxt - sdisp;
                 nofs[nid] = 0;
                 if (nsend) {
-                    MPI_Isend(sbuf + sdisp, nsend, T_Particle, nid, t, MCW,
-                              Requests + req++);
+                    MPI_Isend(sbuf + sdisp, nsend, state->particle_mpi_type,
+                              nid, t, state->comm, state->requests + req++);
                 }
                 sdisp = sdnxt;
             }
         }
     }
-    MPI_Waitall(req, Requests, Statuses);
+    MPI_Waitall(req, state->requests, state->statuses);
 }
 
 static void xfer_boundary_particles_v(const int psnew, const int trans, const int d) {

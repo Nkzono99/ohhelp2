@@ -373,6 +373,9 @@ state fields, while Level-2 keeps the legacy macro during the staged migration.
 Their local packed-id helper macros also read node counts and absolute
 neighbors through `oh_state`, removing the previous `nOfNodes` / `AbsNeighbors`
 shadow variables from the Level-4 particle movement and mapping paths.
+The Level-4 particle-to-subdomain mapping macros now read boundary conditions
+through the mirrored state pointer instead of shadowing the global
+`BoundaryCondition` array locally.
 
 ## Weighted Balancing
 

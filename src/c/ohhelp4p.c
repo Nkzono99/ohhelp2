@@ -197,6 +197,9 @@ oh4p_state(void) {
   state->abs_neighbors[PS][(ID) >> loggrid]
 #endif
 
+#define Level4_Boundary_Condition(DIM, SIDE) \
+  (((int (*)[2])state->level4_boundary_condition)[DIM][SIDE])
+
 #define If_Dim(D, ET, EF)  (OH_DIMENSION>D ? (ET) : (EF))
 #define For_Y(LINIT, LCONT, LNEXT) LINIT;
 #define For_Z(LINIT, LCONT, LNEXT) LINIT;
@@ -2116,12 +2119,12 @@ int oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps, const i
   XYZ = PXYZ;\
   LG = 0;\
   if (XYZ<lb) {\
-    if (BoundaryCondition[DIM][OH_LOWER]) { P->nid = -1;  return(-1); }\
+    if (Level4_Boundary_Condition(DIM, OH_LOWER)) { P->nid = -1;  return(-1); }\
     XYZ += (ub - lb);  PXYZ = XYZ;\
     LG = Grid[DIM].coord[OH_LOWER] - Grid[DIM].coord[OH_UPPER];\
   }\
   else if (XYZ>=ub) {\
-    if (BoundaryCondition[DIM][OH_UPPER]) { P->nid = -1;  return(-1); }\
+    if (Level4_Boundary_Condition(DIM, OH_UPPER)) { P->nid = -1;  return(-1); }\
     XYZ -= (ub - lb);  PXYZ = XYZ;\
     LG = Grid[DIM].coord[OH_UPPER] - Grid[DIM].coord[OH_LOWER];\
   }\
@@ -2169,8 +2172,6 @@ int oh4p_map_particle_to_subdomain(struct S_particle* part, const int ps,
     struct S_subdomdesc* SubDomainDesc = state->subdomain_desc;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
-    int (*BoundaryCondition)[2] =
-        (int(*)[2])state->level4_boundary_condition;
     const int nx = Grid[OH_DIM_X].n;
     const int nxy = If_Dim(OH_DIM_Y, nx * Grid[OH_DIM_Y].n, 0);
     const int t = ps ? ns + s : s;

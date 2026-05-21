@@ -59,6 +59,8 @@ The current code now has this first migration layer:
   context fields; collective wrappers still need to read from the context.
 - Level-1 broadcast/all-reduce/reduce wrappers now delegate to state-backed
   helpers that read communicator state from `oh_state`.
+- Internal Level-1 paths that already have `oh_state` now call the state-backed
+  broadcast helper directly instead of resynchronizing through the public wrapper.
 
 ## Particle Layout
 

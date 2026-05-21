@@ -749,9 +749,10 @@ schedule_particle_exchange_state(struct oh_state *state, int reb) {
   if (reb==2) return;
 
   SecSLHeadTail[0] = SecSLHeadTail[1] = 0;
-  oh1_broadcast(SLHeadTail, SecSLHeadTail, 2, 2, MPI_INT, MPI_INT);
-  oh1_broadcast(comm_list, comm_list+slidx, slidx, SecSLHeadTail[1],
-                T_Commlist, T_Commlist);
+  oh1_broadcast_state(state, SLHeadTail, SecSLHeadTail, 2, 2,
+                      MPI_INT, MPI_INT);
+  oh1_broadcast_state(state, comm_list, comm_list+slidx, slidx,
+                      SecSLHeadTail[1], T_Commlist, T_Commlist);
 }
 static int
 count_real_stay_state(struct oh_state *state, int *np) {
@@ -874,15 +875,16 @@ make_comm_count_state(struct oh_state *state, int currmode, int level, int reb,
 
   if (reb || currmode==MODE_ANY_SEC) {
     SecRLSize = 0;
-    oh1_broadcast(SLHeadTail, &SecRLSize, 1, 1, MPI_INT, MPI_INT);
+    oh1_broadcast_state(state, SLHeadTail, &SecRLSize, 1, 1,
+                        MPI_INT, MPI_INT);
     if (currmode==MODE_NORM_PRI)
       SecRList = comm_list + SLHeadTail[1];
     else if (currmode==MODE_NORM_SEC)
       SecRList = comm_list + SLHeadTail[1] + SecSLHeadTail[1];
     else
       SecRList = comm_list + SLHeadTail[0];
-    oh1_broadcast(comm_list, SecRList, SLHeadTail[0], SecRLSize,
-                  T_Commlist, T_Commlist);
+    oh1_broadcast_state(state, comm_list, SecRList, SLHeadTail[0], SecRLSize,
+                        T_Commlist, T_Commlist);
   } else {
     SecRList = comm_list + SLHeadTail[1];
     SecRLSize = SecSLHeadTail[0];
@@ -1242,12 +1244,13 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
     mycommf->root  = mycomm->root;
     mycommf->black = mycomm->black;
   }
-  oh1_broadcast(Neighbors[0], Neighbors[nbridx], OH_NEIGHBORS, OH_NEIGHBORS,
-                MPI_INT, MPI_INT);
+  oh1_broadcast_state(state, Neighbors[0], Neighbors[nbridx],
+                      OH_NEIGHBORS, OH_NEIGHBORS, MPI_INT, MPI_INT);
   if (NeighborsShadow) {
     int (*nb)[OH_NEIGHBORS] = NeighborsShadow;
     for (i=0; i<OH_NEIGHBORS; i++)  nb[2][i] = nb[1][i];
-    oh1_broadcast(nb[0], nb[1], OH_NEIGHBORS, OH_NEIGHBORS, MPI_INT, MPI_INT);
+    oh1_broadcast_state(state, nb[0], nb[1], OH_NEIGHBORS, OH_NEIGHBORS,
+                        MPI_INT, MPI_INT);
   }
   subdomain_id[1] = region_id[1] = mynode->parentid;
   oh1_sync_default_state();

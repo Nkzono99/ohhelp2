@@ -191,6 +191,10 @@ The current code now has this first migration layer:
   count accumulation. The Level-4p hotspot histogram scratch buffers are now
   mirrored in `oh_state`, so gather/scatter no longer reads the `HSRecv`,
   `HSSend`, `HSRecvFromParent`, or `HSReceiver` globals directly.
+- Level-4p hotspot descriptor storage (`HotSpotList`, `HotSpotTop`, and
+  `HotSpot`) is now mirrored into `oh_state`. The existing allocation still
+  owns the arrays, but send-schedule construction and hotspot gather/scatter
+  helpers advance and read descriptor state through the context mirror.
 - Level-4p send-schedule body now receives `oh_state` and updates send counters
   through the context mirror for hotspot and direct send regions. It also reads
   grid descriptors, subdomain tables, Level-4 histograms, outgoing grid counts,

@@ -470,46 +470,57 @@ static int transbound4p(int currmode, int stats, const int level) {
 }
 
 static int try_primary4p(const int currmode, const int level, const int stats) {
-    const int nn = nOfNodes, ns = nOfSpecies, nnns = nn * ns, me = myRank;
-    const int oldp = RegionId[1];
+    struct oh_state* state = oh4p_state();
+    const int nn = state->n_of_nodes, ns = state->n_of_species;
+    const int nnns = nn * ns, me = state->my_rank;
+    const int oldp = state->region_id[1];
     int i, s, nsend, * np;
-    dint*** npg = Mode_PS(currmode) ? NOfPGridTotal : NOfPGrid;
+    dint*** npg = Mode_PS(currmode) ? state->level4_particle_grid_total :
+                                      state->level4_particle_grid;
 
     if (!try_primary1(currmode, level, stats)) return(FALSE);
-    if (Mode_PS(currmode))  update_real_neighbors(oh4p_state(), URN_PRI, 0, -1, -1);
+    state = oh4p_state();
+    if (Mode_PS(currmode))  update_real_neighbors(state, URN_PRI, 0, -1, -1);
     if (Mode_Acc(currmode)) {
         move_to_sendbuf_primary(Mode_PS(currmode), stats);
         exchange_primary_particles(currmode, stats);
         count_population(oh4p_state(), 0, 0, stats);
         sort_particles(oh4p_state(), NULL, 0, 0, 0);
     } else {
-        exchange_population(oh4p_state(), currmode, 0);
-        for (s = 0, nsend = 0, np = NOfPLocal; s < ns; s++, np += nn) {
+        exchange_population(state, currmode, 0);
+        for (s = 0, nsend = 0, np = state->n_of_particles_local;
+             s < ns; s++, np += nn) {
             for (i = 0; i < nn; i++)  nsend += np[i] + np[i + nnns];
             nsend -= np[me];
         }
-        if (TotalPGlobal[me] + nsend > (dint)nOfLocalPLimit) {
+        if (state->total_particles_global[me] + nsend >
+            (dint)state->n_of_local_particles_limit) {
             move_to_sendbuf_primary(Mode_PS(currmode), stats);
             exchange_primary_particles(currmode, stats);
             sort_particles(oh4p_state(), npg, 0, 0, stats);
         } else {
-            struct S_particle* sbuf = SendBuf;
-            move_and_sort_primary(oh4p_state(), npg, (oldp >= 0 ? 1 : 0),
-                                  stats);
-            SendBuf += TotalPGlobal[me];
+            struct S_particle* sbuf = state->send_buffer;
+            move_and_sort_primary(state, npg, (oldp >= 0 ? 1 : 0), stats);
+            SendBuf = state->send_buffer + state->total_particles_global[me];
             exchange_primary_particles(currmode, stats);
             SendBuf = sbuf;
             sort_received_particles(oh4p_state(), 0, 0, stats);
         }
     }
-    primaryParts = *secondaryBase = TotalPGlobal[me];
+    state = oh4p_state();
+    primaryParts = state->primary_parts =
+        *state->secondary_base = state->total_particles_global[me];
     return(TRUE);
 }
 
 static int try_stable4p(const int currmode, const int level, const int stats) {
+    struct oh_state* state = oh4p_state();
+
     if (!try_stable1(currmode, (Mode_Acc(currmode) ? level : -level), stats))
         return(FALSE);
-    exchange_particles4p(currmode, level, 0, RegionId[1], RegionId[1], stats);
+    state = oh4p_state();
+    exchange_particles4p(currmode, level, 0, state->region_id[1],
+                         state->region_id[1], stats);
     return(TRUE);
 }
 

@@ -519,18 +519,24 @@ static int transbound4s(int currmode, int stats, const int level) {
 }
 
 static int try_primary4s(const int currmode, const int level, const int stats) {
-    const int oldp = RegionId[1];
+    struct oh_state* state = oh4s_state();
+    const int oldp = state->region_id[1];
 
     if (!try_primary1(currmode, level, stats)) return(FALSE);
+    state = oh4s_state();
     exchange_particles4s(currmode, 0, level, 0, oldp, -1, stats);
-    if (Mode_PS(currmode))  update_real_neighbors(oh4s_state(), URN_PRI, 0, -1, -1);
+    if (Mode_PS(currmode))  update_real_neighbors(state, URN_PRI, 0, -1, -1);
     return(TRUE);
 }
 
 static int try_stable4s(const int currmode, const int level, const int stats) {
+    struct oh_state* state = oh4s_state();
+
     if (!try_stable1(currmode, (Mode_Acc(currmode) ? level : -level), stats))
         return(FALSE);
-    exchange_particles4s(currmode, 1, level, 0, RegionId[1], RegionId[1], stats);
+    state = oh4s_state();
+    exchange_particles4s(currmode, 1, level, 0, state->region_id[1],
+                         state->region_id[1], stats);
     return(TRUE);
 }
 

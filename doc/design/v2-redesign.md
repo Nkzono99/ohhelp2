@@ -141,6 +141,10 @@ The current code now has this first migration layer:
 - Level-3 top-level initialization now synchronizes `oh_state` immediately after
   Level-1/2 initialization and uses it for node count, rank, and destination
   neighbor reads before field initialization.
+- Level-3 active/passive subdomain initialization now receives `oh_state` and
+  updates grid geometry, subdomain descriptors, adjacency checks, rank, and node
+  counts through the context mirror. The passive path also fixes the grid maximum
+  size assignment to use the current dimension index.
 
 ## Particle Layout
 

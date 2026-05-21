@@ -14,12 +14,14 @@
 #include "ohhelp3.h"
 #include "oh_context_internal.h"
 
-static void init_subdomain_actively(int (*sd)[OH_DIMENSION][2],
+static void init_subdomain_actively(struct oh_state *state,
+                                    int (*sd)[OH_DIMENSION][2],
                                     int sc[OH_DIMENSION][2],
                                     int *pcoord, int bc[OH_DIMENSION][2],
                                     int (*bd)[OH_DIMENSION][2], int nb,
                                     int bbase);
-static void init_subdomain_passively(int (*sd)[OH_DIMENSION][2],
+static void init_subdomain_passively(struct oh_state *state,
+                                     int (*sd)[OH_DIMENSION][2],
                                      int (*bd)[OH_DIMENSION][2], int nb,
                                      int bbase);
 static int  comp_xyz(const void* aa, const void* bb);
@@ -166,9 +168,9 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
     Adjacent[d][OH_UPPER] = nu<0 ? -(nu+1) : nu;
   }
   if (sd[0][OH_DIM_X][OH_LOWER]>sd[0][OH_DIM_X][OH_UPPER])
-    init_subdomain_actively(sd, sc, pcoord, bc, bd, nbound, -cfid);
+    init_subdomain_actively(state, sd, sc, pcoord, bc, bd, nbound, -cfid);
   else
-    init_subdomain_passively(sd, bd, nbound, -cfid);
+    init_subdomain_passively(state, sd, bd, nbound, -cfid);
 
   SubDomains = (int(*)[OH_DIMENSION][2])
                mem_alloc(sizeof(int), nn*OH_DIMENSION*2, "SubDomains");
@@ -201,42 +203,45 @@ install_default_level3_particle_maps(void) {
   ParticleAdapter.map_to_subdomain = default_level3_map_particle_to_subdomain;
 }
 static void
-init_subdomain_actively(int (*sd)[OH_DIMENSION][2], int sc[OH_DIMENSION][2],
+init_subdomain_actively(struct oh_state *state,
+                        int (*sd)[OH_DIMENSION][2], int sc[OH_DIMENSION][2],
                         int *pcoord, int bc[OH_DIMENSION][2],
                         int (*bd)[OH_DIMENSION][2], int nb, int bbase) {
-  int nn=nOfNodes, pqr=1;
+  struct S_grid *grid=state->grid;
+  int nn=state->n_of_nodes, pqr=1;
   int d, lu, i, j, k, x, y, z, n;
 
   SubDomainDesc = NULL;
+  state->subdomain_desc = NULL;
   for (d=0; d<OH_DIMENSION; d++) {
-    int lo = Grid[d].coord[OH_LOWER] = sc[d][OH_LOWER];
-    int up = Grid[d].coord[OH_UPPER] = sc[d][OH_UPPER];
+    int lo = grid[d].coord[OH_LOWER] = sc[d][OH_LOWER];
+    int up = grid[d].coord[OH_UPPER] = sc[d][OH_UPPER];
     int size = up - lo;
     int ave, nl;
-    Grid[d].fcoord[OH_LOWER] = lo;  Grid[d].fcoord[OH_UPPER] = up;
-    n = Grid[d].n = pcoord[d];
+    grid[d].fcoord[OH_LOWER] = lo;  grid[d].fcoord[OH_UPPER] = up;
+    n = grid[d].n = pcoord[d];
     if (n<=0)
       errstop("# of %c-nodes (%d) should be positive", Message.xyz[d], n);
     if (size<=0)
       errstop("upper edge of %c-coordinate (%d) should be greater than "
               "lower edge (%d)", Message.xyz[d], up, lo);
-    ave = Grid[d].light.size = size/n;
-    Grid[d].light.rfsize = 1.0/(double)ave;
-    Grid[d].light.rfsizeplus = 1.0/(double)(ave+1);
-    nl =  Grid[d].light.n = n - size%n;
-    Grid[d].light.fthresh = (Grid[d].light.thresh = lo + nl * ave);
-    Grid[d].fsize = (Grid[d].size = n==nl ? ave : ave+1);
-    Grid[d].gsize = Grid[d].rgsize = 1.0;
+    ave = grid[d].light.size = size/n;
+    grid[d].light.rfsize = 1.0/(double)ave;
+    grid[d].light.rfsizeplus = 1.0/(double)(ave+1);
+    nl =  grid[d].light.n = n - size%n;
+    grid[d].light.fthresh = (grid[d].light.thresh = lo + nl * ave);
+    grid[d].fsize = (grid[d].size = n==nl ? ave : ave+1);
+    grid[d].gsize = grid[d].rgsize = 1.0;
     pqr *= n;
   }
   for (; d<3; d++) {
-    Grid[d].n = Grid[d].light.n = 1;
-    Grid[d].coord[OH_LOWER] = Grid[d].coord[OH_UPPER] = 0;
-    Grid[d].fcoord[OH_LOWER] = Grid[d].fcoord[OH_UPPER] = 0.0;
-    Grid[d].size = Grid[d].light.size = Grid[d].light.thresh = 0;
-    Grid[d].fsize = Grid[d].light.rfsize
-                  = Grid[d].light.rfsizeplus = Grid[d].light.fthresh = 0.0;
-    Grid[d].gsize = Grid[d].rgsize = 1.0;
+    grid[d].n = grid[d].light.n = 1;
+    grid[d].coord[OH_LOWER] = grid[d].coord[OH_UPPER] = 0;
+    grid[d].fcoord[OH_LOWER] = grid[d].fcoord[OH_UPPER] = 0.0;
+    grid[d].size = grid[d].light.size = grid[d].light.thresh = 0;
+    grid[d].fsize = grid[d].light.rfsize
+                  = grid[d].light.rfsizeplus = grid[d].light.fthresh = 0.0;
+    grid[d].gsize = grid[d].rgsize = 1.0;
   }
   if (pqr!=nn) {
     if (OH_DIMENSION==1)
@@ -259,25 +264,25 @@ init_subdomain_actively(int (*sd)[OH_DIMENSION][2], int sc[OH_DIMENSION][2],
                 Message.loup[lu], Message.xyz[d], bc[d][lu]);
     }
   }
-  for (i=0,z=Grid[OH_DIM_Z].coord[OH_LOWER],n=0; i<Grid[OH_DIM_Z].n; i++) {
-    int bot=z, top=z+Grid[OH_DIM_Z].light.size;
+  for (i=0,z=grid[OH_DIM_Z].coord[OH_LOWER],n=0; i<grid[OH_DIM_Z].n; i++) {
+    int bot=z, top=z+grid[OH_DIM_Z].light.size;
     int bzlo = i==0 && OH_DIMENSION>OH_DIM_Z ?
                  bc[OH_DIM_Z][OH_LOWER] : bbase;
-    int bzup = i==Grid[OH_DIM_Z].n-1  && OH_DIMENSION>OH_DIM_Z ?
+    int bzup = i==grid[OH_DIM_Z].n-1  && OH_DIMENSION>OH_DIM_Z ?
                  bc[OH_DIM_Z][OH_UPPER] : bbase;
-    if (i>=Grid[OH_DIM_Z].light.n)  top++;
+    if (i>=grid[OH_DIM_Z].light.n)  top++;
     z = top;
-    for (j=0,y=Grid[OH_DIM_Y].coord[OH_LOWER]; j<Grid[OH_DIM_Y].n; j++) {
-      int south=y, north=y+Grid[OH_DIM_Y].light.size;
+    for (j=0,y=grid[OH_DIM_Y].coord[OH_LOWER]; j<grid[OH_DIM_Y].n; j++) {
+      int south=y, north=y+grid[OH_DIM_Y].light.size;
       int bylo = j==0 && OH_DIMENSION>OH_DIM_Y ?
                    bc[OH_DIM_Y][OH_LOWER] : bbase;
-      int byup = j==Grid[OH_DIM_Y].n-1  && OH_DIMENSION>OH_DIM_Y ?
+      int byup = j==grid[OH_DIM_Y].n-1  && OH_DIMENSION>OH_DIM_Y ?
                    bc[OH_DIM_Y][OH_UPPER] : bbase;
-      if (j>=Grid[OH_DIM_Y].light.n)  north++;
+      if (j>=grid[OH_DIM_Y].light.n)  north++;
       y = north;
-      for (k=0,x=Grid[OH_DIM_X].coord[OH_LOWER]; k<Grid[OH_DIM_X].n; k++,n++) {
-        int west=x, east=x+Grid[OH_DIM_X].light.size;
-        if (k>=Grid[OH_DIM_X].light.n)  east++;
+      for (k=0,x=grid[OH_DIM_X].coord[OH_LOWER]; k<grid[OH_DIM_X].n; k++,n++) {
+        int west=x, east=x+grid[OH_DIM_X].light.size;
+        if (k>=grid[OH_DIM_X].light.n)  east++;
         x = east;
         sd[n][OH_DIM_X][OH_LOWER] = west;
         sd[n][OH_DIM_X][OH_UPPER] = east;
@@ -295,24 +300,28 @@ init_subdomain_actively(int (*sd)[OH_DIMENSION][2], int sc[OH_DIMENSION][2],
           bd[n][OH_DIM_Z][OH_UPPER] = bzup;
         }
       }
-      bd[n-Grid[OH_DIM_X].n][OH_DIM_X][OH_LOWER] = bc[OH_DIM_X][OH_LOWER];
+      bd[n-grid[OH_DIM_X].n][OH_DIM_X][OH_LOWER] = bc[OH_DIM_X][OH_LOWER];
       bd[n-1][OH_DIM_X][OH_UPPER] = bc[OH_DIM_X][OH_UPPER];
     }
   }
 }
 static void
-init_subdomain_passively(int (*sd)[OH_DIMENSION][2],
+init_subdomain_passively(struct oh_state *state,
+                         int (*sd)[OH_DIMENSION][2],
                          int (*bd)[OH_DIMENSION][2], int nb, int bbase) {
-  int nn=nOfNodes;
+  struct S_grid *grid=state->grid;
+  int (*adjacent)[2]=(int(*)[2])state->adjacent;
+  int nn=state->n_of_nodes;
   struct S_subdomdesc *sdd = SubDomainDesc =
     (struct S_subdomdesc*)mem_alloc(sizeof(struct S_subdomdesc), nn,
                                     "SubDomainDesc");
   int min[OH_DIMENSION], max[OH_DIMENSION];
   int smin[OH_DIMENSION], smax[OH_DIMENSION];
-  int me=myRank;
+  int me=state->my_rank;
   int i, d, dd, lu, l;
   int lo[OH_DIMENSION-1], up[OH_DIMENSION-1], h[OH_DIMENSION-1];
 
+  state->subdomain_desc = sdd;
   for (d=0; d<OH_DIMENSION; d++) {
     min[d] = sd[0][d][OH_LOWER];  max[d] = sd[0][d][OH_UPPER];
     smin[d] = smax[d] = max[d] - min[d];
@@ -340,16 +349,16 @@ init_subdomain_passively(int (*sd)[OH_DIMENSION][2],
     sdd[i].id = i;
   }
   for (d=0; d<OH_DIMENSION; d++) {
-    Grid[d].fsize = (Grid[d].size = smax[i]);
-    Grid[d].light.size = smin[d];
-    Grid[d].light.rfsize = Grid[d].light.rfsizeplus = 0.0;
-    Grid[d].fcoord[OH_LOWER] = (Grid[d].coord[OH_LOWER] = min[d]);
-    Grid[d].fcoord[OH_UPPER] = (Grid[d].coord[OH_UPPER] = max[d]);
-    Grid[d].n = Grid[d].light.n = 0;    /* never referred but ... */
-    Grid[d].light.thresh = 0;  Grid[d].light.fthresh = 0.0;
-    Grid[d].gsize = Grid[d].rgsize = 1.0;
+    grid[d].fsize = (grid[d].size = smax[d]);
+    grid[d].light.size = smin[d];
+    grid[d].light.rfsize = grid[d].light.rfsizeplus = 0.0;
+    grid[d].fcoord[OH_LOWER] = (grid[d].coord[OH_LOWER] = min[d]);
+    grid[d].fcoord[OH_UPPER] = (grid[d].coord[OH_UPPER] = max[d]);
+    grid[d].n = grid[d].light.n = 0;    /* never referred but ... */
+    grid[d].light.thresh = 0;  grid[d].light.fthresh = 0.0;
+    grid[d].gsize = grid[d].rgsize = 1.0;
     for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
-      int n=Adjacent[d][lu];
+      int n=adjacent[d][lu];
       if (n==nn || bd[me][d][lu]!=bbase) continue;
       for (dd=0; dd<OH_DIMENSION; dd++) {
         if (d==dd) {
@@ -378,13 +387,13 @@ init_subdomain_passively(int (*sd)[OH_DIMENSION][2],
     }
   }
   for (; d<3; d++) {
-    Grid[d].n = Grid[d].light.n = 1;
-    Grid[d].coord[OH_LOWER] = Grid[d].coord[OH_UPPER] = 0;
-    Grid[d].fcoord[OH_LOWER] = Grid[d].fcoord[OH_UPPER] = 0.0;
-    Grid[d].size = Grid[d].light.size = Grid[d].light.thresh = 0;
-    Grid[d].fsize = Grid[d].light.rfsize
-                  = Grid[d].light.rfsizeplus = Grid[d].light.fthresh = 0.0;
-    Grid[d].gsize = Grid[d].rgsize = 1.0;
+    grid[d].n = grid[d].light.n = 1;
+    grid[d].coord[OH_LOWER] = grid[d].coord[OH_UPPER] = 0;
+    grid[d].fcoord[OH_LOWER] = grid[d].fcoord[OH_UPPER] = 0.0;
+    grid[d].size = grid[d].light.size = grid[d].light.thresh = 0;
+    grid[d].fsize = grid[d].light.rfsize
+                  = grid[d].light.rfsizeplus = grid[d].light.fthresh = 0.0;
+    grid[d].gsize = grid[d].rgsize = 1.0;
   }
   qsort(sdd, nn, sizeof(struct S_subdomdesc), comp_xyz);
   for (d=0; d<OH_DIMENSION-1; d++) {

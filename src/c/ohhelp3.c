@@ -41,6 +41,16 @@ static int  default_level3_map_particle_to_neighbor(
   void *particle, int primary_or_secondary);
 static int  default_level3_map_particle_to_subdomain(
   void *particle, int primary_or_secondary);
+static int  state_map_particle_to_neighbor(struct oh_state *state, double *x,
+                                           double *y, double *z, int ps);
+static int  state_map_particle_to_subdomain(struct oh_state *state, double x,
+                                            double y, double z);
+static int  state_map_irregular_subdomain(struct oh_state *state, double x,
+                                          double y, double z);
+static int  state_map_irregular(struct oh_state *state, double p0, double p1,
+                                double p2, int dim, int from, int n);
+static int  state_map_irregular_range(struct oh_state *state, double p,
+                                      int dim, int from, int to);
 
 void
 oh3_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -779,23 +789,26 @@ transbound3(int currmode, int stats, int level) {
   }
   return(currmode);
 }
-#define Map_Particle_To_Neighbor(XYZ,RID,DIM,N,INC) {\
+#define Map_Particle_To_Neighbor(STATE,XYZ,RID,DIM,N,INC) {\
   double xyz=*XYZ;\
-  if (xyz<SubDomainsFloat[RID][DIM][OH_LOWER]) {\
+  if (xyz<(STATE)->subdomains_float[RID][DIM][OH_LOWER]) {\
     N -= INC;\
-    if (xyz<Grid[DIM].fcoord[OH_LOWER]) {\
-      if (Boundaries[RID][DIM][OH_LOWER])  return(-1);\
-      *XYZ += Grid[DIM].fcoord[OH_UPPER] - Grid[DIM].fcoord[OH_LOWER];\
+    if (xyz<(STATE)->grid[DIM].fcoord[OH_LOWER]) {\
+      if ((STATE)->boundaries[RID][DIM][OH_LOWER])  return(-1);\
+      *XYZ += (STATE)->grid[DIM].fcoord[OH_UPPER] -\
+              (STATE)->grid[DIM].fcoord[OH_LOWER];\
     }\
-  } else if (xyz>=SubDomainsFloat[RID][DIM][OH_UPPER]) {\
+  } else if (xyz>=(STATE)->subdomains_float[RID][DIM][OH_UPPER]) {\
     N += INC;\
-    if (xyz>=Grid[DIM].fcoord[OH_UPPER]) {\
-      if (Boundaries[RID][DIM][OH_UPPER])  return(-1);\
-      *XYZ -= Grid[DIM].fcoord[OH_UPPER] - Grid[DIM].fcoord[OH_LOWER];\
+    if (xyz>=(STATE)->grid[DIM].fcoord[OH_UPPER]) {\
+      if ((STATE)->boundaries[RID][DIM][OH_UPPER])  return(-1);\
+      *XYZ -= (STATE)->grid[DIM].fcoord[OH_UPPER] -\
+              (STATE)->grid[DIM].fcoord[OH_LOWER];\
     }\
   }\
 }
-#define Neighbor_Id(N) ((n=(N))<0 ? ((n=-n-1)<nOfNodes ? n : -1) : n)
+#define Neighbor_Id(STATE,N) \
+  ((n=(N))<0 ? ((n=-n-1)<(STATE)->n_of_nodes ? n : -1) : n)
 #if OH_DIMENSION==1
 int
 oh3_map_region_to_adjacent_node_(double *x, int *ps) {
@@ -807,10 +820,7 @@ oh3_map_particle_to_neighbor_(double *x, int *ps) {
 }
 int
 oh3_map_particle_to_neighbor(double *x, int ps) {
-  int rid=RegionId[ps], n=OH_NEIGHBORS>>1;
-
-  Map_Particle_To_Neighbor(x, rid, OH_DIM_X, n, 1);
-  return(Neighbor_Id(Neighbors[ps][n]));
+  return state_map_particle_to_neighbor(oh1_state(), x, NULL, NULL, ps);
 }
 #elif OH_DIMENSION==2
 int
@@ -823,11 +833,7 @@ oh3_map_particle_to_neighbor_(double *x, double *y, int *ps) {
 }
 int
 oh3_map_particle_to_neighbor(double *x, double *y, int ps) {
-  int rid=RegionId[ps], n=OH_NEIGHBORS>>1;
-
-  Map_Particle_To_Neighbor(x, rid, OH_DIM_X, n, 1);
-  Map_Particle_To_Neighbor(y, rid, OH_DIM_Y, n, 3);
-  return(Neighbor_Id(Neighbors[ps][n]));
+  return state_map_particle_to_neighbor(oh1_state(), x, y, NULL, ps);
 }
 #else
 int
@@ -840,26 +846,38 @@ oh3_map_particle_to_neighbor_(double *x, double *y, double *z, int *ps) {
 }
 int
 oh3_map_particle_to_neighbor(double *x, double *y, double *z, int ps) {
-  int rid=RegionId[ps], n=OH_NEIGHBORS>>1;
-
-  Map_Particle_To_Neighbor(x, rid, OH_DIM_X, n, 1);
-  Map_Particle_To_Neighbor(y, rid, OH_DIM_Y, n, 3);
-  Map_Particle_To_Neighbor(z, rid, OH_DIM_Z, n, 9);
-  return(Neighbor_Id(Neighbors[ps][n]));
+  return state_map_particle_to_neighbor(oh1_state(), x, y, z, ps);
 }
 #endif
-#define Map_Particle_To_Subdomain(XYZ,DIM,SDOM) {\
-  double thresh = Grid[DIM].light.fthresh;\
-  if (XYZ<Grid[DIM].fcoord[OH_LOWER] || XYZ>=Grid[DIM].fcoord[OH_UPPER])\
+static int
+state_map_particle_to_neighbor(struct oh_state *state, double *x, double *y,
+                               double *z, int ps) {
+  int rid=state->region_id[ps], n=OH_NEIGHBORS>>1;
+
+  Map_Particle_To_Neighbor(state, x, rid, OH_DIM_X, n, 1);
+#if OH_DIMENSION>=2
+  Map_Particle_To_Neighbor(state, y, rid, OH_DIM_Y, n, 3);
+#endif
+#if OH_DIMENSION>=3
+  Map_Particle_To_Neighbor(state, z, rid, OH_DIM_Z, n, 9);
+#endif
+  return(Neighbor_Id(state, state->neighbors[ps][n]));
+}
+#define Map_Particle_To_Subdomain(STATE,XYZ,DIM,SDOM) {\
+  double thresh = (STATE)->grid[DIM].light.fthresh;\
+  if (XYZ<(STATE)->grid[DIM].fcoord[OH_LOWER] ||\
+      XYZ>=(STATE)->grid[DIM].fcoord[OH_UPPER])\
     return(-1);\
   if (XYZ<thresh)\
-    SDOM = (XYZ - Grid[DIM].fcoord[OH_LOWER]) * Grid[DIM].light.rfsize;\
-  else  SDOM = (int)((XYZ - thresh) * Grid[DIM].light.rfsizeplus) + \
-               Grid[DIM].light.n;\
+    SDOM = (XYZ - (STATE)->grid[DIM].fcoord[OH_LOWER]) *\
+           (STATE)->grid[DIM].light.rfsize;\
+  else  SDOM = (int)((XYZ - thresh) *\
+                     (STATE)->grid[DIM].light.rfsizeplus) + \
+               (STATE)->grid[DIM].light.n;\
 }
-#define Adjust_Subdomain(XYZ,DIM,SDOM,INC) {\
-  if (XYZ<SubDomainsFloat[SDOM][DIM][OH_LOWER])  SDOM-=INC;\
-  else if (XYZ>=SubDomainsFloat[SDOM][DIM][OH_UPPER])  SDOM+=INC;\
+#define Adjust_Subdomain(STATE,XYZ,DIM,SDOM,INC) {\
+  if (XYZ<(STATE)->subdomains_float[SDOM][DIM][OH_LOWER])  SDOM-=INC;\
+  else if (XYZ>=(STATE)->subdomains_float[SDOM][DIM][OH_UPPER])  SDOM+=INC;\
 }
 #if OH_DIMENSION==1
 int
@@ -872,12 +890,7 @@ oh3_map_particle_to_subdomain_(double *x) {
 }
 int
 oh3_map_particle_to_subdomain(double x) {
-  int sdx;
-
-  if (SubDomainDesc)  return(map_irregular_subdomain(x, 0.0, 0.0));
-  Map_Particle_To_Subdomain(x, OH_DIM_X, sdx);
-  Adjust_Subdomain(x, OH_DIM_X, sdx, 1);
-  return(sdx);
+  return state_map_particle_to_subdomain(oh1_state(), x, 0.0, 0.0);
 }
 #elif OH_DIMENSION==2
 int
@@ -890,15 +903,7 @@ oh3_map_particle_to_subdomain_(double *x, double *y) {
 }
 int
 oh3_map_particle_to_subdomain(double x, double y) {
-  int sdx, sdy, sd, nx=Grid[OH_DIM_X].n;
-
-  if (SubDomainDesc)  return(map_irregular_subdomain(x, y, 0.0));
-  Map_Particle_To_Subdomain(x, OH_DIM_X, sdx);
-  Map_Particle_To_Subdomain(y, OH_DIM_Y, sdy);
-  sd = sdx + nx * sdy;
-  Adjust_Subdomain(x, OH_DIM_X, sd, 1);
-  Adjust_Subdomain(y, OH_DIM_Y, sd, nx);
-  return(sd);
+  return state_map_particle_to_subdomain(oh1_state(), x, y, 0.0);
 }
 #else
 int
@@ -911,19 +916,45 @@ oh3_map_particle_to_subdomain_(double *x, double *y, double *z) {
 }
 int
 oh3_map_particle_to_subdomain(double x, double y, double z) {
-  int sdx, sdy, sdz, sd, nx=Grid[OH_DIM_X].n, nxy=nx*Grid[OH_DIM_Y].n;
-
-  if (SubDomainDesc)  return(map_irregular_subdomain(x, y, z));
-  Map_Particle_To_Subdomain(x, OH_DIM_X, sdx);
-  Map_Particle_To_Subdomain(y, OH_DIM_Y, sdy);
-  Map_Particle_To_Subdomain(z, OH_DIM_Z, sdz);
-  sd = sdx + nx * sdy + nxy * sdz;
-  Adjust_Subdomain(x, OH_DIM_X, sd, 1);
-  Adjust_Subdomain(y, OH_DIM_Y, sd, nx);
-  Adjust_Subdomain(z, OH_DIM_Z, sd, nxy);
-  return(sd);
+  return state_map_particle_to_subdomain(oh1_state(), x, y, z);
 }
 #endif
+static int
+state_map_particle_to_subdomain(struct oh_state *state, double x, double y,
+                                double z) {
+  int sdx, sdy=0, sdz=0, sd, nx=state->grid[OH_DIM_X].n;
+
+  if (state->subdomain_desc)
+    return state_map_irregular_subdomain(state, x, y, z);
+  Map_Particle_To_Subdomain(state, x, OH_DIM_X, sdx);
+#if OH_DIMENSION>=2
+  Map_Particle_To_Subdomain(state, y, OH_DIM_Y, sdy);
+#endif
+#if OH_DIMENSION>=3
+  Map_Particle_To_Subdomain(state, z, OH_DIM_Z, sdz);
+#endif
+  sd = sdx;
+#if OH_DIMENSION>=2
+  sd += nx * sdy;
+#endif
+#if OH_DIMENSION>=3
+  {
+    int nxy=nx*state->grid[OH_DIM_Y].n;
+    sd += nxy * sdz;
+  }
+#endif
+  Adjust_Subdomain(state, x, OH_DIM_X, sd, 1);
+#if OH_DIMENSION>=2
+  Adjust_Subdomain(state, y, OH_DIM_Y, sd, nx);
+#endif
+#if OH_DIMENSION>=3
+  {
+    int nxy=nx*state->grid[OH_DIM_Y].n;
+    Adjust_Subdomain(state, z, OH_DIM_Z, sd, nxy);
+  }
+#endif
+  return(sd);
+}
 static int
 default_level3_map_particle_to_neighbor(void *particle,
                                         int primary_or_secondary) {
@@ -954,22 +985,32 @@ default_level3_map_particle_to_subdomain(void *particle,
 }
 int
 map_irregular_subdomain(double x, double y, double z) {
-  return(map_irregular(x, y, z, OH_DIM_X, 0, nOfNodes));
+  return state_map_irregular_subdomain(oh1_state(), x, y, z);
 }
 static int
 map_irregular(double p0, double p1, double p2, int dim, int from, int n) {
-  double size=Grid[dim].fsize;
+  return state_map_irregular(oh1_state(), p0, p1, p2, dim, from, n);
+}
+static int
+state_map_irregular_subdomain(struct oh_state *state, double x, double y,
+                              double z) {
+  return state_map_irregular(state, x, y, z, OH_DIM_X, 0, state->n_of_nodes);
+}
+static int
+state_map_irregular(struct oh_state *state, double p0, double p1, double p2,
+                    int dim, int from, int n) {
+  double size=state->grid[dim].fsize;
   int to=from+n, lo, up, i;
-  struct S_subdomdesc *sd = SubDomainDesc;
+  struct S_subdomdesc *sd = state->subdomain_desc;
 
-  lo = map_irregular_range(p0*2.0-size, dim, from, to);
-  up = map_irregular_range(p0*2.0+size, dim, lo, to);
+  lo = state_map_irregular_range(state, p0*2.0-size, dim, from, to);
+  up = state_map_irregular_range(state, p0*2.0+size, dim, lo, to);
   for (i=lo; i<up; ) {
     int n = sd[i].coord[dim].n;
     if (p0>=sd[i].coord[dim].fc[OH_LOWER] &&
         p0< sd[i].coord[dim].fc[OH_UPPER]) {
       if (dim<OH_DIMENSION-1) {
-        int ret = map_irregular(p1, p2, 0.0, dim+1, i, n);
+        int ret = state_map_irregular(state, p1, p2, 0.0, dim+1, i, n);
         if (ret>=0)  return(ret);
       }
       else
@@ -981,7 +1022,12 @@ map_irregular(double p0, double p1, double p2, int dim, int from, int n) {
 }
 static int
 map_irregular_range(double p, int dim, int from, int to) {
-  struct S_subdomdesc *sd = SubDomainDesc;
+  return state_map_irregular_range(oh1_state(), p, dim, from, to);
+}
+static int
+state_map_irregular_range(struct oh_state *state, double p, int dim, int from,
+                          int to) {
+  struct S_subdomdesc *sd = state->subdomain_desc;
   int i;
 
   if (from==to) return(to);

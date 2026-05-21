@@ -42,6 +42,7 @@ oh1_sync_default_state(void) {
   OhDefaultState.nodes_next = NodesNext;
   OhDefaultState.node_queue = NodeQueue;
   OhDefaultState.temp_array = TempArray;
+  OhDefaultState.neighbors = Neighbors;
   OhDefaultState.dst_neighbors = DstNeighbors;
   OhDefaultState.src_neighbors = SrcNeighbors;
   OhDefaultState.comm_list = CommList;

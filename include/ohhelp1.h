@@ -94,6 +94,7 @@ struct oh_state {
   struct S_node *nodes_next;
   struct S_node **node_queue;
   int *temp_array;
+  int (*neighbors)[OH_NEIGHBORS];
   int *dst_neighbors;
   int *src_neighbors;
   struct S_commlist *comm_list;

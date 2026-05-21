@@ -102,6 +102,10 @@ The first implementation stores the adapter and uses its MPI datatype during
 initialization; the movement and injection code still needs to be migrated from
 direct `S_particle` field access to adapter callbacks.
 
+The Level-2 injection/remap/remove path now reads region/species and marks a
+removed particle through the active adapter. Bulk movement paths still contain
+direct `S_particle` field reads and are the next migration target.
+
 ## Weighted Balancing
 
 For a region `r`, define:

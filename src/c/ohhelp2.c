@@ -28,6 +28,11 @@ static void  move_injected_from_sendbuf(int *injected, int mysd,
 static void  receive_particles(struct S_commlist *rlist, int rlsize, int *req);
 static void  send_particles(struct S_commlist *slist, int slsize, int myregion,
                             int parentregion, int *req);
+static int   particle_region(const struct S_particle *part,
+                             int primary_or_secondary);
+static void  set_particle_region(struct S_particle *part, int region,
+                                 int primary_or_secondary);
+static int   particle_species(const struct S_particle *part);
 
 void
 oh2_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -576,11 +581,11 @@ void
 oh2_inject_particle(struct S_particle *part) {
   const int ns=nOfSpecies, nn=nOfNodes;
   int inj = totalParts + nOfInjections++;
-  int s = Particle_Spec(part->spec - specBase);
-  int n=part->nid;
+  int s = particle_species(part);
+  int n = particle_region(part, 0);
 
 #ifndef OH_HAS_SPEC
-  if (ns!=1)
+  if (!useCustomParticleAdapter && ns!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
@@ -610,12 +615,12 @@ oh2_remap_injected_particle(struct S_particle *part) {
                   "not for injected particles",
                   specBase?'(':'[', pidx+specBase, specBase?')':']');
 #ifndef OH_HAS_SPEC
-  if (ns!=1)
+  if (!useCustomParticleAdapter && ns!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
-  s = Particle_Spec(part->spec - specBase);
-  n = part->nid;
+  s = particle_species(part);
+  n = particle_region(part, 0);
   if (n<0)  return;
   if (n==RegionId[1]) {
     NOfPLocal[(ns+s)*nn+n]++;
@@ -639,12 +644,12 @@ oh2_remove_injected_particle(struct S_particle *part) {
                   "not for injected particles",
                   specBase?'(':'[', pidx+specBase, specBase?')':']');
 #ifndef OH_HAS_SPEC
-  if (ns!=1)
+  if (!useCustomParticleAdapter && ns!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
-  s = Particle_Spec(part->spec - specBase);
-  n = part->nid;
+  s = particle_species(part);
+  n = particle_region(part, 0);
   if (n<0)  return;
   if (n==RegionId[1]) {
     NOfPLocal[(ns+s)*nn+n]--;
@@ -653,7 +658,26 @@ oh2_remove_injected_particle(struct S_particle *part) {
     NOfPLocal[nn*s+n]--;
     if (n==myRank)  InjectedParticles[s]--;
   }
-  part->nid = -1;
+  set_particle_region(part, -1, 0);
+}
+static int
+particle_region(const struct S_particle *part, int primary_or_secondary) {
+  return ParticleAdapter.get_region(part, primary_or_secondary);
+}
+static void
+set_particle_region(struct S_particle *part, int region,
+                    int primary_or_secondary) {
+  ParticleAdapter.set_region(part, region, primary_or_secondary);
+}
+static int
+particle_species(const struct S_particle *part) {
+  int species = ParticleAdapter.get_species(part) - specBase;
+
+#ifdef OH_HAS_SPEC
+  return Particle_Spec(species);
+#else
+  return useCustomParticleAdapter ? species : 0;
+#endif
 }
 void
 oh2_set_total_particles_() {

@@ -81,6 +81,8 @@ static void upd_real_nbr(const int root, const int psp, const int pss,
                          const int nbr, const int dosec, struct S_node* node,
                          struct S_realneighbor rnbrptr[2], int* occur[2]);
 static void exchange_xfer_amount(const int trans, const int psnew);
+static void state_exchange_xfer_amount4p(struct oh_state* state,
+                                         const int trans, const int psnew);
 static void count_population(const int nextmode, const int psnew,
                              const int stats);
 static void sort_particles(dint*** npg, const int nextmode, const int psnew,
@@ -99,7 +101,7 @@ static void move_to_sendbuf_dw4p(const int ps, const int mysd, const int ctail,
 static void move_and_sort_secondary(const int psold, const int psnew,
                                     const int trans, const int oldp,
                                     const int* nacc, const int stats);
-static void set_sendbuf_disps4p(const int trans);
+static void state_set_sendbuf_disps4p(struct oh_state* state, const int trans);
 static void xfer_particles(const int trans, const int psnew,
                            struct S_particle* sbuf);
 static void state_xfer_particles4p(struct oh_state* state, const int trans,
@@ -1317,30 +1319,41 @@ static void upd_real_nbr(const int root, const int psp, const int pss,
 }
 
 static void exchange_xfer_amount(const int trans, const int psnew) {
-    const struct S_realneighbor* snbr = RealSrcNeighbors[trans];
-    const struct S_realneighbor* dnbr = RealDstNeighbors[trans];
-    const int nnns = nOfNodes * nOfSpecies;
+    state_exchange_xfer_amount4p(oh4p_state(), trans, psnew);
+}
+
+static void state_exchange_xfer_amount4p(struct oh_state* state,
+                                         const int trans, const int psnew) {
+    struct S_realneighbor (*real_dst)[2] =
+        (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
+    struct S_realneighbor (*real_src)[2] =
+        (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
+    const struct S_realneighbor* snbr = real_src[trans];
+    const struct S_realneighbor* dnbr = real_dst[trans];
+    const int nnns = state->n_of_nodes * state->n_of_species;
     int ps, tag, req;
 
     for (ps = 0, tag = 0, req = 0; ps <= psnew; ps++, tag += nnns) {
         const int n = snbr[ps].n;
         const int* nbor = snbr[ps].nbor;
-        int i, * nrbase = NOfRecv + tag;
+        int i, * nrbase = state->n_of_recv + tag;
         for (i = 0; i < n; i++, req++) {
             const int nid = nbor[i];
-            MPI_Irecv(nrbase + nid, 1, T_Hgramhalf, nid, tag, MCW, Requests + req);
+            MPI_Irecv(nrbase + nid, 1, T_Hgramhalf, nid, tag, state->comm,
+                      state->requests + req);
         }
     }
     for (ps = 0, tag = 0; ps < 2; ps++, tag += nnns) {
         const int n = dnbr[ps].n;
         const int* nbor = dnbr[ps].nbor;
-        int i, * nsbase = NOfSend + tag;
+        int i, * nsbase = state->n_of_send + tag;
         for (i = 0; i < n; i++, req++) {
             const int nid = nbor[i];
-            MPI_Isend(nsbase + nid, 1, T_Hgramhalf, nid, tag, MCW, Requests + req);
+            MPI_Isend(nsbase + nid, 1, T_Hgramhalf, nid, tag, state->comm,
+                      state->requests + req);
         }
     }
-    MPI_Waitall(req, Requests, Statuses);
+    MPI_Waitall(req, state->requests, state->statuses);
 }
 
 static void count_population(const int nextmode, const int psnew, const int stats) {
@@ -1499,6 +1512,7 @@ static void sort_received_particles(const int nextmode, const int psnew, const i
 
 static void move_to_sendbuf_sec4p(const int psold, const int trans, const int oldp,
                                   const int* nacc, const int nsend, const int stats) {
+    struct oh_state* state = oh4p_state();
     const int me = myRank, ns = nOfSpecies, sbase = specBase;
     const int ninj = nOfInjections, nplim = nOfLocalPLimit;
     int ninjp = 0, ninjs = nplim, i;
@@ -1506,7 +1520,7 @@ static void move_to_sendbuf_sec4p(const int psold, const int trans, const int ol
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_MOVE, 1);
-    set_sendbuf_disps4p(trans);
+    state_set_sendbuf_disps4p(state, trans);
 
     for (i = 0, p = Particles + totalParts; i < ninj; i++, p++) {
         const int s = Particle_Spec(p->spec - sbase);
@@ -1594,8 +1608,11 @@ static void move_to_sendbuf_dw4p(const int ps, const int mysd, const int ctail,
 
 static void move_and_sort_secondary(const int psold, const int psnew, const int trans,
                                     const int oldp, const int* nacc, const int stats) {
+    struct oh_state* state = oh4p_state();
     const int me = myRank, ns = nOfSpecies, nn = nOfNodes, sbase = specBase;
     const int mysubdom[2] = { me, oldp }, ninj = nOfInjections;
+    struct S_realneighbor (*real_src)[2] =
+        (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
     struct S_particle* p, * rbb, * sb = SendBuf + nacc[0] + nacc[1];
     int* nofr;
     int ps, s, t, npt, i;
@@ -1603,10 +1620,11 @@ static void move_and_sort_secondary(const int psold, const int psnew, const int 
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_MOVE, 1);
-    set_sendbuf_disps4p(trans);
-    for (ps = 0, t = 0, nofr = NOfRecv, rbb = Particles, npt = 0; ps <= psnew; ps++) {
-        const int nnbr = RealSrcNeighbors[trans][ps].n;
-        const int* rnbr = RealSrcNeighbors[trans][ps].nbor;
+    state_set_sendbuf_disps4p(state, trans);
+    for (ps = 0, t = 0, nofr = state->n_of_recv, rbb = Particles, npt = 0;
+         ps <= psnew; ps++) {
+        const int nnbr = real_src[trans][ps].n;
+        const int* rnbr = real_src[trans][ps].nbor;
         const int gdidx = ps ? trans + 1 : 0;
         for (s = 0; s < ns; s++, t++, nofr += nn) {
             int n, nrec;
@@ -1644,13 +1662,15 @@ static void move_and_sort_secondary(const int psold, const int psnew, const int 
     primaryParts = *secondaryBase = nacc[0];
 }
 
-static void set_sendbuf_disps4p(const int trans) {
-    const int nn = nOfNodes, ns = nOfSpecies;
+static void state_set_sendbuf_disps4p(struct oh_state* state, const int trans) {
+    const int nn = state->n_of_nodes, ns = state->n_of_species;
+    struct S_realneighbor (*real_dst)[2] =
+        (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
     int ps, s, i, np, * sbd;
 
-    for (ps = 0, sbd = NOfSend, np = 0; ps < 2; ps++) {
-        const int n = RealDstNeighbors[trans][ps].n;
-        const int* nbor = RealDstNeighbors[trans][ps].nbor;
+    for (ps = 0, sbd = state->n_of_send, np = 0; ps < 2; ps++) {
+        const int n = real_dst[trans][ps].n;
+        const int* nbor = real_dst[trans][ps].nbor;
         for (s = 0; s < ns; s++, sbd += nn) {
             for (i = 0; i < n; i++) {
                 const int nid = nbor[i];

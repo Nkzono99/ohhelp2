@@ -164,6 +164,10 @@ The current code now has this first migration layer:
 - Level-4p/4s particle transfer now reads real-neighbor routing tables through
   the Level-4 `oh_state` mirror, leaving the Level-4-specific casts local to
   the translation units that own those private types.
+- Level-4p/4s transfer-count exchange and send-buffer displacement construction
+  now have state-backed helpers for communicator, requests/statuses,
+  receive/send histograms, node/species counts, and real-neighbor routing
+  tables.
 
 ## Particle Layout
 

@@ -1896,7 +1896,12 @@ int oh4p_map_particle_to_neighbor_(struct S_particle* part, const int* ps, const
 int oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps, const int s) {
     struct oh_state* state = oh4p_state();
     const int ns = state->n_of_species, nn = state->n_of_nodes;
+    const int nOfNodes = nn;
     const int inj = part >= state->particles + state->total_parts;
+    struct S_grid* Grid = state->grid;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
+    int (*Boundaries)[OH_DIMENSION][2] = state->boundaries;
     int x, y, z, w, d, dw, mysd;
     const int psnn = ps ? (s + ns) * nn : s * nn;
     int k = OH_NBR_SELF, idx = 0;
@@ -2008,7 +2013,14 @@ int oh4p_map_particle_to_subdomain(struct S_particle* part, const int ps,
                                    const int s) {
     struct oh_state* state = oh4p_state();
     const int ns = state->n_of_species, nn = state->n_of_nodes;
+    const int nOfNodes = nn;
     const int inj = part >= state->particles + state->total_parts;
+    struct S_grid* Grid = state->grid;
+    struct S_subdomdesc* SubDomainDesc = state->subdomain_desc;
+    struct S_griddesc* GridDesc = state->level4_grid_desc;
+    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
+    int (*BoundaryCondition)[2] =
+        (int(*)[2])state->level4_boundary_condition;
     const int nx = Grid[OH_DIM_X].n;
     const int nxy = If_Dim(OH_DIM_Y, nx * Grid[OH_DIM_Y].n, 0);
     const int t = ps ? ns + s : s;

@@ -228,6 +228,10 @@ The current code now has this first migration layer:
   `oh_state` at entry and use context mirrors for species counts, particle
   buffers, local counts, injection counts, region IDs, current mode, and
   Level-4 per-grid counts while preserving the existing public symbols.
+- Level-4p/4s particle mapping now also binds grid descriptors, grid metadata,
+  subdomain tables, boundary tables, and boundary-condition tables from
+  `oh_state` inside the mapping functions before invoking the legacy mapping
+  macros.
 
 ## Particle Layout
 

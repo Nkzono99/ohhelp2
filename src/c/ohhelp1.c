@@ -26,9 +26,19 @@ static void  make_comm_count(int currmode, int level, int reb, int oldparent,
 static void  make_recv_count(struct S_commlist* rlist, int rlsize);
 static void  make_send_count(struct S_commlist* slist, int slsize);
 static void  count_next_particles(struct S_commlist* rlist, int rlsize);
-static void  push_heap(int id, struct S_heap* heap, int greater);
-static int   pop_heap(struct S_heap* heap, int greater);
-static void  remove_heap(struct S_heap* heap, int greater, int rem);
+struct S_heap_key {
+  dint *particles;
+  double *loads;
+  int weighted;
+};
+static void  push_heap(int id, struct S_heap* heap, int greater,
+                       const struct S_heap_key *key);
+static int   pop_heap(struct S_heap* heap, int greater,
+                      const struct S_heap_key *key);
+static void  remove_heap(struct S_heap* heap, int greater, int rem,
+                         const struct S_heap_key *key);
+static int   heap_key_greater(const struct S_heap_key *key, int left,
+                              int right);
 static void  clear_stats(struct S_statstotal *stotal);
 static void  stats_primary_comm(int currmode);
 static void  stats_secondary_comm(int currmode, int reb);
@@ -928,14 +938,16 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   dint npavefloor=nofp/nn;
   dint npfracin=nofp-npavefloor*nn, npfracout=npfracin;
   dint npavein=npavefloor+(npfracin==0 ? 0 : 1), npaveout=npavein;
-  int ns=state->n_of_species;
-  int i, j, k, s, bot, pm=Mode_PS(currmode)-1, me=state->my_rank;
+  int i, j, k, bot, pm=Mode_PS(currmode)-1, me=state->my_rank;
   int weighted=state->weighted_load_balancing;
   double total_load=state->total_load;
   dint *totalp_global=state->total_particles_global;
   double *total_load_global=state->total_load_global;
   double *region_weights=state->region_weights;
   int *nofplocal=state->n_of_particles_local;
+  struct S_heap_key heap_key = {
+    totalp_global, total_load_global, weighted
+  };
   struct S_node *node, *mynode=NodesNext+me, *root;
 
   if (stats) oh1_stats_time(STATS_REBALANCE, 0);
@@ -949,10 +961,10 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
 
     for (i=0,bot=0,node=NodesNext; i<nn; i++,node++) {
       if (total_load_global[i]<target) {
-        push_heap(i, &LessHeap, 0);
+        push_heap(i, &LessHeap, 0, &heap_key);
         NodeQueue[bot++] = node;
       } else {
-        push_heap(i, &GreaterHeap, 1);
+        push_heap(i, &GreaterHeap, 1, &heap_key);
       }
       *node = Nodes[i];
       node->child = NULL;
@@ -961,12 +973,12 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     while (LessHeap.n) {
       struct S_node *parent;
       int get, h;
-      j = pop_heap(&LessHeap, 0);
+      j = pop_heap(&LessHeap, 0, &heap_key);
       node = NodesNext + j;
       if ((k=node->parentid)>=0 && (h=GreaterHeap.index[k]))
-        remove_heap(&GreaterHeap, 1, h);
+        remove_heap(&GreaterHeap, 1, h, &heap_key);
       else
-        k = pop_heap(&GreaterHeap, 1);
+        k = pop_heap(&GreaterHeap, 1, &heap_key);
       get = oh_weighted_transfer_count(target, total_load_global[j],
                                        region_weights[k], totalp_global[k]);
       node->get.sec = get;
@@ -978,9 +990,9 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
       total_load_global[k] = oh_load_after_transfer(total_load_global[k],
                                                     get, region_weights[k]);
       if (total_load_global[k]<target && GreaterHeap.n>0) {
-        push_heap(k, &LessHeap, 0);  NodeQueue[bot++] = parent;
+        push_heap(k, &LessHeap, 0, &heap_key);  NodeQueue[bot++] = parent;
       } else {
-        push_heap(k, &GreaterHeap, 1);
+        push_heap(k, &GreaterHeap, 1, &heap_key);
       }
     }
     root = NodesNext + GreaterHeap.node[1];
@@ -1013,10 +1025,10 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     dint npg=totalp_global[i];
     if (npg<npavein) {
       if (--npfracin==0) npavein--;
-      push_heap(i, &LessHeap, 0);
+      push_heap(i, &LessHeap, 0, &heap_key);
       NodeQueue[bot++] = node;
     } else {
-      push_heap(i, &GreaterHeap, 1);
+      push_heap(i, &GreaterHeap, 1, &heap_key);
     }
     *node = Nodes[i];
     node->child = NULL;
@@ -1025,15 +1037,15 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   while (LessHeap.n) {
     struct S_node *parent;
     dint npg;
-    int get, pid, h;
-    j = pop_heap(&LessHeap, 0);
+    int get, h;
+    j = pop_heap(&LessHeap, 0, &heap_key);
     node = NodesNext + j;
     get = npaveout - totalp_global[j];
     if (--npfracout==0) npaveout--;
     if ((k=node->parentid)>=0 && (h=GreaterHeap.index[k]))
-      remove_heap(&GreaterHeap, 1, h);
+      remove_heap(&GreaterHeap, 1, h, &heap_key);
     else
-      k = pop_heap(&GreaterHeap, 1);
+      k = pop_heap(&GreaterHeap, 1, &heap_key);
     node->get.sec = get;
     parent = NodesNext + k;
     node->parentid = k;  node->parent = parent;
@@ -1042,9 +1054,9 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     npg = (totalp_global[k] -= get);
     if (npg<npavein) {
       if (--npfracin==0) npavein--;
-      push_heap(k, &LessHeap, 0);  NodeQueue[bot++] = parent;
+      push_heap(k, &LessHeap, 0, &heap_key);  NodeQueue[bot++] = parent;
     } else {
-      push_heap(k, &GreaterHeap, 1);
+      push_heap(k, &GreaterHeap, 1, &heap_key);
     }
   }
   root = NodesNext + GreaterHeap.node[1];
@@ -1147,37 +1159,38 @@ build_new_comm(int currmode, int level, int nbridx, int stats) {
     make_comm_count(currmode, level, 1,
                     (Mode_Is_Norm(currmode) ? oldparent : -1), stats);
 }
+static int
+heap_key_greater(const struct S_heap_key *key, int left, int right) {
+  if (key->weighted) return key->loads[left] > key->loads[right];
+  return key->particles[left] > key->particles[right];
+}
 static void
-push_heap(int r, struct S_heap* heap, int greater) {
+push_heap(int r, struct S_heap* heap, int greater,
+          const struct S_heap_key *key) {
   int n=heap->n, *hnode=heap->node, *index=heap->index;
-  dint np=TotalPGlobal[r];
-  double load=TotalLoadGlobal[r];
   int m, q, g;
 
   heap->n = ++n;
   for (; n>1; n=m) {
     m = n>>1;  q = hnode[m];
-    g = weightedLoadBalancing ?
-        ((load>TotalLoadGlobal[q]) ? 1 : 0) :
-        ((np>TotalPGlobal[q]) ? 1 : 0);
+    g = heap_key_greater(key, r, q);
     if (g!=greater) break;
     hnode[n] = q;  index[q] = n;
   }
   hnode[n] = r;  index[r] = n;
 }
 static int
-pop_heap(struct S_heap* heap, int greater) {
+pop_heap(struct S_heap* heap, int greater, const struct S_heap_key *key) {
   int pop=heap->node[1];
 
-  remove_heap(heap, greater, 1);
+  remove_heap(heap, greater, 1, key);
   return(pop);
 }
 static void
-remove_heap(struct S_heap* heap, int greater, int rem) {
+remove_heap(struct S_heap* heap, int greater, int rem,
+            const struct S_heap_key *key) {
   int n=heap->n, *hnode=heap->node, *index=heap->index;
   int id=hnode[n];
-  dint np=TotalPGlobal[id];
-  double load=TotalLoadGlobal[id];
   int i;
 
   heap->n = --n;  index[hnode[rem]] = 0;
@@ -1186,11 +1199,9 @@ remove_heap(struct S_heap* heap, int greater, int rem) {
     int left=(i<<1), right=left+1;
     if (right<=n) {
       int lid=hnode[left], rid=hnode[right];
-      dint lnp=TotalPGlobal[lid], rnp=TotalPGlobal[rid];
-      double lload=TotalLoadGlobal[lid], rload=TotalLoadGlobal[rid];
-      int cgl=weightedLoadBalancing ? ((load>lload)?1:0) : ((np>lnp)?1:0);
-      int cgr=weightedLoadBalancing ? ((load>rload)?1:0) : ((np>rnp)?1:0);
-      int lgr=weightedLoadBalancing ? ((lload>rload)?1:0) : ((lnp>rnp)?1:0);
+      int cgl=heap_key_greater(key, id, lid);
+      int cgr=heap_key_greater(key, id, rid);
+      int lgr=heap_key_greater(key, lid, rid);
       if (cgl==greater) {
         if (cgr==greater) {
           hnode[i] = id;  index[id] = i;  return;
@@ -1205,9 +1216,7 @@ remove_heap(struct S_heap* heap, int greater, int rem) {
     } else {
       if (left<=n) {
         int lid=hnode[left];
-        int cgl=weightedLoadBalancing ?
-                ((load>TotalLoadGlobal[lid])?1:0) :
-                ((np>TotalPGlobal[lid])?1:0);
+        int cgl=heap_key_greater(key, id, lid);
         if (cgl==greater) {
           hnode[i] = id;  index[id] = i;
         } else {                /* we know left node has no children. */

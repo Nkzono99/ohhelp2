@@ -6,6 +6,9 @@
 
 #include "oh_particle_buffer.h"
 
+#define OH_LEVEL4_PARTICLE_REMOVED ((OH_nid_t)-1)
+#define OH_LEVEL4_BOUNDARY_EXCHANGE_MARKER ((OH_nid_t)-2)
+
 static inline struct S_particle*
 level4_particle_at(struct oh_state* state, int index) {
     return oh_particle_buffer_at(state->particle_adapter,
@@ -49,6 +52,22 @@ level4_set_particle_region(struct oh_state* state, struct S_particle* part,
                            OH_nid_t region, int primary_or_secondary) {
     state->particle_adapter->set_region(state->particle_adapter, part, region,
                                         primary_or_secondary);
+}
+
+static inline void
+level4_mark_particle_removed(struct oh_state* state, struct S_particle* part,
+                             int primary_or_secondary) {
+    level4_set_particle_region(state, part, OH_LEVEL4_PARTICLE_REMOVED,
+                               primary_or_secondary);
+}
+
+static inline void
+level4_mark_boundary_exchange_particle(struct oh_state* state,
+                                       struct S_particle* part,
+                                       int primary_or_secondary) {
+    level4_set_particle_region(state, part,
+                               OH_LEVEL4_BOUNDARY_EXCHANGE_MARKER,
+                               primary_or_secondary);
 }
 
 static inline void

@@ -205,6 +205,10 @@ When editing particle movement or mapping code, check for:
 - The secondary-injected packed-id offset is centralized in
   `level4_secondary_region_offset()` so primarize, secondarize, and injected
   detection share one definition.
+- Level 4 negative sentinel writes are centralized in
+  `level4_mark_particle_removed()` and
+  `level4_mark_boundary_exchange_particle()` so the `-1` removed marker and
+  `-2` boundary-exchange marker do not leak back into call sites.
 - Level 4 implementation code must not directly read or write particle
   coordinates. Position access must pass through adapter offsets.
 - Level 4 particle-buffer allocation must use adapter stride, not

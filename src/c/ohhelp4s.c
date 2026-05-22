@@ -2089,7 +2089,8 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
                                 oh_particle_buffer_at(state->particle_adapter,
                                                       state->send_buffer, i);
                             level4_copy_particle(state, sp, p);
-                            level4_set_particle_region(state, sp, -2, ps);
+                            level4_mark_boundary_exchange_particle(state, sp,
+                                                                   ps);
                             p = oh_particle_buffer_at(state->particle_adapter,
                                                       p, 1);
                         }
@@ -2361,7 +2362,7 @@ static void check_particle_location4s(struct oh_state* state,
     K -= INC;\
     if (xyz<lb) {\
       if (state->boundaries[MYSD][DIM][OH_LOWER]) {\
-        level4_set_particle_region(state, P, -1, ps);  return(-1);\
+        level4_mark_particle_removed(state, P, ps);  return(-1);\
       }\
       XYZ += state->grid[DIM].fcoord[OH_UPPER] - lb;\
     }\
@@ -2371,7 +2372,7 @@ static void check_particle_location4s(struct oh_state* state,
     K += INC;\
     if (xyz>=ub) {\
       if (state->boundaries[MYSD][DIM][OH_UPPER]) {\
-        level4_set_particle_region(state, P, -1, ps);  return(-1);\
+        level4_mark_particle_removed(state, P, ps);  return(-1);\
       }\
       XYZ -= ub - lb;\
     }\
@@ -2437,7 +2438,7 @@ int oh4s_map_particle_to_neighbor(void* particle, const int ps,
         return(oh4s_map_particle_to_subdomain(part, ps, s));
     sd = abs_neighbors[ps][k];
     if (sd >= nn) {
-        level4_set_particle_region(state, part, -1, ps);
+        level4_mark_particle_removed(state, part, ps);
         return(-1);
     }
     Adjust_Neighbor_Grid(gx, sd, OH_DIM_X);
@@ -2473,7 +2474,7 @@ int oh4s_map_particle_to_neighbor(void* particle, const int ps,
   LG = 0;\
   if (XYZ<lb) {\
     if (Level4_Boundary_Condition(DIM, OH_LOWER)) {\
-      level4_set_particle_region(state, P, -1, ps);  return(-1);\
+      level4_mark_particle_removed(state, P, ps);  return(-1);\
     }\
     XYZ += (ub - lb);  PXYZ = XYZ;\
     LG = state->grid[DIM].coord[OH_LOWER] -\
@@ -2481,7 +2482,7 @@ int oh4s_map_particle_to_neighbor(void* particle, const int ps,
   }\
   else if (XYZ>=ub) {\
     if (Level4_Boundary_Condition(DIM, OH_UPPER)) {\
-      level4_set_particle_region(state, P, -1, ps);  return(-1);\
+      level4_mark_particle_removed(state, P, ps);  return(-1);\
     }\
     XYZ -= (ub - lb);  PXYZ = XYZ;\
     LG = state->grid[DIM].coord[OH_UPPER] -\
@@ -2557,7 +2558,7 @@ int oh4s_map_particle_to_subdomain(void* particle, const int ps,
         sd = map_irregular_subdomain(x, If_Dim(OH_DIM_Y, y, 0),
                                      If_Dim(OH_DIM_Z, z, 0));
         if (sd < 0) {
-            level4_set_particle_region(state, part, -1, ps);
+            level4_mark_particle_removed(state, part, ps);
             return(-1);
         }
     } else {
@@ -2645,7 +2646,7 @@ void oh4s_remove_mapped_particle(void* particle, const int ps,
         nid = level4_particle_region(state, part, psreal);
     }
     mysd = state->region_id[psreal];
-    level4_set_particle_region(state, part, -1, psreal);
+    level4_mark_particle_removed(state, part, psreal);
     t = psreal ? ns + s : s;
     state->n_of_particles_local[t * nn + sd]--;
     if (inj && sd == mysd)  state->injected_particles[t]--;

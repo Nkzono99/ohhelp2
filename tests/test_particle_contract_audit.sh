@@ -179,6 +179,12 @@ check_present 'nid == -2' doc/design/v2-particle-contracts.md
 check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts.md
 check_present 'packed-grid id operations' doc/design/v2-particle-contracts.md
 check_present 'level4_secondary_region_offset' src/c/ohhelp4_particle.h
+check_present 'OH_LEVEL4_PARTICLE_REMOVED' src/c/ohhelp4_particle.h
+check_present 'OH_LEVEL4_BOUNDARY_EXCHANGE_MARKER' src/c/ohhelp4_particle.h
+check_present 'level4_mark_particle_removed' src/c/ohhelp4_particle.h
+check_present 'level4_mark_boundary_exchange_particle' src/c/ohhelp4_particle.h
+check_absent 'level4_set_particle_region\(.*,[[:space:]]*-[12][[:space:]]*,' \
+  src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_present 'level4_bind_common_state' src/c/ohhelp4_state.h
 check_present 'level4p_bind_state' src/c/ohhelp4p_state.h
 check_present 'level4s_bind_state' src/c/ohhelp4s_state.h
@@ -189,6 +195,7 @@ check_present 'InjectedParticles' doc/design/v2-particle-contracts.md
 check_present 'OH_BIG_SPACE' doc/design/v2-particle-contracts.md
 check_present 'boundary plane thickness' doc/design/v2-particle-contracts.md
 check_present 'no current `original` particle field' doc/design/v2-particle-contracts.md
+check_absent '\boriginal\b' include/*.h src/c/*.c src/c/*.h src/fortran/*.F90
 check_present '粒子ポインタを `void \*`' doc/usage/v2-particle-and-weight.md
 check_absent '\bp\.nid\s*=' doc/usage/api-by-level.md doc/usage/pic-lifecycle.md
 check_present 'level4_secondary_injected' src/c/ohhelp4_particle.h

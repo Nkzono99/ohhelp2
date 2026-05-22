@@ -31,6 +31,8 @@ gcc -Iinclude tests/test_oh_context_header.c \
   -c -o build/docker/test_oh_context_header.o
 mpicc -Iinclude tests/test_ohhelp_c_header.c \
   -c -o build/docker/test_ohhelp_c_header.o
+mpicc -Iinclude tests/test_ohhelp4p_header.c \
+  -c -o build/docker/test_ohhelp4p_header.o
 mpicc -Iinclude tests/test_ohhelp4s_header.c \
   -c -o build/docker/test_ohhelp4s_header.o
 gcc -Iinclude tests/test_oh_load_balance.c src/c/oh_load_balance.c \
@@ -40,6 +42,10 @@ build/docker/test_oh_load_balance
 mpicc -Iinclude tests/test_oh_particle_adapter.c src/c/oh_particle_adapter.c \
   -o build/docker/test_oh_particle_adapter
 mpirun -n 1 build/docker/test_oh_particle_adapter
+
+mpicc -Iinclude tests/test_oh_particle_adapter_callbacks.c \
+  -o build/docker/test_oh_particle_adapter_callbacks
+build/docker/test_oh_particle_adapter_callbacks
 
 mpicc -Iinclude -Isrc/c tests/test_oh_particle_buffer.c \
   src/c/oh_particle_adapter.c -o build/docker/test_oh_particle_buffer

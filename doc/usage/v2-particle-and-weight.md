@@ -24,6 +24,7 @@ typedef struct oh_particle_adapter {
 
 ```c
 oh_particle_adapter adapter;
+MPI_Datatype my_particle_mpi_type = make_my_particle_mpi_type();
 
 adapter.stride = sizeof(struct my_particle);
 adapter.mpi_type = my_particle_mpi_type;
@@ -36,6 +37,120 @@ adapter.map_to_subdomain = my_map_to_subdomain;
 oh_set_particle_adapter(&adapter);
 oh_init(...);
 ```
+
+## `mpi_type` の標準的な作り方
+
+`adapter.mpi_type` は、粒子 1 要素を MPI で送受信するための datatype です。
+OhHelp は MPI count/displacement をこの datatype の単位で扱うため、datatype の
+extent は必ず `adapter.stride` と一致させます。
+
+粒子が pointer を含まない plain data で、padding ごと送ってよい場合は、
+`MPI_BYTE` の contiguous type を作り、念のため `MPI_Type_create_resized()` で
+extent を `sizeof(struct my_particle)` に固定するのが最も単純です。
+
+```c
+static MPI_Datatype
+make_my_particle_mpi_type(void) {
+    MPI_Datatype raw_type;
+    MPI_Datatype particle_type;
+
+    MPI_Type_contiguous((int)sizeof(struct my_particle),
+                        MPI_BYTE, &raw_type);
+    MPI_Type_create_resized(raw_type, 0,
+                            (MPI_Aint)sizeof(struct my_particle),
+                            &particle_type);
+    MPI_Type_commit(&particle_type);
+    MPI_Type_free(&raw_type);
+    return particle_type;
+}
+```
+
+送る field を明示したい場合は、`MPI_Get_address()` と
+`MPI_Type_create_struct()` を使います。この場合も最後に resized type を作り、
+extent を `sizeof(struct my_particle)` に合わせます。
+
+```c
+static MPI_Datatype
+make_my_particle_mpi_type(void) {
+    struct my_particle sample;
+    MPI_Aint base;
+    MPI_Aint disp[5];
+    int blocklen[5] = { 1, 1, 1, 1, 1 };
+    MPI_Datatype types[5] = {
+        MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_INT, MPI_INT
+    };
+    MPI_Datatype raw_type;
+    MPI_Datatype particle_type;
+
+    MPI_Get_address(&sample, &base);
+    MPI_Get_address(&sample.x, &disp[0]);
+    MPI_Get_address(&sample.y, &disp[1]);
+    MPI_Get_address(&sample.z, &disp[2]);
+    MPI_Get_address(&sample.region, &disp[3]);
+    MPI_Get_address(&sample.species, &disp[4]);
+    for (int i = 0; i < 5; i++) {
+        disp[i] -= base;
+    }
+
+    MPI_Type_create_struct(5, blocklen, disp, types, &raw_type);
+    MPI_Type_create_resized(raw_type, 0,
+                            (MPI_Aint)sizeof(struct my_particle),
+                            &particle_type);
+    MPI_Type_commit(&particle_type);
+    MPI_Type_free(&raw_type);
+    return particle_type;
+}
+```
+
+作った datatype は、OhHelp の利用が終わった後に利用側で
+`MPI_Type_free()` してください。
+
+## region/species callback の標準形
+
+粒子構造体に region と species field があるだけなら、手書き callback の代わりに
+`oh_particle_adapter.h` のマクロを使えます。
+
+```c
+struct my_particle {
+    double x, y, z;
+    double vx, vy, vz;
+    int region;
+    int species;
+};
+
+OH_DEFINE_PARTICLE_ADAPTER_ACCESSORS(my_particle, struct my_particle,
+                                     region, species)
+OH_DEFINE_PARTICLE_ADAPTER_REGION_MAPPING(my_particle, struct my_particle,
+                                          region)
+
+oh_particle_adapter adapter;
+MPI_Datatype my_particle_mpi_type = make_my_particle_mpi_type();
+
+adapter.stride = sizeof(struct my_particle);
+adapter.mpi_type = my_particle_mpi_type;
+adapter.get_region = my_particle_get_region;
+adapter.set_region = my_particle_set_region;
+adapter.get_species = my_particle_get_species;
+adapter.map_to_neighbor = my_particle_map_to_neighbor;
+adapter.map_to_subdomain = my_particle_map_to_subdomain;
+
+oh_set_particle_adapter(&adapter);
+oh_init(...);
+```
+
+single-species の粒子配列なら、species field を持たない macro を使えます。
+
+```c
+OH_DEFINE_PARTICLE_ADAPTER_SINGLE_SPECIES_ACCESSORS(my_particle,
+                                                    struct my_particle,
+                                                    region)
+```
+
+`OH_DEFINE_PARTICLE_ADAPTER_REGION_MAPPING()` は、利用側が particle push 中に
+`region` field を destination region へ更新する設計向けの最小実装です。
+Level 3/4 で「粒子座標から OhHelp の subdomain を計算したい」場合は、
+座標と geometry を見て判定する `map_to_neighbor` / `map_to_subdomain` を
+利用側で実装してください。
 
 注意点:
 

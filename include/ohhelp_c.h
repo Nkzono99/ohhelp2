@@ -64,19 +64,19 @@ int  oh1_transbound(int currmode, int stats);
 
 #else
 #define oh_set_total_particles() oh2_set_total_particles()
+#define oh_set_particle_mpi_type(A1)     oh2_set_particle_mpi_type(A1)
+#define oh_set_particle_adapter(A1)      oh2_set_particle_adapter(A1)
 #include "oh_part.h"
 void oh2_set_total_particles();
+void oh2_set_particle_mpi_type(MPI_Datatype type);
+void oh2_set_particle_adapter(const oh_particle_adapter *adapter);
 
 #if OH_LIB_LEVEL!=4
 #define oh_max_local_particles(A1,A2,A3) oh2_max_local_particles(A1,A2,A3)
-#define oh_set_particle_mpi_type(A1)     oh2_set_particle_mpi_type(A1)
-#define oh_set_particle_adapter(A1)      oh2_set_particle_adapter(A1)
 #define oh_inject_particle(A1)           oh2_inject_particle(A1)
 #define oh_remap_injected_particle(A1)   oh2_remap_injected_particle(A1)
 #define oh_remove_injected_particle(A1)  oh2_remove_injected_particle(A1)
 int  oh2_max_local_particles(long long int npmax, int maxfrac, int minmargin);
-void oh2_set_particle_mpi_type(MPI_Datatype type);
-void oh2_set_particle_adapter(const oh_particle_adapter *adapter);
 void oh2_remap_injected_particle(struct S_particle *part);
 void oh2_remove_injected_particle(struct S_particle *part);
 #endif

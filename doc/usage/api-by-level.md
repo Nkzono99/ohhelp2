@@ -181,6 +181,7 @@ Level 4p は、粒子位置を意識した per-grid 粒子管理を使う拡張�
 初期化前:
 
 ```c
+oh_set_particle_adapter(&adapter);  /* custom layout を使う場合 */
 maxlocalp = oh_max_local_particles(npmax, maxfrac, minmargin, hsthresh);
 allocate_particle_buffer(&pbuf, maxlocalp);
 ```
@@ -233,6 +234,7 @@ Level 4s は、Level 4p と同じく position-aware ですが、per-grid index �
 int maxlocalp;
 int cbufsize;
 
+oh_set_particle_adapter(&adapter);  /* custom layout を使う場合 */
 oh_init(&sdid, nspec, maxfrac,
         npmax, minmargin, maxdensity,
         totalp, pbase,

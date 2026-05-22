@@ -35,6 +35,9 @@ The current code now has this first migration layer:
 - `oh_context_set_region_weights()` provides the first context-shaped setter.
 - `src/c/oh_context.c` owns the default context facade, while Level-1 code calls
   the internal sync hook during the migration away from process globals.
+- Region-weight mutation now has a state-backed internal implementation
+  (`oh1_set_region_weights_state()`); the legacy public setter only synchronizes
+  the default global mirror around that implementation.
 - Level-1 rebalance heap ordering now receives explicit particle/load key arrays
   from `oh_state` instead of reading the balancing mode from globals.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned

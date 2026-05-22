@@ -265,24 +265,31 @@ oh1_set_region_weights_(double *weights) {
   oh1_set_region_weights(weights);
 }
 void
-oh1_set_region_weights(const double *weights) {
+oh1_set_region_weights_state(struct oh_state *state, const double *weights) {
   int i;
 
-  if (!RegionWeights)
+  if (!state || !state->region_weights)
     local_errstop("oh1_set_region_weights() must be called after oh_init()");
   if (!weights) {
-    for (i=0; i<nOfNodes; i++) RegionWeights[i] = 1.0;
-    weightedLoadBalancing = FALSE;
-    oh1_sync_default_state();
+    for (i=0; i<state->n_of_nodes; i++) state->region_weights[i] = 1.0;
+    state->weighted_load_balancing = FALSE;
     return;
   }
-  for (i=0; i<nOfNodes; i++) {
+  for (i=0; i<state->n_of_nodes; i++) {
     double w = weights[i];
     if (!oh_region_weight_is_valid(w))
       local_errstop("region weight[%d] must be finite and greater than zero", i);
-    RegionWeights[i] = w;
+    state->region_weights[i] = w;
   }
-  weightedLoadBalancing = oh_region_weights_use_weighted_mode(weights, nOfNodes);
+  state->weighted_load_balancing =
+    oh_region_weights_use_weighted_mode(weights, state->n_of_nodes);
+}
+void
+oh1_set_region_weights(const double *weights) {
+  struct oh_state *state = oh1_state();
+
+  oh1_set_region_weights_state(state, weights);
+  weightedLoadBalancing = state->weighted_load_balancing;
   oh1_sync_default_state();
 }
 void*

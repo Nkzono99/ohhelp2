@@ -119,7 +119,9 @@ oh_context_set_region_weights(struct oh_state *context, const double *weights) {
   if (!context) context = oh1_state();
   if (context!=&OhDefaultState)
     local_errstop("only the default oh_context is implemented yet");
-  oh1_set_region_weights(weights);
+  oh1_set_region_weights_state(context, weights);
+  weightedLoadBalancing = context->weighted_load_balancing;
+  oh1_sync_default_state();
 }
 
 void

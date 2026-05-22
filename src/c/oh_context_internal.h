@@ -4,6 +4,10 @@
 #ifndef OH_CONTEXT_INTERNAL_H
 #define OH_CONTEXT_INTERNAL_H
 
+struct oh_state;
+
 void oh1_sync_default_state(void);
+void oh1_set_region_weights_state(struct oh_state *state,
+                                  const double *weights);
 
 #endif

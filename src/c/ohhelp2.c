@@ -57,6 +57,9 @@ static void  oh2_remap_injected_particle_state(struct oh_state *state,
                                                struct S_particle *part);
 static void  oh2_remove_injected_particle_state(struct oh_state *state,
                                                 struct S_particle *part);
+static void  state_update_injected_particle_count(struct oh_state *state,
+                                                  struct S_particle *part,
+                                                  int delta);
 static OH_nid_t state_particle_region(struct oh_state *state,
                                       const struct S_particle *part,
                                       int primary_or_secondary);
@@ -804,14 +807,11 @@ oh2_inject_particle(void *part) {
 }
 static void
 oh2_inject_particle_state(struct oh_state *state, struct S_particle *part) {
-  const int ns=state->n_of_species, nn=state->n_of_nodes;
   int inj = state->total_parts + state->n_of_injections++;
-  int s = state_particle_species(state, part);
-  int n = state_particle_region(state, part, 0);
   nOfInjections = state->n_of_injections;
 
 #ifndef OH_HAS_SPEC
-  if (!state->use_custom_particle_adapter && ns!=1)
+  if (!state->use_custom_particle_adapter && state->n_of_species!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
@@ -819,14 +819,8 @@ oh2_inject_particle_state(struct oh_state *state, struct S_particle *part) {
     local_errstop("injection causes local particle buffer overflow");
   state_copy_particle(state, state_particle_at(state, state->particles, inj),
                       part);
-  if (n<0)  return;
-  if (n==state->region_id[1]) {
-    state->n_of_particles_local[(ns+s)*nn+n]++;
-    state->injected_particles[ns+s]++;
-  } else {
-    state->n_of_particles_local[nn*s+n]++;
-    if (n==state->my_rank)  state->injected_particles[s]++;
-  }
+  state_update_injected_particle_count(
+    state, state_particle_at(state, state->particles, inj), 1);
 }
 void
 oh2_remap_injected_particle_(struct S_particle *part) {
@@ -840,8 +834,6 @@ static void
 oh2_remap_injected_particle_state(struct oh_state *state,
                                   struct S_particle *part) {
   const int pidx = state_particle_buffer_index(state, part);
-  const int ns=state->n_of_species, nn=state->n_of_nodes;
-  int s, n;
 
   if (pidx<state->total_parts ||
       pidx>=state->total_parts+state->n_of_injections)
@@ -850,20 +842,11 @@ oh2_remap_injected_particle_state(struct oh_state *state,
                   state->spec_base?'(':'[', pidx+state->spec_base,
                   state->spec_base?')':']');
 #ifndef OH_HAS_SPEC
-  if (!state->use_custom_particle_adapter && ns!=1)
+  if (!state->use_custom_particle_adapter && state->n_of_species!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
-  s = state_particle_species(state, part);
-  n = state_particle_region(state, part, 0);
-  if (n<0)  return;
-  if (n==state->region_id[1]) {
-    state->n_of_particles_local[(ns+s)*nn+n]++;
-    state->injected_particles[ns+s]++;
-  } else {
-    state->n_of_particles_local[nn*s+n]++;
-    if (n==state->my_rank)  state->injected_particles[s]++;
-  }
+  state_update_injected_particle_count(state, part, 1);
 }
 void
 oh2_remove_injected_particle_(struct S_particle *part) {
@@ -877,8 +860,6 @@ static void
 oh2_remove_injected_particle_state(struct oh_state *state,
                                    struct S_particle *part) {
   const int pidx = state_particle_buffer_index(state, part);
-  const int ns=state->n_of_species, nn=state->n_of_nodes;
-  int s, n;
 
   if (pidx<state->total_parts ||
       pidx>=state->total_parts+state->n_of_injections)
@@ -887,21 +868,29 @@ oh2_remove_injected_particle_state(struct oh_state *state,
                   state->spec_base?'(':'[', pidx+state->spec_base,
                   state->spec_base?')':']');
 #ifndef OH_HAS_SPEC
-  if (!state->use_custom_particle_adapter && ns!=1)
+  if (!state->use_custom_particle_adapter && state->n_of_species!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
+  state_update_injected_particle_count(state, part, -1);
+  state_mark_particle_removed(state, part, 0);
+}
+static void
+state_update_injected_particle_count(struct oh_state *state,
+                                     struct S_particle *part, int delta) {
+  const int ns=state->n_of_species, nn=state->n_of_nodes;
+  int s, n;
+
   s = state_particle_species(state, part);
   n = state_particle_region(state, part, 0);
   if (n<0)  return;
   if (n==state->region_id[1]) {
-    state->n_of_particles_local[(ns+s)*nn+n]--;
-    state->injected_particles[ns+s]--;
+    state->n_of_particles_local[(ns+s)*nn+n] += delta;
+    state->injected_particles[ns+s] += delta;
   } else {
-    state->n_of_particles_local[nn*s+n]--;
-    if (n==state->my_rank)  state->injected_particles[s]--;
+    state->n_of_particles_local[nn*s+n] += delta;
+    if (n==state->my_rank)  state->injected_particles[s] += delta;
   }
-  state_mark_particle_removed(state, part, 0);
 }
 static OH_nid_t
 state_particle_region(struct oh_state *state, const struct S_particle *part,

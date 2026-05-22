@@ -72,6 +72,9 @@ check_absent 'collective wrappers still need to read from the context' \
 check_absent '->(nid|spec)\b' src/c/ohhelp2.c
 check_present 'OH_nid_t region' src/c/ohhelp2.c
 check_present 'state_mark_particle_removed' src/c/ohhelp2.c
+check_present 'state_update_injected_particle_count' src/c/ohhelp2.c
+check_present 'state_update_injected_particle_count\(\)' \
+  doc/design/v2-particle-contracts.md
 check_present 'type == MPI_DATATYPE_NULL' src/c/ohhelp2.c
 check_present 'oh_context_set_particle_mpi_type' include/oh_context.h
 check_present 'useCustomParticleAdapter = 0;' src/c/ohhelp2.c

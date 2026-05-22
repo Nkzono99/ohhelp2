@@ -405,8 +405,9 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
         ((Grid[OH_DIM_X].size + ext2) * (Grid[OH_DIM_Y].size + ext2) -
          Grid[OH_DIM_X].size * Grid[OH_DIM_Y].size);
     state->level4_boundary_send_buffer = BoundarySendBuf =
-        (struct S_particle*)mem_alloc(sizeof(struct S_particle), size,
-                                      "BoundarySendBuf");
+        (struct S_particle*)mem_alloc(
+            oh_particle_buffer_stride(state->particle_adapter), size,
+            "BoundarySendBuf");
     size = Grid[OH_DIM_X].size + ext2;
     if (size < Grid[OH_DIM_Y].size)  size = Grid[OH_DIM_Y].size;
     *cbufsize = 2 * maxdensity * Grid[OH_DIM_Z].size * size;
@@ -560,6 +561,7 @@ void oh4s_particle_buffer_(const int* maxlocalp, struct S_particle* pbuf) {
 }
 
 void oh4s_particle_buffer(const int maxlocalp, struct S_particle** pbuf) {
+    struct oh_state* state = oh4s_state();
 
     if (nOfLocalPLimitShadow < 0)
         errstop("oh4s_particle_buffer() has to be called after oh4s_init()");
@@ -568,13 +570,17 @@ void oh4s_particle_buffer(const int maxlocalp, struct S_particle** pbuf) {
                 "than that calculated by oh4s_init() %d",
                 maxlocalp, nOfLocalPLimitShadow);
     if (*pbuf)
-        Particles = *pbuf;
+        state->particles = Particles = *pbuf;
     else
-        Particles = *pbuf =
-        (struct S_particle*)mem_alloc(sizeof(struct S_particle),
-                                      maxlocalp << 1, "Particles");
-    SendBuf = Particles + maxlocalp;
-    nOfLocalPLimit = totalParts = maxlocalp;
+        state->particles = Particles = *pbuf =
+            (struct S_particle*)mem_alloc(
+                oh_particle_buffer_stride(state->particle_adapter),
+                maxlocalp << 1, "Particles");
+    state->send_buffer = SendBuf =
+        oh_particle_buffer_at(state->particle_adapter,
+                              state->particles, maxlocalp);
+    nOfLocalPLimit = state->n_of_local_particles_limit = maxlocalp;
+    totalParts = state->total_parts = maxlocalp;
 }
 
 void oh4s_per_grid_histogram_(int* pghgram, int* pgindex) {

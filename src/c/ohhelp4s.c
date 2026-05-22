@@ -75,8 +75,6 @@ static void upd_real_nbr(struct oh_state* state, const int root, const int psp,
                          const int pss, const int nbr, const int dosec,
                          struct S_node* node,
                          struct S_realneighbor rnbrptr[2], int* occur[2]);
-static void exchange_xfer_amount(const int trans, const int psnew,
-                                 const int nextmode);
 static void state_exchange_xfer_amount4s(struct oh_state* state,
                                          const int trans, const int psnew,
                                          const int nextmode);
@@ -109,8 +107,6 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
                                     const int psnew, const int stats);
 static void state_set_sendbuf_disps4s(struct oh_state* state,
                                       const int nextmode, const int trans);
-static void xfer_particles(const int trans, const int psnew,
-                           const int nextmode, struct S_particle* sbuf);
 static void state_xfer_particles4s(struct oh_state* state, const int trans,
                                    const int psnew, const int nextmode,
                                    struct S_particle* sbuf);
@@ -1447,10 +1443,6 @@ static void upd_real_nbr(struct oh_state* state, const int root, const int psp,
     }
 }
 
-static void exchange_xfer_amount(const int trans, const int psnew, const int nextmode) {
-    state_exchange_xfer_amount4s(oh4s_state(), trans, psnew, nextmode);
-}
-
 static void state_exchange_xfer_amount4s(struct oh_state* state,
                                          const int trans, const int psnew,
                                          const int nextmode) {
@@ -1992,11 +1984,6 @@ static void state_set_sendbuf_disps4s(struct oh_state* state,
             }
         }
     }
-}
-
-static void xfer_particles(const int trans, const int psnew, const int nextmode,
-                           struct S_particle* sbuf) {
-    state_xfer_particles4s(oh4s_state(), trans, psnew, nextmode, sbuf);
 }
 
 static void state_xfer_particles4s(struct oh_state* state, const int trans,

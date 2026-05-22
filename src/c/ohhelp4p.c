@@ -98,7 +98,6 @@ static void upd_real_nbr(struct oh_state* state, const int root, const int psp,
                          const int pss, const int nbr, const int dosec,
                          struct S_node* node,
                          struct S_realneighbor rnbrptr[2], int* occur[2]);
-static void exchange_xfer_amount(const int trans, const int psnew);
 static void state_exchange_xfer_amount4p(struct oh_state* state,
                                          const int trans, const int psnew);
 static void count_population(struct oh_state* state, const int nextmode,
@@ -123,8 +122,6 @@ static void move_and_sort_secondary(const int psold, const int psnew,
                                     const int trans, const int oldp,
                                     const int* nacc, const int stats);
 static void state_set_sendbuf_disps4p(struct oh_state* state, const int trans);
-static void xfer_particles(const int trans, const int psnew,
-                           struct S_particle* sbuf);
 static void state_xfer_particles4p(struct oh_state* state, const int trans,
                                    const int psnew, struct S_particle* sbuf);
 
@@ -1533,10 +1530,6 @@ static void upd_real_nbr(struct oh_state* state, const int root, const int psp,
     }
 }
 
-static void exchange_xfer_amount(const int trans, const int psnew) {
-    state_exchange_xfer_amount4p(oh4p_state(), trans, psnew);
-}
-
 static void state_exchange_xfer_amount4p(struct oh_state* state,
                                          const int trans, const int psnew) {
     struct S_realneighbor (*real_dst)[2] =
@@ -1998,10 +1991,6 @@ static void state_set_sendbuf_disps4p(struct oh_state* state, const int trans) {
             }
         }
     }
-}
-
-static void xfer_particles(const int trans, const int psnew, struct S_particle* sbuf) {
-    state_xfer_particles4p(oh4p_state(), trans, psnew, sbuf);
 }
 
 static void state_xfer_particles4p(struct oh_state* state, const int trans,

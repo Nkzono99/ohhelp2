@@ -276,6 +276,9 @@ The current code now has this first migration layer:
   now have state-backed helpers for communicator, requests/statuses,
   receive/send histograms, node/species counts, and real-neighbor routing
   tables.
+- Level-4p/4s no longer keep default-context wrappers for transfer-count
+  exchange or particle transfer; active callers invoke the `state_*` helpers
+  directly while the current `oh_state` is already in scope.
 - Level-4p/4s transfer-count exchange now also reads the Level-4 half-histogram
   MPI datatype through `oh_state`. Level-4p overflow splitting reads its
   threshold from the context mirror, and Level-4s interior-particle scratch

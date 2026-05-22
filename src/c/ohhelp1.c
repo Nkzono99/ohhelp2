@@ -304,7 +304,7 @@ errstop(char* format, ...) {
   va_list v;
   va_start(v, format);
 
-  if (myRank==0) {
+  if (oh1_state()->my_rank==0) {
     vfprintf(stderr, format, v);
     fprintf(stderr, "\n");
   }
@@ -1762,7 +1762,7 @@ oh1_verbose(char *message) {
 #define Vprint(FORMAT, RANKFORMAT) {\
   char buf[1024];\
   va_list v;\
-  sprintf(buf, RANKFORMAT, myRank);\
+  sprintf(buf, RANKFORMAT, oh1_state()->my_rank);\
   strcat(buf, FORMAT);\
   strcat(buf, "\n");\
   va_start(v, FORMAT);\
@@ -1789,9 +1789,10 @@ vprint(char* format, ...) {
 }
 void
 dprint(char* format, ...) {
+  int nodes = oh1_state()->n_of_nodes;
 
-  if (nOfNodes>=1000)     { Vprint(format, "#Debug[%04d] "); }
-  else if (nOfNodes>=100) { Vprint(format, "#Debug[%03d] "); }
-  else if (nOfNodes>=10)  { Vprint(format, "#Debug[%02d] "); }
+  if (nodes>=1000)     { Vprint(format, "#Debug[%04d] "); }
+  else if (nodes>=100) { Vprint(format, "#Debug[%03d] "); }
+  else if (nodes>=10)  { Vprint(format, "#Debug[%02d] "); }
   else                    { Vprint(format, "#Debug[%d] "); }
 }

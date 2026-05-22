@@ -88,6 +88,8 @@ The current code now has this first migration layer:
 - The public Level-1 accommodation-mode query now reads `oh_state.acc_mode`
   through the default context mirror instead of returning the global `accMode`
   directly.
+- Level-1 error/debug output now obtains rank and node-count values through the
+  default `oh_state` mirror instead of reading `myRank` / `nOfNodes` directly.
 - Level-4p initialization now sizes its particle/send-buffer storage with the
   active custom adapter stride when a custom particle layout is configured.
 - Level-4p grid sorting now copies particles into the send buffer through

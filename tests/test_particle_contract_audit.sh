@@ -158,6 +158,7 @@ check_present 'nid < 0' doc/design/v2-particle-contracts.md
 check_present 'nid == -2' doc/design/v2-particle-contracts.md
 check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts.md
 check_present 'packed-grid id operations' doc/design/v2-particle-contracts.md
+check_present 'level4_secondary_region_offset' src/c/ohhelp4_particle.h
 check_present 'default context layout' doc/design/v2-particle-contracts.md
 check_present 'primary_or_secondary' doc/design/v2-particle-contracts.md
 check_present 'specBase = 1' doc/design/v2-particle-contracts.md

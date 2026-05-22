@@ -200,6 +200,9 @@ When editing particle movement or mapping code, check for:
   `src/c/ohhelp4_particle.h`; Level-4p/4s call sites may keep compatibility
   macros, but the bit layout arithmetic should not be duplicated in those
   translation units.
+- The secondary-injected packed-id offset is centralized in
+  `level4_secondary_region_offset()` so primarize, secondarize, and injected
+  detection share one definition.
 - Level 4 implementation code must not directly read or write particle
   coordinates. Position access must pass through adapter offsets.
 - Level 4 particle-buffer allocation must use adapter stride, not

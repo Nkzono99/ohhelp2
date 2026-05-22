@@ -117,10 +117,14 @@ level4_neighbor_subdomain_id(struct oh_state* state, OH_nid_t region,
                                [(int)(region >> state->log_grid)];
 }
 
+static inline OH_nid_t
+level4_secondary_region_offset(struct oh_state* state) {
+    return ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << state->log_grid);
+}
+
 static inline int
 level4_primarize_particle(struct oh_state* state, struct S_particle* part) {
-    const OH_nid_t offset =
-        ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << state->log_grid);
+    const OH_nid_t offset = level4_secondary_region_offset(state);
     const OH_nid_t region = level4_particle_region(state, part, 1) - offset;
 
     level4_set_particle_region(state, part, region, 1);
@@ -130,8 +134,7 @@ level4_primarize_particle(struct oh_state* state, struct S_particle* part) {
 static inline void
 level4_primarize_particle_only(struct oh_state* state,
                                struct S_particle* part) {
-    const OH_nid_t offset =
-        ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << state->log_grid);
+    const OH_nid_t offset = level4_secondary_region_offset(state);
 
     level4_set_particle_region(
         state, part, level4_particle_region(state, part, 1) - offset, 1);
@@ -139,8 +142,7 @@ level4_primarize_particle_only(struct oh_state* state,
 
 static inline void
 level4_secondarize_particle(struct oh_state* state, struct S_particle* part) {
-    const OH_nid_t offset =
-        ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << state->log_grid);
+    const OH_nid_t offset = level4_secondary_region_offset(state);
 
     level4_set_particle_region(
         state, part, level4_particle_region(state, part, 1) + offset, 1);
@@ -148,8 +150,7 @@ level4_secondarize_particle(struct oh_state* state, struct S_particle* part) {
 
 static inline int
 level4_secondary_injected(struct oh_state* state, OH_nid_t region) {
-    return (int)((region >> state->log_grid) >=
-                 state->n_of_nodes + OH_NEIGHBORS);
+    return (int)(region >= level4_secondary_region_offset(state));
 }
 
 static inline int

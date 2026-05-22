@@ -92,12 +92,3 @@ void oh13_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
                 int *ftypes, int *cfields, int *ctypes, int *fsizes,
                 int *stats, int *repiter, int *verbose);
 int  oh3_transbound_(int *currmode, int *stats);
-
-/* Prototype for the function called from higher-level library code */
-void init3(int **sdid, int nspec, int maxfrac, int **nphgram, int **totalp,
-           int **rcounts, int **scounts, struct S_particle **pbuf, int **pbase,
-           int maxlocalp, struct S_mycommc *mycommc, struct S_mycommf *mycommf,
-           int **nbor, int *pcoord, int **sdoms, int *scoord, int nbound,
-           int *bcond, int **bounds, int *ftypes, int *cfields, int cfid,
-           int *ctypes, int **fsizes, int stats, int repiter, int verbose,
-           int skip2);

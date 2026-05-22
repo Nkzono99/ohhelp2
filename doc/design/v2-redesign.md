@@ -181,6 +181,10 @@ The current code now has this first migration layer:
 - Level-3 mutable implementation globals and field/subdomain helper structs are
   now declared from `src/c/ohhelp3_internal.h` instead of the public
   `include/ohhelp3.h`.
+- Level-3 implementation-entry prototypes used by Level-4 (`init3` and
+  related descriptor/mapping helpers) are declared from
+  `src/c/ohhelp3_internal.h`; `include/ohhelp3.h` now carries the simulator API
+  and Fortran-compatible entry points.
 - Level-3 particle-to-neighbor and particle-to-subdomain coordinate mapping now
   routes through state-backed internal helpers. The public C/Fortran-compatible
   wrappers still provide the old signatures, but the core mapping path reads

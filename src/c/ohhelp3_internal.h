@@ -72,6 +72,13 @@ struct S_borderexc {
 EXTERN struct S_borderexc (*BorderExc)[2][OH_DIMENSION][2];
                                                         /* [C][ps][D][l,u] */
 
+void init3(int **sdid, int nspec, int maxfrac, int **nphgram, int **totalp,
+           int **rcounts, int **scounts, struct S_particle **pbuf, int **pbase,
+           int maxlocalp, struct S_mycommc *mycommc, struct S_mycommf *mycommf,
+           int **nbor, int *pcoord, int **sdoms, int *scoord, int nbound,
+           int *bcond, int **bounds, int *ftypes, int *cfields, int cfid,
+           int *ctypes, int **fsizes, int stats, int repiter, int verbose,
+           int skip2);
 void set_field_descriptors(int (*ft)[OH_FTYPE_N], int sd[OH_DIMENSION][2],
                            int ps);
 void clear_border_exchange();

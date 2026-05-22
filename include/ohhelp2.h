@@ -26,6 +26,7 @@ void oh2_set_particle_mpi_type(MPI_Datatype type);
 /* Passing NULL resets particle movement to the default S_particle adapter. */
 void oh2_set_particle_adapter(const oh_particle_adapter *adapter);
 void oh2_inject_particle(void *part);
+void *oh2_inject_particle_get(void *part);
 void oh2_remap_injected_particle(void *part);
 void oh2_remove_injected_particle(void *part);
 void oh2_init(int **sdid, int nspec, int maxfrac, int **nphgram,

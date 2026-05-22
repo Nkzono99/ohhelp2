@@ -189,14 +189,20 @@ Level 2/3:
 
 ```c
 struct S_particle p = make_new_particle();
-oh_inject_particle(&p);
+struct S_particle *pinj = oh_inject_particle_get(&p);
 
-/* 既に injection 済みの粒子を移動した場合 */
-oh_remap_injected_particle(&p);
+/* injection 後に region を有効化または更新した場合 */
+set_particle_region(pinj, new_region);
+oh_remap_injected_particle(pinj);
 
 /* 削除する場合 */
-oh_remove_injected_particle(&p);
+oh_remove_injected_particle(pinj);
 ```
+
+`oh_remap_injected_particle()` と `oh_remove_injected_particle()` は、元の一時粒子
+ではなく、OhHelp の particle buffer 内にある injected particle のポインタを
+受け取ります。後から操作しない単純な注入では `oh_inject_particle(&p)` だけでも
+構いません。
 
 Level 4p/4s:
 

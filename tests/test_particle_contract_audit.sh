@@ -84,6 +84,8 @@ check_absent '\b(nidelement|subdomid|gridmask|loggrid)\b' include/ohhelp2.h
 check_absent '\b(init2|transbound2|exchange_primary_particles|move_to_sendbuf_primary|set_sendbuf_disps|exchange_particles)\s*\(' include/ohhelp2.h
 check_absent '^EXTERN ' include/ohhelp2.h
 check_present 'void oh2_inject_particle\(void \*part\)' include/ohhelp2.h
+check_present 'void \*oh2_inject_particle_get\(void \*part\)' include/ohhelp2.h
+check_present 'oh_inject_particle_get\(A1\)' include/ohhelp_c.h
 check_present 'int \*\*totalp, void \*\*pbuf' include/ohhelp2.h
 
 # Level 3 may touch S_particle.x/y/z only inside the default S_particle mapping
@@ -188,6 +190,7 @@ fi
 check_present 'nid < 0' doc/design/v2-particle-contracts.md
 check_present 'nid == -2' doc/design/v2-particle-contracts.md
 check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts.md
+check_present 'oh_inject_particle_get\(\)' doc/design/v2-particle-contracts.md
 check_present 'packed-grid id operations' doc/design/v2-particle-contracts.md
 check_present 'level4_secondary_region_offset' src/c/ohhelp4_particle.h
 check_present 'OH_LEVEL4_PARTICLE_REMOVED' src/c/ohhelp4_particle.h

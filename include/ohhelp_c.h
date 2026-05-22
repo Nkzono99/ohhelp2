@@ -59,6 +59,7 @@
 #if OH_LIB_LEVEL!=4
 #define oh_max_local_particles(A1,A2,A3) oh2_max_local_particles(A1,A2,A3)
 #define oh_inject_particle(A1)           oh2_inject_particle(A1)
+#define oh_inject_particle_get(A1)       oh2_inject_particle_get(A1)
 #define oh_remap_injected_particle(A1)   oh2_remap_injected_particle(A1)
 #define oh_remove_injected_particle(A1)  oh2_remove_injected_particle(A1)
 #endif

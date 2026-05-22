@@ -51,7 +51,7 @@ static void  receive_particles(struct oh_state *state,
 static void  send_particles(struct oh_state *state,
                             struct S_commlist *slist, int slsize,
                             int myregion, int parentregion, int *req);
-static void  oh2_inject_particle_state(struct oh_state *state,
+static void *oh2_inject_particle_state(struct oh_state *state,
                                        struct S_particle *part);
 static void  oh2_remap_injected_particle_state(struct oh_state *state,
                                                struct S_particle *part);
@@ -803,11 +803,16 @@ oh2_inject_particle_(struct S_particle *part) {
 }
 void
 oh2_inject_particle(void *part) {
-  oh2_inject_particle_state(oh1_state(), (struct S_particle*)part);
+  (void)oh2_inject_particle_state(oh1_state(), (struct S_particle*)part);
 }
-static void
+void *
+oh2_inject_particle_get(void *part) {
+  return oh2_inject_particle_state(oh1_state(), (struct S_particle*)part);
+}
+static void *
 oh2_inject_particle_state(struct oh_state *state, struct S_particle *part) {
   int inj = state->total_parts + state->n_of_injections++;
+  struct S_particle *copy;
   nOfInjections = state->n_of_injections;
 
 #ifndef OH_HAS_SPEC
@@ -817,10 +822,10 @@ oh2_inject_particle_state(struct oh_state *state, struct S_particle *part) {
 #endif
   if (inj>=state->n_of_local_particles_limit)
     local_errstop("injection causes local particle buffer overflow");
-  state_copy_particle(state, state_particle_at(state, state->particles, inj),
-                      part);
-  state_update_injected_particle_count(
-    state, state_particle_at(state, state->particles, inj), 1);
+  copy = state_particle_at(state, state->particles, inj);
+  state_copy_particle(state, copy, part);
+  state_update_injected_particle_count(state, copy, 1);
+  return copy;
 }
 void
 oh2_remap_injected_particle_(struct S_particle *part) {

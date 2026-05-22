@@ -310,6 +310,10 @@ region field が同じ役割を持ちます。
 - injected particle: `oh_inject_particle()` 後に既に OhHelp の injection count に
   入った粒子を消す場合は、`oh_remove_injected_particle()` を明示的に呼んでください。
   region を `-1` にするだけでは、injection count の減算が行われません。
+- C の Level 2/3 で、後から remap/remove する可能性がある injected particle は
+  `oh_inject_particle_get()` を使って、OhHelp の particle buffer 内にコピーされた
+  粒子ポインタを保持してください。`oh_remap_injected_particle()` と
+  `oh_remove_injected_particle()` は、その buffer 内ポインタを受け取ります。
 - `oh_remove_injected_particle()` は対象が injection buffer 内の粒子であることを
   検証し、count を減らした上で region を `-1` にします。
 

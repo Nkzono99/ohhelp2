@@ -388,6 +388,8 @@ their mirrored `oh_state` fields after allocation-time synchronization.
 The Level-4 particle-grid allocation macros now take species counts and grid
 descriptor dimensions from `oh_state`, and transfer-bound setup tests the
 state-owned `level4_pbuf_index` mirror before allocating the backing global.
+Level-4 initialization also clears `level4_pbuf_index` through the state mirror,
+and Level-4s installs the z histogram buffer mirror at allocation time.
 
 ## Weighted Balancing
 

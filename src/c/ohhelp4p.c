@@ -389,8 +389,8 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
                 "calculated by oh4p_max_local_particles() %d",
                 maxlocalp, nOfLocalPLimitShadow);
 
-    PbufIndex = NULL;
     struct oh_state* state = oh4p_state();
+    state->level4_pbuf_index = PbufIndex = NULL;
     struct S_grid* Grid = state->grid;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     me = state->my_rank;

@@ -378,14 +378,15 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     if (size < Grid[OH_DIM_Y].size)  size = Grid[OH_DIM_Y].size;
     *cbufsize = 2 * maxdensity * Grid[OH_DIM_Z].size * size;
 
-    PbufIndex = NULL;
+    state->level4_pbuf_index = PbufIndex = NULL;
     me = state->my_rank;
     set_grid_descriptor(state, 0, me);
     size = GridDesc[0].dw * GridDesc[0].h;
     Allocate_NOfPGrid(npgdummy, NOfPGrid, dint, size, "NOfPGrid");
     Allocate_NOfPGrid(npgtdummy, NOfPGridTotal, dint, size, "NOfPGridTotal");
-    NOfPGridZ = (dint*)mem_alloc(sizeof(dint), Grid[OH_DIM_Z].size,
-                                 "NOfPGridZ");
+    state->level4_particle_grid_z =
+        NOfPGridZ = (dint*)mem_alloc(sizeof(dint), Grid[OH_DIM_Z].size,
+                                     "NOfPGridZ");
 
     size = Coord_To_Index(Grid[OH_DIM_X].size - 1,
                           If_Dim(OH_DIM_Y, Grid[OH_DIM_Y].size - 1, 0),

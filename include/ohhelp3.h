@@ -86,6 +86,10 @@ EXTERN struct S_borderexc (*BorderExc)[2][OH_DIMENSION][2];
 
 /* Prototypes for the functions called from simulator code */
 void oh3_grid_size(double size[OH_DIMENSION]);
+void oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
+                                              size_t x_offset,
+                                              size_t y_offset,
+                                              size_t z_offset);
 void oh3_bcast_field(void *pfld, void *sfld, int ftype);
 void oh3_reduce_field(void *pfld, void *sfld, int ftype);
 void oh3_allreduce_field(void *pfld, void *sfld, int ftype);

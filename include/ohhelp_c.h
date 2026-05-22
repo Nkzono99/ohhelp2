@@ -98,7 +98,13 @@ int  oh2_transbound(int currmode, int stats);
 #define oh_reduce_field(A1,A2,A3)        oh3_reduce_field(A1,A2,A3)
 #define oh_allreduce_field(A1,A2,A3)     oh3_allreduce_field(A1,A2,A3)
 #define oh_exchange_borders(A1,A2,A3,A4) oh3_exchange_borders(A1,A2,A3,A4)
+#define oh_set_particle_position_fields(A1,A2,A3,A4) \
+        oh3_particle_adapter_use_position_fields(A1,A2,A3,A4)
 void oh3_grid_size(double size[OH_DIMENSION]);
+void oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
+                                              size_t x_offset,
+                                              size_t y_offset,
+                                              size_t z_offset);
 void oh3_bcast_field(void *pfld, void *sfld, int ftype);
 void oh3_reduce_field(void *pfld, void *sfld, int ftype);
 void oh3_allreduce_field(void *pfld, void *sfld, int ftype);

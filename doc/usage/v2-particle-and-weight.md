@@ -12,11 +12,18 @@ C API では `oh_particle_adapter` を使って、OhHelp が粒子をどう扱�
 typedef struct oh_particle_adapter {
     size_t stride;
     MPI_Datatype mpi_type;
-    int  (*get_region)(const void *particle, int primary_or_secondary);
-    void (*set_region)(void *particle, int region, int primary_or_secondary);
-    int  (*get_species)(const void *particle);
-    int  (*map_to_neighbor)(void *particle, int primary_or_secondary);
-    int  (*map_to_subdomain)(void *particle, int primary_or_secondary);
+    void *user_data;
+    int  (*get_region)(const oh_particle_adapter *adapter,
+                       const void *particle, int primary_or_secondary);
+    void (*set_region)(const oh_particle_adapter *adapter,
+                       void *particle, int region,
+                       int primary_or_secondary);
+    int  (*get_species)(const oh_particle_adapter *adapter,
+                        const void *particle);
+    int  (*map_to_neighbor)(const oh_particle_adapter *adapter,
+                            void *particle, int primary_or_secondary);
+    int  (*map_to_subdomain)(const oh_particle_adapter *adapter,
+                             void *particle, int primary_or_secondary);
 } oh_particle_adapter;
 ```
 
@@ -104,8 +111,48 @@ make_my_particle_mpi_type(void) {
 
 ## region/species callback の標準形
 
-粒子構造体に region と species field があるだけなら、手書き callback の代わりに
-`oh_particle_adapter.h` のマクロを使えます。
+粒子構造体に `int` の region と species field があるだけなら、callback を
+手書きせずに offset 指定の標準 accessor を使えます。
+
+```c
+#include <stddef.h>
+
+struct my_particle {
+    double x, y, z;
+    double vx, vy, vz;
+    int region;
+    int species;
+};
+
+oh_particle_adapter adapter;
+MPI_Datatype my_particle_mpi_type;
+
+oh_particle_adapter_make_byte_type(sizeof(struct my_particle),
+                                   &my_particle_mpi_type);
+
+adapter = oh_default_particle_adapter(my_particle_mpi_type);
+adapter.stride = sizeof(struct my_particle);
+oh_particle_adapter_use_int_fields(&adapter,
+                                   offsetof(struct my_particle, region),
+                                   offsetof(struct my_particle, species));
+oh_set_particle_position_fields(&adapter,
+                                offsetof(struct my_particle, x),
+                                offsetof(struct my_particle, y),
+                                offsetof(struct my_particle, z));
+
+oh_set_particle_adapter(&adapter);
+oh_init(...);
+```
+
+single-species の粒子配列なら、species field なしの helper を使えます。
+
+```c
+oh_particle_adapter_use_single_species_int_region(
+    &adapter, offsetof(struct my_particle, region));
+```
+
+region/species field が `int` ではない、あるいは座標や補助データを使って mapping
+したい場合は、`oh_particle_adapter.h` のマクロで型付き callback を生成できます。
 
 ```c
 struct my_particle {
@@ -126,8 +173,8 @@ MPI_Datatype my_particle_mpi_type;
 oh_particle_adapter_make_byte_type(sizeof(struct my_particle),
                                    &my_particle_mpi_type);
 
+adapter = oh_default_particle_adapter(my_particle_mpi_type);
 adapter.stride = sizeof(struct my_particle);
-adapter.mpi_type = my_particle_mpi_type;
 adapter.get_region = my_particle_get_region;
 adapter.set_region = my_particle_set_region;
 adapter.get_species = my_particle_get_species;
@@ -138,7 +185,7 @@ oh_set_particle_adapter(&adapter);
 oh_init(...);
 ```
 
-single-species の粒子配列なら、species field を持たない macro を使えます。
+single-species の型付き callback も macro で生成できます。
 
 ```c
 OH_DEFINE_PARTICLE_ADAPTER_SINGLE_SPECIES_ACCESSORS(my_particle,
@@ -148,9 +195,38 @@ OH_DEFINE_PARTICLE_ADAPTER_SINGLE_SPECIES_ACCESSORS(my_particle,
 
 `OH_DEFINE_PARTICLE_ADAPTER_REGION_MAPPING()` は、利用側が particle push 中に
 `region` field を destination region へ更新する設計向けの最小実装です。
-Level 3/4 で「粒子座標から OhHelp の subdomain を計算したい」場合は、
-座標と geometry を見て判定する `map_to_neighbor` / `map_to_subdomain` を
-利用側で実装してください。
+Level 3 では `oh_set_particle_position_fields()` を使うと、OhHelp が持つ
+subdomain geometry から標準の `map_to_neighbor` / `map_to_subdomain` を
+設定できます。この mapping は既存 `S_particle` の Level 3 mapping と同じく、
+周期境界を跨ぐ場合に粒子座標 field を wrap します。
+
+```c
+oh_set_particle_position_fields(&adapter,
+                                offsetof(struct my_particle, x),
+                                offsetof(struct my_particle, y),
+                                offsetof(struct my_particle, z));
+```
+
+Level 4p/4s は Level 4 専用の packed particle id と per-grid 管理を使うため、
+custom particle layout での mapping は引き続き移行中です。
+
+## `nid` と remove の扱い
+
+既存の `S_particle` では `nid` が region id と remove marker を兼ねます。
+default adapter は `nid` を region field として読み書きします。
+
+custom particle layout では、field 名は `nid` である必要はありません。
+`get_region` / `set_region`、または `oh_particle_adapter_use_int_fields()` で指定した
+region field が同じ役割を持ちます。
+
+- 通常粒子: region が負値、または Level 3/4 mapping が `-1` を返す粒子は、
+  次の transfer で送受信・保持対象から外れます。利用側は histogram/count も
+  同じ意味に合わせて更新してください。
+- injected particle: `oh_inject_particle()` 後に既に OhHelp の injection count に
+  入った粒子を消す場合は、`oh_remove_injected_particle()` を明示的に呼んでください。
+  region を `-1` にするだけでは、injection count の減算が行われません。
+- `oh_remove_injected_particle()` は対象が injection buffer 内の粒子であることを
+  検証し、count を減らした上で region を `-1` にします。
 
 注意点:
 

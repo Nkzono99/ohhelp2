@@ -24,9 +24,9 @@ main(int argc, char **argv) {
 
   particle.nid = 7;
   particle.spec = 3;
-  assert(adapter.get_region(&particle, 0) == 7);
-  assert(adapter.get_species(&particle) == 3);
-  adapter.set_region(&particle, 5, 0);
+  assert(adapter.get_region(&adapter, &particle, 0) == 7);
+  assert(adapter.get_species(&adapter, &particle) == 3);
+  adapter.set_region(&adapter, &particle, 5, 0);
   assert(particle.nid == 5);
 
   assert(oh_particle_adapter_make_byte_type(sizeof(struct S_particle)+8,

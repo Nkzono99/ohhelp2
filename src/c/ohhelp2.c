@@ -921,7 +921,8 @@ particle_region(const struct S_particle *part, int primary_or_secondary) {
 static int
 state_particle_region(struct oh_state *state, const struct S_particle *part,
                       int primary_or_secondary) {
-  return state->particle_adapter->get_region(part, primary_or_secondary);
+  return state->particle_adapter->get_region(state->particle_adapter, part,
+                                             primary_or_secondary);
 }
 static void
 set_particle_region(struct S_particle *part, int region,
@@ -931,7 +932,8 @@ set_particle_region(struct S_particle *part, int region,
 static void
 state_set_particle_region(struct oh_state *state, struct S_particle *part,
                           int region, int primary_or_secondary) {
-  state->particle_adapter->set_region(part, region, primary_or_secondary);
+  state->particle_adapter->set_region(state->particle_adapter, part, region,
+                                      primary_or_secondary);
 }
 static int
 particle_species(const struct S_particle *part) {
@@ -939,7 +941,8 @@ particle_species(const struct S_particle *part) {
 }
 static int
 state_particle_species(struct oh_state *state, const struct S_particle *part) {
-  int species = state->particle_adapter->get_species(part) - state->spec_base;
+  int species = state->particle_adapter->get_species(state->particle_adapter,
+                                                     part) - state->spec_base;
 
 #ifdef OH_HAS_SPEC
   return Particle_Spec(species);
@@ -958,7 +961,7 @@ state_particle_subdomain(struct oh_state *state, const struct S_particle *part,
 
   if (state->particle_adapter->map_to_subdomain)
     return state->particle_adapter->map_to_subdomain(
-      (void*)part, primary_or_secondary);
+      state->particle_adapter, (void*)part, primary_or_secondary);
   return Subdomain_Id(state_particle_region(state, part, primary_or_secondary),
                       primary_or_secondary);
 }
@@ -973,7 +976,8 @@ state_map_injected_particle_to_subdomain(struct oh_state *state,
   Decl_Grid_Info();
 
   if (state->particle_adapter->map_to_subdomain)
-    return state->particle_adapter->map_to_subdomain(part, 0);
+    return state->particle_adapter->map_to_subdomain(state->particle_adapter,
+                                                     part, 0);
   dst = Subdomain_Id(state_particle_region(state, part, 0), 0);
 #ifdef OH_POS_AWARE
   if (dst>=state->n_of_nodes)  Primarize_Id(part, dst);

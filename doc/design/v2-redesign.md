@@ -309,6 +309,10 @@ The fixed `struct S_particle` / `type oh_particle` model should be replaced by a
 particle adapter. The adapter should describe how OhHelp moves particles and how
 it reads or writes the fields needed by the selected library level.
 
+See [v2-particle-contracts.md](v2-particle-contracts.md) for the current audit of
+legacy particle-field semantics such as `nid`, `spec`, packed Level-4 ids, and
+negative-region removal.
+
 Minimum C-side shape:
 
 ```c
@@ -362,6 +366,12 @@ in datatype units.
 `oh_particle_adapter_make_byte_type()` now provides the standard helper for
 building a commit-ready byte MPI datatype whose extent matches the adapter
 stride, and the default `S_particle` datatype uses that same helper.
+Particle adapter callbacks now receive the adapter itself, which lets v2 expose
+standard offset-backed `int` region/species accessors instead of requiring every
+custom particle layout to hand-write boilerplate callbacks.
+Level-3 also exposes an offset-backed position-field mapping installer so custom
+particle layouts can reuse OhHelp's existing subdomain geometry for
+`map_to_neighbor` and `map_to_subdomain`.
 
 The stride-aware storage helpers live in `src/c/oh_particle_buffer.h` so
 Level-2 movement code can share one implementation for element addressing,
@@ -369,9 +379,9 @@ index validation, and byte-wise copies.
 
 Level-3 initialization now installs default `S_particle` coordinate mapping
 callbacks into the active default adapter after geometry setup. Custom adapters
-remain fully application-owned; if an application provides its own particle
-layout, it should also provide `map_to_neighbor` / `map_to_subdomain` callbacks
-when Level-3 particle remapping needs coordinate-aware behavior.
+can either provide their own `map_to_neighbor` / `map_to_subdomain` callbacks or
+call `oh3_particle_adapter_use_position_fields()` to reuse the Level-3 geometry
+mapper with application-owned particle layouts.
 
 Level-4 now includes local adapter-stride helpers for particle buffer
 addressing, index validation, and copies. The public Level-4 injection and

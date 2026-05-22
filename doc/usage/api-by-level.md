@@ -126,6 +126,12 @@ subdomain geometry、粒子の隣接領域 mapping、場データの境界交換
 #define OH_LIB_LEVEL 3
 #include "ohhelp_c.h"
 
+oh_set_particle_position_fields(&adapter,
+                                offsetof(struct my_particle, x),
+                                offsetof(struct my_particle, y),
+                                offsetof(struct my_particle, z));
+oh_set_particle_adapter(&adapter);
+
 oh_init(&sdid, nspec, maxfrac,
         nphgram, totalp,
         &pbuf, &pbase, maxlocalp,

@@ -44,9 +44,17 @@ static int  map_irregular(double p0, double p1, double p2, int dim, int from,
 static int  map_irregular_range(double p, int dim, int from, int to);
 static void install_default_level3_particle_maps(void);
 static int  default_level3_map_particle_to_neighbor(
-  void *particle, int primary_or_secondary);
+  const oh_particle_adapter *adapter, void *particle,
+  int primary_or_secondary);
 static int  default_level3_map_particle_to_subdomain(
-  void *particle, int primary_or_secondary);
+  const oh_particle_adapter *adapter, void *particle,
+  int primary_or_secondary);
+static int  offset_level3_map_particle_to_neighbor(
+  const oh_particle_adapter *adapter, void *particle,
+  int primary_or_secondary);
+static int  offset_level3_map_particle_to_subdomain(
+  const oh_particle_adapter *adapter, void *particle,
+  int primary_or_secondary);
 static int  state_map_particle_to_neighbor(struct oh_state *state, double *x,
                                            double *y, double *z, int ps);
 static int  state_map_particle_to_subdomain(struct oh_state *state, double x,
@@ -201,6 +209,25 @@ install_default_level3_particle_maps(void) {
   if (excludeLevel2 || useCustomParticleAdapter) return;
   ParticleAdapter.map_to_neighbor = default_level3_map_particle_to_neighbor;
   ParticleAdapter.map_to_subdomain = default_level3_map_particle_to_subdomain;
+}
+void
+oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
+                                         size_t x_offset, size_t y_offset,
+                                         size_t z_offset) {
+  if (!adapter) return;
+  adapter->position_offset[OH_DIM_X] = x_offset;
+#if OH_DIMENSION>=2
+  adapter->position_offset[OH_DIM_Y] = y_offset;
+#else
+  (void)y_offset;
+#endif
+#if OH_DIMENSION>=3
+  adapter->position_offset[OH_DIM_Z] = z_offset;
+#else
+  (void)z_offset;
+#endif
+  adapter->map_to_neighbor = offset_level3_map_particle_to_neighbor;
+  adapter->map_to_subdomain = offset_level3_map_particle_to_subdomain;
 }
 static void
 init_subdomain_actively(struct oh_state *state,
@@ -1019,10 +1046,12 @@ state_map_particle_to_subdomain(struct oh_state *state, double x, double y,
   return(sd);
 }
 static int
-default_level3_map_particle_to_neighbor(void *particle,
+default_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
+                                        void *particle,
                                         int primary_or_secondary) {
   struct S_particle *p = (struct S_particle*)particle;
 
+  (void)adapter;
 #if OH_DIMENSION==1
   return oh3_map_particle_to_neighbor(&p->x, primary_or_secondary);
 #elif OH_DIMENSION==2
@@ -1033,10 +1062,12 @@ default_level3_map_particle_to_neighbor(void *particle,
 #endif
 }
 static int
-default_level3_map_particle_to_subdomain(void *particle,
+default_level3_map_particle_to_subdomain(const oh_particle_adapter *adapter,
+                                         void *particle,
                                          int primary_or_secondary) {
   struct S_particle *p = (struct S_particle*)particle;
 
+  (void)adapter;
   (void)primary_or_secondary;
 #if OH_DIMENSION==1
   return oh3_map_particle_to_subdomain(p->x);
@@ -1044,6 +1075,48 @@ default_level3_map_particle_to_subdomain(void *particle,
   return oh3_map_particle_to_subdomain(p->x, p->y);
 #else
   return oh3_map_particle_to_subdomain(p->x, p->y, p->z);
+#endif
+}
+static double*
+adapter_position_field(const oh_particle_adapter *adapter, void *particle,
+                       int dim) {
+  return (double*)((char*)particle + adapter->position_offset[dim]);
+}
+static int
+offset_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
+                                       void *particle,
+                                       int primary_or_secondary) {
+  double *x = adapter_position_field(adapter, particle, OH_DIM_X);
+#if OH_DIMENSION==1
+  return state_map_particle_to_neighbor(oh1_state(), x, NULL, NULL,
+                                        primary_or_secondary);
+#elif OH_DIMENSION==2
+  double *y = adapter_position_field(adapter, particle, OH_DIM_Y);
+  return state_map_particle_to_neighbor(oh1_state(), x, y, NULL,
+                                        primary_or_secondary);
+#else
+  double *y = adapter_position_field(adapter, particle, OH_DIM_Y);
+  double *z = adapter_position_field(adapter, particle, OH_DIM_Z);
+  return state_map_particle_to_neighbor(oh1_state(), x, y, z,
+                                        primary_or_secondary);
+#endif
+}
+static int
+offset_level3_map_particle_to_subdomain(const oh_particle_adapter *adapter,
+                                        void *particle,
+                                        int primary_or_secondary) {
+  double *x = adapter_position_field(adapter, particle, OH_DIM_X);
+
+  (void)primary_or_secondary;
+#if OH_DIMENSION==1
+  return state_map_particle_to_subdomain(oh1_state(), *x, 0.0, 0.0);
+#elif OH_DIMENSION==2
+  double *y = adapter_position_field(adapter, particle, OH_DIM_Y);
+  return state_map_particle_to_subdomain(oh1_state(), *x, *y, 0.0);
+#else
+  double *y = adapter_position_field(adapter, particle, OH_DIM_Y);
+  double *z = adapter_position_field(adapter, particle, OH_DIM_Z);
+  return state_map_particle_to_subdomain(oh1_state(), *x, *y, *z);
 #endif
 }
 int

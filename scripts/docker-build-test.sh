@@ -44,6 +44,7 @@ mpicc -Iinclude tests/test_oh_particle_adapter.c src/c/oh_particle_adapter.c \
 mpirun -n 1 build/docker/test_oh_particle_adapter
 
 mpicc -Iinclude tests/test_oh_particle_adapter_callbacks.c \
+  src/c/oh_particle_adapter.c \
   -o build/docker/test_oh_particle_adapter_callbacks
 build/docker/test_oh_particle_adapter_callbacks
 

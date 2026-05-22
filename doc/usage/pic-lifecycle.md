@@ -46,22 +46,25 @@ Level 3 以上では、場データの境界交換 descriptor も `oh_init()` �
 ```c
 int currmode;
 int maxlocalp;
+void *raw_pbuf;
 
 MPI_Init(&argc, &argv);
 
 maxlocalp = oh_max_local_particles(npmax, maxfrac, minmargin);
 allocate_particle_buffer(&pbuf, maxlocalp);
+raw_pbuf = pbuf;
 allocate_histograms(&nphgram, nspec, node_count);
 allocate_total_counts(&totalp, nspec);
 
 oh_init(&sdid, nspec, maxfrac,
         nphgram, totalp,
-        &pbuf, &pbase, maxlocalp,
+        &raw_pbuf, &pbase, maxlocalp,
         &mycomm, &nbor, pcoord,
         sdoms, scoord,
         nbound, bcond, bounds,
         ftypes, cfields, ctypes, fsizes,
         stats, repiter, verbose);
+pbuf = raw_pbuf;
 
 allocate_fields_from_fsizes(fsizes, &field_primary, &field_secondary);
 initialize_particles(pbuf, nphgram);

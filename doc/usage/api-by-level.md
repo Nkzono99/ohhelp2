@@ -60,6 +60,10 @@ Level 1 では `oh_transbound()` の結果をもとに、実際の粒子 pack/se
 Level 2 は、OhHelp が粒子バッファを移動します。利用側は粒子の region id と
 species 情報が OhHelp から読めるようにします。
 
+C API で粒子バッファを OhHelp に渡すときは、`void *raw_pbuf` で受け渡しし、
+初期化後に利用側の粒子型へ戻します。これは custom particle layout でも
+`struct S_particle` でも同じです。
+
 向いているケース:
 
 - 粒子が 1 本の配列で管理されている。
@@ -71,6 +75,7 @@ species 情報が OhHelp から読めるようにします。
 ```c
 maxlocalp = oh_max_local_particles(npmax, maxfrac, minmargin);
 allocate_particle_buffer(&pbuf, maxlocalp);
+raw_pbuf = pbuf;
 ```
 
 v2 で独自粒子レイアウトを使う場合は、`oh_init()` より前に adapter を設定します。
@@ -94,9 +99,10 @@ MPI datatype 設定だけを default byte datatype に戻す場合は
 
 oh_init(&sdid, nspec, maxfrac,
         nphgram, totalp,
-        &pbuf, &pbase, maxlocalp,
+        &raw_pbuf, &pbase, maxlocalp,
         &mycomm, &nbor, pcoord,
         stats, repiter, verbose);
+pbuf = raw_pbuf;
 ```
 
 timestep 中:
@@ -140,12 +146,13 @@ oh_set_particle_adapter(&adapter);
 
 oh_init(&sdid, nspec, maxfrac,
         nphgram, totalp,
-        &pbuf, &pbase, maxlocalp,
+        &raw_pbuf, &pbase, maxlocalp,
         &mycomm, &nbor, pcoord,
         sdoms, scoord,
         nbound, bcond, bounds,
         ftypes, cfields, ctypes, fsizes,
         stats, repiter, verbose);
+pbuf = raw_pbuf;
 ```
 
 粒子 push 中:
@@ -197,18 +204,20 @@ Level 4p は、粒子位置を意識した per-grid 粒子管理を使う拡張�
 oh_set_particle_adapter(&adapter);  /* custom layout を使う場合 */
 maxlocalp = oh_max_local_particles(npmax, maxfrac, minmargin, hsthresh);
 allocate_particle_buffer(&pbuf, maxlocalp);
+raw_pbuf = pbuf;
 ```
 
 初期化:
 
 ```c
 oh_init(&sdid, nspec, maxfrac,
-        totalp, &pbuf, &pbase, maxlocalp,
+        totalp, &raw_pbuf, &pbase, maxlocalp,
         &mycomm, &nbor, pcoord,
         sdoms, scoord,
         nbound, bcond, bounds,
         ftypes, cfields, ctypes, fsizes,
         stats, repiter, verbose);
+pbuf = raw_pbuf;
 
 oh_per_grid_histogram(&pghgram);
 ```
@@ -260,7 +269,9 @@ oh_init(&sdid, nspec, maxfrac,
         stats, repiter, verbose);
 
 allocate_particle_buffer(&pbuf, maxlocalp);
-oh_particle_buffer(maxlocalp, &pbuf);
+raw_pbuf = pbuf;
+oh_particle_buffer(maxlocalp, &raw_pbuf);
+pbuf = raw_pbuf;
 
 oh_per_grid_histogram(&pghgram, &pgindex);
 ```

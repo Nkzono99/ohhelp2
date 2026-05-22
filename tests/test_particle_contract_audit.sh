@@ -87,6 +87,7 @@ check_present 'void oh2_inject_particle\(void \*part\)' include/ohhelp2.h
 check_present 'void \*oh2_inject_particle_get\(void \*part\)' include/ohhelp2.h
 check_present 'oh_inject_particle_get\(A1\)' include/ohhelp_c.h
 check_present 'oh_inject_particle_get' tests/test_ohhelp2_header.c
+check_present 'oh_inject_particle_get' tests/test_ohhelp_c_header.c
 check_present 'int \*\*totalp, void \*\*pbuf' include/ohhelp2.h
 
 # Level 3 may touch S_particle.x/y/z only inside the default S_particle mapping

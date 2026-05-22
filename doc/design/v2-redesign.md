@@ -62,6 +62,8 @@ The current code now has this first migration layer:
   adapter stride/copy helpers rather than raw `S_particle` assignment.
 - Level-4p primary move-and-sort now uses adapter-aware particle indexing and
   send-buffer copies for primary and injected particles.
+- Level-4p receive-buffer sorting now compares adapter-aware particle indices
+  and copies through adapter helpers instead of raw pointer walks.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

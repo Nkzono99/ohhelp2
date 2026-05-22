@@ -1873,8 +1873,7 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
 static void sort_received_particles(struct oh_state* state, const int nextmode,
                                     const int psnew, const int stats) {
     const int ns = state->n_of_species;
-    int ps, s;
-    struct S_particle* p = state->particles;
+    int ps, s, pidx = 0;
     struct S_particle** rbb = state->recv_buffer_bases + 1;
     Decl_Grid_Info();
 
@@ -1882,11 +1881,13 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
     for (ps = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, rbb++) {
             dint* npgt = state->level4_particle_grid_total[ps][s];
-            const struct S_particle* rbtail = *rbb;
-            for (; p < rbtail; p++)
-                state->send_buffer[
-                    npgt[Grid_Position(level4_particle_region(state, p, ps))]++] =
-                    *p;
+            const int rbtail = level4_particle_index(state, *rbb);
+            for (; pidx < rbtail; pidx++) {
+                struct S_particle* p = level4_particle_at(state, pidx);
+                const int g = Grid_Position(level4_particle_region(state, p, ps));
+                level4_copy_particle_to_buffer(state, state->send_buffer,
+                                               npgt[g]++, p);
+            }
         }
     }
 }

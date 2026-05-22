@@ -23,8 +23,6 @@ static int   count_real_stay_state(struct oh_state *state, int *np);
 static void  sched_comm_state(struct oh_state *state, int toget, int rid,
                               int tag, int reb,
                               struct S_commsched_context *context);
-static void  make_comm_count(int currmode, int level, int reb, int oldparent,
-                             int stats);
 static void  make_comm_count_state(struct oh_state *state, int currmode,
                                    int level, int reb, int oldparent,
                                    int stats);
@@ -34,7 +32,6 @@ static void  make_send_count_state(struct oh_state *state,
                                    struct S_commlist* slist, int slsize);
 static void  count_next_particles_state(struct oh_state *state,
                                         struct S_commlist* rlist, int rlsize);
-static void  set_total_particles_state(struct oh_state *state);
 struct S_heap_key {
   dint *particles;
   double *loads;
@@ -360,16 +357,6 @@ oh1_families(int **famindex, int **members) {
   FamIndex = fidx;  FamMembers = fmem;
 }
 void
-set_total_particles() {
-  struct oh_state *state = oh1_state();
-
-  set_total_particles_state(state);
-  TotalP = state->total_particles;
-  primaryParts = state->primary_parts;
-  totalParts = state->total_parts;
-  oh1_sync_default_state();
-}
-static void
 set_total_particles_state(struct oh_state *state) {
   int ns=state->n_of_species, nn=state->n_of_nodes, nnns=nn*ns;
   int cm=(Mode_PS(state->curr_mode))&&(state->region_id[1]>=0);
@@ -520,10 +507,6 @@ transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
   return(state->curr_mode);
 }
 int
-try_primary1(int currmode, int level, int stats) {
-  return try_primary1_state(oh1_state(), currmode, level, stats);
-}
-int
 try_primary1_state(struct oh_state *state, int currmode, int level, int stats) {
   int nn=state->n_of_nodes, ns=state->n_of_species, nnns=nn*ns;
   int me=state->my_rank, nlpmax=state->n_of_local_particles_max;
@@ -573,10 +556,6 @@ try_primary1_state(struct oh_state *state, int currmode, int level, int stats) {
   return(TRUE);
 }
 #define Special_Pexc_Sched(LEVEL) (LEVEL<0)
-int
-try_stable1(int currmode, int level, int stats) {
-  return try_stable1_state(oh1_state(), currmode, level, stats);
-}
 int
 try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
   int nn=state->n_of_nodes;
@@ -937,10 +916,6 @@ sched_comm_state(struct oh_state *state, int toget, int rid, int tag, int reb,
   context->spec = s;  context->dones = havedones;  context->donen = havedonen;
 }
 static void
-make_comm_count(int currmode, int level, int reb, int oldparent, int stats) {
-  make_comm_count_state(oh1_state(), currmode, level, reb, oldparent, stats);
-}
-static void
 make_comm_count_state(struct oh_state *state, int currmode, int level, int reb,
                       int oldparent, int stats) {
   int nn=state->n_of_nodes, ns=state->n_of_species, nnns=nn*ns;
@@ -1091,10 +1066,6 @@ oh1_broadcast_state(struct oh_state *state, void* pbuf, void* sbuf,
     if (mycomm->prime!=MPI_COMM_NULL && pcount)
       MPI_Bcast(pbuf, pcount, ptype, mycomm->rank, mycomm->prime);
   }
-}
-void
-rebalance1(int currmode, int level, int stats) {
-  rebalance1_state(oh1_state(), currmode, level, stats);
 }
 void
 rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
@@ -1248,10 +1219,6 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   schedule_particle_exchange_state(state, currmode==MODE_NORM_SEC ?
                                    1 : (currmode==MODE_NORM_PRI ? 2 : 3));
   build_new_comm_state(state, currmode, level, 1, stats);
-}
-void
-build_new_comm(int currmode, int level, int nbridx, int stats) {
-  build_new_comm_state(oh1_state(), currmode, level, nbridx, stats);
 }
 void
 build_new_comm_state(struct oh_state *state, int currmode, int level,

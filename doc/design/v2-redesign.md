@@ -132,6 +132,9 @@ The current code now has this first migration layer:
   helpers that read communicator state from `oh_state`.
 - Internal Level-1 paths that already have `oh_state` now call the state-backed
   broadcast helper directly instead of resynchronizing through the public wrapper.
+- Obsolete Level-1 default-context internal wrappers for total-count setup,
+  primary/stable checks, rebalance, and communicator rebuilding were removed;
+  internal callers use the `*_state()` entry points.
 - Level-1 schedule counters (`RLIndex`, `SLHeadTail`, `SecSLHeadTail`,
   `SecRLSize`) are now reachable through `oh_state` and used that way by the
   state-backed scheduling/count construction paths.

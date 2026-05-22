@@ -993,11 +993,16 @@ state_copy_particles(struct oh_state *state, struct S_particle *dst,
 }
 void
 oh2_set_total_particles_() {
-  set_total_particles();
+  oh2_set_total_particles();
 }
 void
 oh2_set_total_particles() {
-  set_total_particles();
+  struct oh_state *state = oh1_state();
+  set_total_particles_state(state);
+  TotalP = state->total_particles;
+  primaryParts = state->primary_parts;
+  totalParts = state->total_parts;
+  oh1_sync_default_state();
 }
 int
 oh2_max_local_particles_(dint *npmax, int *maxfrac, int *minmargin) {

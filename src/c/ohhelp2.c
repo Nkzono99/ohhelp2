@@ -127,13 +127,14 @@ oh2_set_particle_adapter(const oh_particle_adapter *adapter) {
 }
 void
 oh2_init(int **sdid, int nspec, int maxfrac, int **nphgram,
-         int **totalp, struct S_particle **pbuf, int **pbase, int maxlocalp,
+         int **totalp, void **pbuf, int **pbase, int maxlocalp,
          void *mycomm, int **nbor, int *pcoord,
          int stats, int repiter, int verbose) {
   specBase = 0;
   init2(sdid, nspec, maxfrac, nphgram, totalp,
-        pbuf, pbase, maxlocalp, (struct S_mycommc*)mycomm, NULL, nbor, pcoord,
-        stats, repiter, verbose);
+        (struct S_particle**)pbuf, pbase, maxlocalp,
+        (struct S_mycommc*)mycomm, NULL, nbor, pcoord, stats, repiter,
+        verbose);
 }
 void
 init2(int **sdid, int nspec, int maxfrac, int **nphgram,
@@ -809,8 +810,8 @@ oh2_inject_particle_(struct S_particle *part) {
   oh2_inject_particle(part);
 }
 void
-oh2_inject_particle(struct S_particle *part) {
-  oh2_inject_particle_state(oh1_state(), part);
+oh2_inject_particle(void *part) {
+  oh2_inject_particle_state(oh1_state(), (struct S_particle*)part);
 }
 static void
 oh2_inject_particle_state(struct oh_state *state, struct S_particle *part) {
@@ -843,8 +844,8 @@ oh2_remap_injected_particle_(struct S_particle *part) {
   oh2_remap_injected_particle(part);
 }
 void
-oh2_remap_injected_particle(struct S_particle *part) {
-  oh2_remap_injected_particle_state(oh1_state(), part);
+oh2_remap_injected_particle(void *part) {
+  oh2_remap_injected_particle_state(oh1_state(), (struct S_particle*)part);
 }
 static void
 oh2_remap_injected_particle_state(struct oh_state *state,
@@ -880,8 +881,8 @@ oh2_remove_injected_particle_(struct S_particle *part) {
   oh2_remove_injected_particle(part);
 }
 void
-oh2_remove_injected_particle(struct S_particle *part) {
-  oh2_remove_injected_particle_state(oh1_state(), part);
+oh2_remove_injected_particle(void *part) {
+  oh2_remove_injected_particle_state(oh1_state(), (struct S_particle*)part);
 }
 static void
 oh2_remove_injected_particle_state(struct oh_state *state,

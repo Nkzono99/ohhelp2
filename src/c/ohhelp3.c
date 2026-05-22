@@ -96,15 +96,16 @@ oh3_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
 }
 void
 oh3_init(int **sdid, int nspec, int maxfrac, int **nphgram,
-         int **totalp, struct S_particle **pbuf, int **pbase, int maxlocalp,
+         int **totalp, void **pbuf, int **pbase, int maxlocalp,
          void *mycomm, int **nbor, int *pcoord,
          int **sdoms, int *scoord, int nbound, int *bcond, int **bounds,
          int *ftypes, int *cfields, int *ctypes, int **fsizes,
          int stats, int repiter, int verbose) {
   specBase = 0;
-  init3(sdid, nspec, maxfrac, nphgram, totalp, NULL, NULL, pbuf, pbase,
-        maxlocalp, (struct S_mycommc*)mycomm, NULL, nbor, pcoord, sdoms,
-        scoord, nbound, bcond, bounds, ftypes, cfields, 0, ctypes, fsizes,
+  init3(sdid, nspec, maxfrac, nphgram, totalp, NULL, NULL,
+        (struct S_particle**)pbuf, pbase, maxlocalp,
+        (struct S_mycommc*)mycomm, NULL, nbor, pcoord, sdoms, scoord,
+        nbound, bcond, bounds, ftypes, cfields, 0, ctypes, fsizes,
         stats, repiter, verbose, 0);
 }
 void

@@ -62,6 +62,8 @@ check_absent '\b(Decl_Grid_Info|Subdomain_Id|Primarize_Id)\b' include/ohhelp2.h
 check_absent '\b(nidelement|subdomid|gridmask|loggrid)\b' include/ohhelp2.h
 check_absent '\b(init2|transbound2|exchange_primary_particles|move_to_sendbuf_primary|set_sendbuf_disps|exchange_particles)\s*\(' include/ohhelp2.h
 check_absent '^EXTERN ' include/ohhelp2.h
+check_present 'void oh2_inject_particle\(void \*part\)' include/ohhelp2.h
+check_present 'int \*\*totalp, void \*\*pbuf' include/ohhelp2.h
 
 # Level 3 may touch S_particle.x/y/z only inside the default S_particle mapping
 # adapter.  Custom layouts must use offset-based or callback adapters.
@@ -74,6 +76,7 @@ fi
 check_absent '->(nid|spec)\b' src/c/ohhelp3.c
 check_absent '^EXTERN ' include/ohhelp3.h
 check_absent '\b(init3|set_field_descriptors|clear_border_exchange|map_irregular_subdomain)\s*\(' include/ohhelp3.h
+check_present 'void \*\*pbuf' include/ohhelp3.h
 
 # Level 4 still has packed-id semantics, but implementation code must reach
 # them through local helpers so the representation can later move behind the
@@ -96,6 +99,10 @@ check_absent '\b(Grid_Position|Combine_Subdom_Pos|Primarize_Id_Only|Secondarize_
 check_absent '\b(ParticleAdapter|gridmask|loggrid)\b' \
   include/ohhelp4p.h include/ohhelp4s.h
 check_absent '^EXTERN ' include/ohhelp4p.h include/ohhelp4s.h
+check_present 'oh4p_map_particle_to_neighbor\(void\* part' include/ohhelp4p.h
+check_present 'oh4s_map_particle_to_neighbor\(void\* part' include/ohhelp4s.h
+check_present 'oh4s_particle_buffer\(const int maxlocalp, void\*\* pbuf\)' \
+  include/ohhelp4s.h
 check_absent '\b(try_primary1|try_stable1|rebalance1|build_new_comm|oh1_broadcast|move_to_sendbuf_primary|exchange_primary_particles|set_sendbuf_disps|exchange_particles)\s*\(' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_present 'try_primary1_state' src/c/ohhelp1_internal.h
@@ -131,6 +138,7 @@ check_present 'specBase = 1' doc/design/v2-particle-contracts.md
 check_present 'InjectedParticles' doc/design/v2-particle-contracts.md
 check_present 'OH_BIG_SPACE' doc/design/v2-particle-contracts.md
 check_present 'boundary plane thickness' doc/design/v2-particle-contracts.md
+check_present '粒子ポインタを `void \*`' doc/usage/v2-particle-and-weight.md
 check_present 'level4_secondary_injected' src/c/ohhelp4_particle.h
 
 if [ "$failures" -ne 0 ]; then

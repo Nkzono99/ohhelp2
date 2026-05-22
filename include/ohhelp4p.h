@@ -14,7 +14,7 @@
 
 /* Prototypes for the functions called from simulator code */
 void oh4p_init(int** sdid, const int nspec, const int maxfrac, int** totalp,
-    struct S_particle** pbuf, int** pbase, const int maxlocalp,
+    void** pbuf, int** pbase, const int maxlocalp,
     void* mycomm, int** nbor, int* pcoord, int** sdoms, int* scoord,
     const int nbound, int* bcond, int** bounds, int* ftypes,
     int* cfields, int* ctypes, int** fsizes,
@@ -23,16 +23,16 @@ int  oh4p_max_local_particles(const dint npmax, const int maxfrac,
     const int minmargin, const int hsthresh);
 void oh4p_per_grid_histogram(int** pghgram);
 int  oh4p_transbound(int currmode, int stats);
-int  oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps,
+int  oh4p_map_particle_to_neighbor(void* part, const int ps,
     const int s);
-int  oh4p_map_particle_to_subdomain(struct S_particle* part, const int ps,
+int  oh4p_map_particle_to_subdomain(void* part, const int ps,
     const int s);
-int  oh4p_inject_particle(const struct S_particle* part, const int ps);
-void oh4p_remove_mapped_particle(struct S_particle* part, const int ps,
+int  oh4p_inject_particle(const void* part, const int ps);
+void oh4p_remove_mapped_particle(void* part, const int ps,
     const int s);
-int  oh4p_remap_particle_to_neighbor(struct S_particle* part, const int ps,
+int  oh4p_remap_particle_to_neighbor(void* part, const int ps,
     const int s);
-int  oh4p_remap_particle_to_subdomain(struct S_particle* part, const int ps,
+int  oh4p_remap_particle_to_subdomain(void* part, const int ps,
     const int s);
 
 void oh4p_init_(int* sdid, const int* nspec, const int* maxfrac, int* totalp,

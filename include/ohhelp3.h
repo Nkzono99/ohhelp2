@@ -69,7 +69,7 @@ int  oh3_map_particle_to_subdomain_(double *x, double *y, double *z);
 #endif
 
 void oh3_init(int **sdid, int nspec, int maxfrac, int **nphgram, int **totalp,
-              struct S_particle **pbuf, int **pbase, int maxlocalp,
+              void **pbuf, int **pbase, int maxlocalp,
               void *mycomm, int **nbor, int *pcoord,
               int **sdoms, int *scoord, int nbound, int *bcond, int **bounds,
               int *ftypes, int *cfields, int *ctypes, int **fsizes,

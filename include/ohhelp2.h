@@ -25,11 +25,11 @@ int  oh2_max_local_particles(dint npmax, int maxfrac, int minmargin);
 void oh2_set_particle_mpi_type(MPI_Datatype type);
 /* Passing NULL resets particle movement to the default S_particle adapter. */
 void oh2_set_particle_adapter(const oh_particle_adapter *adapter);
-void oh2_inject_particle(struct S_particle *part);
-void oh2_remap_injected_particle(struct S_particle *part);
-void oh2_remove_injected_particle(struct S_particle *part);
+void oh2_inject_particle(void *part);
+void oh2_remap_injected_particle(void *part);
+void oh2_remove_injected_particle(void *part);
 void oh2_init(int **sdid, int nspec, int maxfrac, int **nphgram,
-              int **totalp, struct S_particle **pbuf, int **pbase,
+              int **totalp, void **pbuf, int **pbase,
               int maxlocalp, void *mycomm, int **nbor,
               int *pcoord, int stats, int repiter, int verbose);
 int  oh2_transbound(int currmode, int stats);

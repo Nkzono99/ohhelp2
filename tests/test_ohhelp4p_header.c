@@ -1,10 +1,16 @@
 #define OH_LIB_LEVEL_4P
 #include "ohhelp_c.h"
 
+struct my_particle {
+  double x, y, z;
+  long long region;
+  int species;
+};
+
 int
 main(void) {
   oh_particle_adapter *adapter = 0;
-  struct S_particle *particle = 0;
+  struct my_particle *particle = 0;
   int *histogram = 0;
 
   oh_set_particle_adapter(adapter);

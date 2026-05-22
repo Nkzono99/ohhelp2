@@ -469,11 +469,12 @@ rather than open-coded `S_particle` assignments. Storage is still
 adapter storage rather than the final opaque-particle implementation.
 
 Level-2 buffer allocation and internal element addressing now use
-`oh_particle_adapter.stride`. The public buffer type still names
-`struct S_particle`, but internal pointer arithmetic no longer assumes
-`sizeof(struct S_particle)`. Adapter validation also requires the MPI datatype
-extent to match the stride, because `MPI_Alltoallv` displacements are expressed
-in datatype units.
+`oh_particle_adapter.stride`. Public C initialization accepts the particle
+buffer as `void **`, while the implementation still stores it in
+`struct S_particle`-typed internal slots during the staged migration. Internal
+pointer arithmetic no longer assumes `sizeof(struct S_particle)`. Adapter
+validation also requires the MPI datatype extent to match the stride, because
+`MPI_Alltoallv` displacements are expressed in datatype units.
 `oh_particle_adapter_make_byte_type()` now provides the standard helper for
 building a commit-ready byte MPI datatype whose extent matches the adapter
 stride, and the default `S_particle` datatype uses that same helper.
@@ -524,6 +525,12 @@ uses adapter-aware push helpers, so both the copy and cursor advance honor the
 active particle stride.
 Level-4p also uses adapter-aware addressing when temporarily offsetting the
 primary send buffer for direct primary exchange.
+Public C particle APIs for Level 2 and Level 4 now accept `void *` particle
+pointers, and Level 2/3/4 C initialization accepts particle buffer output as
+`void **`. The Fortran-compatible underscore entry points keep the old
+`struct S_particle *` signatures for ABI continuity, but C users with custom
+particle structs no longer need to cast individual particle pointers when
+calling map, inject, remap, or remove functions.
 
 Level-4 now mirrors the POS-aware packed-grid id parameters (`gridMask` and
 `logGrid`) into `oh_state` as `grid_mask` and `log_grid`. The Level-4

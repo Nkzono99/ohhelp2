@@ -23,21 +23,21 @@ void oh4s_init(int** sdid, const int nspec, const int maxfrac,
     int* bcond, int** bounds, int* ftypes, int* cfields,
     int* ctypes, int** fsizes, int** zbound,
     const int stats, const int repiter, const int verbose);
-void oh4s_particle_buffer(const int maxlocalp, struct S_particle** pbuf);
+void oh4s_particle_buffer(const int maxlocalp, void** pbuf);
 void oh4s_per_grid_histogram(int** pghgram, int** pgindex);
 int  oh4s_transbound(int currmode, int stats);
 void oh4s_exchange_border_data(void* buf, void* sbuf, void* rbuf,
     MPI_Datatype type);
-int  oh4s_map_particle_to_neighbor(struct S_particle* part, const int ps,
+int  oh4s_map_particle_to_neighbor(void* part, const int ps,
     const int s);
-int  oh4s_map_particle_to_subdomain(struct S_particle* part, const int ps,
+int  oh4s_map_particle_to_subdomain(void* part, const int ps,
     const int s);
-int  oh4s_inject_particle(const struct S_particle* part, const int ps);
-void oh4s_remove_mapped_particle(struct S_particle* part, const int ps,
+int  oh4s_inject_particle(const void* part, const int ps);
+void oh4s_remove_mapped_particle(void* part, const int ps,
     const int s);
-int  oh4s_remap_particle_to_neighbor(struct S_particle* part, const int ps,
+int  oh4s_remap_particle_to_neighbor(void* part, const int ps,
     const int s);
-int  oh4s_remap_particle_to_subdomain(struct S_particle* part, const int ps,
+int  oh4s_remap_particle_to_subdomain(void* part, const int ps,
     const int s);
 
 void oh4s_init_(int* sdid, const int* nspec, const int* maxfrac,

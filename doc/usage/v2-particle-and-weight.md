@@ -54,6 +54,33 @@ oh_set_particle_adapter(&adapter);
 oh_init(...);
 ```
 
+C の公開 API は custom particle を前提に、粒子ポインタを `void *` として受けます。
+`oh_inject_particle()`, `oh_map_particle_to_neighbor()`,
+`oh_map_particle_to_subdomain()`, `oh_remove_mapped_particle()`,
+`oh_remap_particle_to_neighbor()`, `oh_remap_particle_to_subdomain()` には
+`struct my_particle *` をそのまま渡せます。`oh_init()` や
+`oh_particle_buffer()` のように OhHelp が粒子バッファを書き戻す API では、
+C の型規則上 `void *` 変数で受けてから利用側の型へ代入します。
+
+```c
+void *raw_particles = NULL;
+struct my_particle *particles;
+int *pbase;
+
+oh_init(..., &raw_particles, &pbase, maxlocalp, ...);
+particles = raw_particles;
+```
+
+Level 4s の `oh_particle_buffer()` も同じ形です。
+
+```c
+void *raw_particles = NULL;
+struct my_particle *particles;
+
+oh_particle_buffer(maxlocalp, &raw_particles);
+particles = raw_particles;
+```
+
 ## `mpi_type` の標準的な作り方
 
 `adapter.mpi_type` は、粒子 1 要素を MPI で送受信するための datatype です。

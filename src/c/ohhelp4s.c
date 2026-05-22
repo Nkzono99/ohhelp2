@@ -528,10 +528,11 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
 }
 
 void oh4s_particle_buffer_(const int* maxlocalp, struct S_particle* pbuf) {
-    oh4s_particle_buffer(*maxlocalp, &pbuf);
+    void* buffer = pbuf;
+    oh4s_particle_buffer(*maxlocalp, &buffer);
 }
 
-void oh4s_particle_buffer(const int maxlocalp, struct S_particle** pbuf) {
+void oh4s_particle_buffer(const int maxlocalp, void** pbuf) {
     struct oh_state* state = oh4s_state();
 
     if (nOfLocalPLimitShadow < 0)
@@ -541,12 +542,13 @@ void oh4s_particle_buffer(const int maxlocalp, struct S_particle** pbuf) {
                 "than that calculated by oh4s_init() %d",
                 maxlocalp, nOfLocalPLimitShadow);
     if (*pbuf)
-        state->particles = Particles = *pbuf;
+        state->particles = Particles = (struct S_particle*)*pbuf;
     else
-        state->particles = Particles = *pbuf =
+        state->particles = Particles =
             (struct S_particle*)mem_alloc(
                 oh_particle_buffer_stride(state->particle_adapter),
                 maxlocalp << 1, "Particles");
+    *pbuf = Particles;
     state->send_buffer = SendBuf =
         oh_particle_buffer_at(state->particle_adapter,
                               state->particles, maxlocalp);
@@ -2469,9 +2471,10 @@ int oh4s_map_particle_to_neighbor_(struct S_particle* part, const int* ps,
     return(oh4s_map_particle_to_neighbor(part, *ps, *s - 1));
 }
 
-int oh4s_map_particle_to_neighbor(struct S_particle* part, const int ps,
+int oh4s_map_particle_to_neighbor(void* particle, const int ps,
                                   const int s) {
     struct oh_state* state = oh4s_state();
+    struct S_particle* part = (struct S_particle*)particle;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
     const int inj = level4_particle_is_injected(state, part);
     struct S_grid* Grid = state->grid;
@@ -2599,9 +2602,10 @@ int oh4s_map_particle_to_subdomain_(struct S_particle* part, const int* ps,
     return(oh4s_map_particle_to_subdomain(part, *ps, *s - 1));
 }
 
-int oh4s_map_particle_to_subdomain(struct S_particle* part, const int ps,
+int oh4s_map_particle_to_subdomain(void* particle, const int ps,
                                    const int s) {
     struct oh_state* state = oh4s_state();
+    struct S_particle* part = (struct S_particle*)particle;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
     const int inj = level4_particle_is_injected(state, part);
     struct S_grid* Grid = state->grid;
@@ -2670,8 +2674,9 @@ int oh4s_inject_particle_(const struct S_particle* part, const int* ps) {
     return(oh4s_inject_particle(part, *ps));
 }
 
-int oh4s_inject_particle(const struct S_particle* part, const int ps) {
+int oh4s_inject_particle(const void* particle, const int ps) {
     struct oh_state* state = oh4s_state();
+    const struct S_particle* part = (const struct S_particle*)particle;
     const int ns = state->n_of_species;
     int inj = state->total_parts + state->n_of_injections++;
     struct S_particle* p = level4_particle_at(state, inj);
@@ -2699,9 +2704,10 @@ void oh4s_remove_mapped_particle_(struct S_particle* part, const int* ps,
                                   const int* s) {
     oh4s_remove_mapped_particle(part, *ps, *s - 1);
 }
-void oh4s_remove_mapped_particle(struct S_particle* part, const int ps,
+void oh4s_remove_mapped_particle(void* particle, const int ps,
                                  const int s) {
     struct oh_state* state = oh4s_state();
+    struct S_particle* part = (struct S_particle*)particle;
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     const int inj = level4_particle_is_injected(state, part);
     int sd, g, psreal = ps, mysd, t;
@@ -2730,7 +2736,7 @@ int oh4s_remap_particle_to_neighbor_(struct S_particle* part, const int* ps, con
     return(oh4s_remap_particle_to_neighbor(part, *ps, *s - 1));
 }
 
-int oh4s_remap_particle_to_neighbor(struct S_particle* part, const int ps, const int s) {
+int oh4s_remap_particle_to_neighbor(void* part, const int ps, const int s) {
     oh4s_remove_mapped_particle(part, ps, s);
     return(oh4s_map_particle_to_neighbor(part, ps, s));
 }
@@ -2739,7 +2745,7 @@ int oh4s_remap_particle_to_subdomain_(struct S_particle* part, const int* ps, co
     return(oh4s_remap_particle_to_subdomain(part, *ps, *s - 1));
 }
 
-int oh4s_remap_particle_to_subdomain(struct S_particle* part, const int ps, const int s) {
+int oh4s_remap_particle_to_subdomain(void* part, const int ps, const int s) {
     oh4s_remove_mapped_particle(part, ps, s);
     return(oh4s_map_particle_to_subdomain(part, ps, s));
 }

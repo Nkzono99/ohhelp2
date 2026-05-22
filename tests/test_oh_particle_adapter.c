@@ -21,6 +21,9 @@ main(int argc, char **argv) {
   adapter = oh_default_particle_adapter(particle_type);
   assert(oh_particle_adapter_validate(&adapter));
   assert(adapter.stride == sizeof(struct S_particle));
+  assert(adapter.position_offset[0] == offsetof(struct S_particle, x));
+  assert(adapter.position_offset[1] == offsetof(struct S_particle, y));
+  assert(adapter.position_offset[2] == offsetof(struct S_particle, z));
 
   particle.nid = 7;
   particle.spec = 3;

@@ -157,9 +157,9 @@ oh_default_particle_adapter(MPI_Datatype mpi_type) {
   adapter.user_data = 0;
   adapter.region_offset = 0;
   adapter.species_offset = 0;
-  adapter.position_offset[0] = 0;
-  adapter.position_offset[1] = 0;
-  adapter.position_offset[2] = 0;
+  adapter.position_offset[0] = offsetof(struct S_particle, x);
+  adapter.position_offset[1] = offsetof(struct S_particle, y);
+  adapter.position_offset[2] = offsetof(struct S_particle, z);
   adapter.single_species = 0;
   adapter.get_region = default_get_region;
   adapter.set_region = default_set_region;

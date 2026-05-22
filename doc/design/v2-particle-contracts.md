@@ -76,7 +76,6 @@ The remaining hidden contracts include:
 
 - direct reads/writes of `part->nid`,
 - direct reads of `part->spec`,
-- direct reads/writes of `part->x`, `part->y`, and `part->z`,
 - packed-grid id operations such as `Grid_Position()`,
   `Combine_Subdom_Pos()`, `Primarize_Id()`, `Secondarize_Id()`, and
   `Secondary_Injected()`,
@@ -90,8 +89,9 @@ though stride-aware storage and copy paths are being migrated.
 
 The public Level-4 injection/removal entry points now use the active particle
 adapter for species reads and for writing the negative removal marker. Packed
-Level-4 region reads still depend on the legacy `nid` representation until the
-packed-id contract is redesigned.
+Level-4 region and coordinate reads now pass through local helpers using the
+active particle adapter. Packed-id semantics still depend on the legacy `nid`
+encoding until the packed-id contract is redesigned.
 
 ## Migration Checklist
 
@@ -113,6 +113,8 @@ When editing particle movement or mapping code, check for:
 - Level 4 implementation code must not directly read or write `nid` or `spec`.
   Packed-id manipulation is still present, but it must pass through local helper
   functions/macros using the active particle adapter.
+- Level 4 implementation code must not directly read or write particle
+  coordinates. Position access must pass through adapter offsets.
 - New direct particle-field access must not spread outside the known migration
   files: `oh_particle_adapter.c`, `ohhelp3.c`, `ohhelp4p.c`, `ohhelp4s.c`, and
   the legacy POS-aware headers.

@@ -24,6 +24,9 @@ static int  level4_particle_is_injected(struct oh_state* state,
 static OH_nid_t level4_particle_region(struct oh_state* state,
                                        const struct S_particle* part,
                                        int primary_or_secondary);
+static double* level4_particle_position(struct oh_state* state,
+                                        struct S_particle* part,
+                                        int dim);
 static int  level4_particle_species(struct oh_state* state,
                                     const struct S_particle* part);
 static void level4_set_particle_region(struct oh_state* state,
@@ -212,6 +215,13 @@ level4_particle_region(struct oh_state* state, const struct S_particle* part,
                        int primary_or_secondary) {
     return (OH_nid_t)state->particle_adapter->get_region(
         state->particle_adapter, part, primary_or_secondary);
+}
+
+static double*
+level4_particle_position(struct oh_state* state, struct S_particle* part,
+                         int dim) {
+    return (double*)((char*)part +
+                    state->particle_adapter->position_offset[dim]);
 }
 
 static int
@@ -2521,6 +2531,7 @@ int oh4s_map_particle_to_neighbor(struct S_particle* part, const int ps,
     int x, y, z, w, d, dw, mysd;
     const int psnn = ps ? (s + ns) * nn : s * nn;
     int k = OH_NBR_SELF, idx = 0;
+    double *xpos, *ypos, *zpos;
     int gz, gy, gx;
     int sd;
     Decl_Grid_Info();
@@ -2529,13 +2540,16 @@ int oh4s_map_particle_to_neighbor(struct S_particle* part, const int ps,
     x = GridDesc[ps].x;  y = GridDesc[ps].y;  z = GridDesc[ps].z;
     w = GridDesc[ps].w;  d = GridDesc[ps].d;  dw = GridDesc[ps].dw;
     mysd = state->region_id[ps];
-    Do_Z(Map_Particle_To_Neighbor(part, part->z, OH_DIM_Z, mysd, k, 9, z, gz,
+    xpos = level4_particle_position(state, part, OH_DIM_X);
+    ypos = level4_particle_position(state, part, OH_DIM_Y);
+    zpos = level4_particle_position(state, part, OH_DIM_Z);
+    Do_Z(Map_Particle_To_Neighbor(part, *zpos, OH_DIM_Z, mysd, k, 9, z, gz,
                                   idx));
     Do_Z(idx *= d);
-    Do_Y(Map_Particle_To_Neighbor(part, part->y, OH_DIM_Y, mysd, k, 3, y, gy,
+    Do_Y(Map_Particle_To_Neighbor(part, *ypos, OH_DIM_Y, mysd, k, 3, y, gy,
                                   idx));
     Do_Y(idx *= w);
-    Map_Particle_To_Neighbor(part, part->x, OH_DIM_X, mysd, k, 1, x, gx, idx);
+    Map_Particle_To_Neighbor(part, *xpos, OH_DIM_X, mysd, k, 1, x, gx, idx);
 
     if (k == OH_NBR_SELF) {
         state->level4_particle_grid[ps][s][idx]++;
@@ -2649,6 +2663,7 @@ int oh4s_map_particle_to_subdomain(struct S_particle* part, const int ps,
     int w, dw, mysd;
     int sd;
     double x, y, z;
+    double *xpos, *ypos, *zpos;
     int px, py, pz;
     int gx, gy, gz;
     int lx, ly, lz;
@@ -2657,9 +2672,12 @@ int oh4s_map_particle_to_subdomain(struct S_particle* part, const int ps,
 
     check_particle_location4s(state, part, ps, s, inj);
     w = GridDesc[ps].w;  dw = GridDesc[ps].dw;  mysd = state->region_id[ps];
-    Map_To_Grid(part, part->x, x, OH_DIM_X, gx, lx);
-    Do_Y(Map_To_Grid(part, part->y, y, OH_DIM_Y, gy, ly));
-    Do_Z(Map_To_Grid(part, part->z, z, OH_DIM_Z, gz, lz));
+    xpos = level4_particle_position(state, part, OH_DIM_X);
+    ypos = level4_particle_position(state, part, OH_DIM_Y);
+    zpos = level4_particle_position(state, part, OH_DIM_Z);
+    Map_To_Grid(part, *xpos, x, OH_DIM_X, gx, lx);
+    Do_Y(Map_To_Grid(part, *ypos, y, OH_DIM_Y, gy, ly));
+    Do_Z(Map_To_Grid(part, *zpos, z, OH_DIM_Z, gz, lz));
     if (SubDomainDesc) {
         sd = map_irregular_subdomain(x, If_Dim(OH_DIM_Y, y, 0),
                                      If_Dim(OH_DIM_Z, z, 0));

@@ -127,6 +127,8 @@ check_present 'oh4s_particle_buffer\(const int maxlocalp, void\*\* pbuf\)' \
   include/ohhelp4s.h
 check_absent '\b(try_primary2|try_stable2|rebalance2|move_to_sendbuf_secondary)\s*\(' \
   src/c/ohhelp2.c
+check_absent '\b(move_to_sendbuf_primary|exchange_primary_particles|set_sendbuf_disps|exchange_particles)\s*\(' \
+  src/c/ohhelp2.c src/c/ohhelp2_internal.h
 check_absent '\b(set_field_descriptors|clear_border_exchange)\s*\(' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\b(try_primary1|try_stable1|rebalance1|build_new_comm|oh1_broadcast|move_to_sendbuf_primary|exchange_primary_particles|set_sendbuf_disps|exchange_particles)\s*\(' \

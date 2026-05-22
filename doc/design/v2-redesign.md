@@ -187,6 +187,8 @@ The current code now has this first migration layer:
   injection counters, and primary/secondary base updates.
 - Obsolete Level-2 default-context transition wrappers were removed after
   `transbound2_state()` became the sole internal transition path.
+- Obsolete Level-2 default-context particle exchange wrappers were removed
+  after Level-3/4 callers switched to `*_state()` entry points.
 - Level-2 initialization now separates particle-adapter selection, particle
   storage allocation, base-counter allocation, and communication work-buffer
   allocation, then synchronizes the default `oh_state` mirror explicitly.

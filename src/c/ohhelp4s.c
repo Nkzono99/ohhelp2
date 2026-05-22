@@ -11,38 +11,12 @@
 #include "ohhelp2.h"
 #include "ohhelp3.h"
 #include "oh_particle_buffer.h"
+#include "ohhelp4_particle.h"
 #undef  EXTERN
 #define EXTERN
 #include "ohhelp4s.h"
 
 static struct oh_state* oh4s_state(void);
-static struct S_particle* level4_particle_at(struct oh_state* state, int index);
-static int  level4_particle_index(struct oh_state* state,
-                                  const struct S_particle* part);
-static int  level4_particle_is_injected(struct oh_state* state,
-                                        const struct S_particle* part);
-static OH_nid_t level4_particle_region(struct oh_state* state,
-                                       const struct S_particle* part,
-                                       int primary_or_secondary);
-static double* level4_particle_position(struct oh_state* state,
-                                        struct S_particle* part,
-                                        int dim);
-static int  level4_particle_species(struct oh_state* state,
-                                    const struct S_particle* part);
-static void level4_set_particle_region(struct oh_state* state,
-                                       struct S_particle* part,
-                                       OH_nid_t region,
-                                       int primary_or_secondary);
-static void level4_copy_particle(struct oh_state* state,
-                                 struct S_particle* dst,
-                                 const struct S_particle* src);
-static void level4_push_particle(struct oh_state* state,
-                                 struct S_particle** cursor,
-                                 const struct S_particle* src);
-static void level4_copy_particle_to_buffer(struct oh_state* state,
-                                           struct S_particle* base,
-                                           int index,
-                                           const struct S_particle* src);
 static void init4s(int** sdid, const int nspec, const int maxfrac,
                    const dint npmax, const int minmargin, const int maxdensity,
                    int** totalp, int** pbase, int* maxlocalp, int* cbufsize,
@@ -190,73 +164,6 @@ oh4s_state(void) {
     state->level4_z_bound = &ZBound[0][0];
     state->level4_z_bound_shadow = ZBoundShadow ? &ZBoundShadow[0][0] : NULL;
     return state;
-}
-
-static struct S_particle*
-level4_particle_at(struct oh_state* state, int index) {
-    return oh_particle_buffer_at(state->particle_adapter,
-                                 state->particles, index);
-}
-
-static int
-level4_particle_index(struct oh_state* state, const struct S_particle* part) {
-    return oh_particle_buffer_index(state->particle_adapter,
-                                    state->particles, part);
-}
-
-static int
-level4_particle_is_injected(struct oh_state* state,
-                            const struct S_particle* part) {
-    return level4_particle_index(state, part) >= state->total_parts;
-}
-
-static OH_nid_t
-level4_particle_region(struct oh_state* state, const struct S_particle* part,
-                       int primary_or_secondary) {
-    return (OH_nid_t)state->particle_adapter->get_region(
-        state->particle_adapter, part, primary_or_secondary);
-}
-
-static double*
-level4_particle_position(struct oh_state* state, struct S_particle* part,
-                         int dim) {
-    return oh_particle_adapter_position(state->particle_adapter, part, dim);
-}
-
-static int
-level4_particle_species(struct oh_state* state, const struct S_particle* part) {
-    return Particle_Spec(
-        state->particle_adapter->get_species(state->particle_adapter, part) -
-        state->spec_base);
-}
-
-static void
-level4_set_particle_region(struct oh_state* state, struct S_particle* part,
-                           OH_nid_t region, int primary_or_secondary) {
-    state->particle_adapter->set_region(state->particle_adapter, part, region,
-                                        primary_or_secondary);
-}
-
-static void
-level4_copy_particle(struct oh_state* state, struct S_particle* dst,
-                     const struct S_particle* src) {
-    oh_particle_buffer_copy(state->particle_adapter, dst, src);
-}
-
-static void
-level4_push_particle(struct oh_state* state, struct S_particle** cursor,
-                     const struct S_particle* src) {
-    level4_copy_particle(state, *cursor, src);
-    *cursor = oh_particle_buffer_at(state->particle_adapter, *cursor, 1);
-}
-
-static void
-level4_copy_particle_to_buffer(struct oh_state* state, struct S_particle* base,
-                               int index, const struct S_particle* src) {
-    level4_copy_particle(state,
-                         oh_particle_buffer_at(state->particle_adapter,
-                                               base, index),
-                         src);
 }
 
 #ifdef OH_POS_AWARE

@@ -441,6 +441,10 @@ Level-4 now includes local adapter-stride helpers for particle buffer
 addressing, index validation, and copies. The public Level-4 injection and
 mapped-particle validation paths use those helpers instead of raw
 `struct S_particle` pointer arithmetic and assignments.
+Level-4p/4s share the adapter-aware particle addressing, copy, species,
+position, and region helpers through `src/c/ohhelp4_particle.h`, keeping the
+remaining packed-id migration boundary in one internal place instead of
+duplicating it across both Level-4 implementations.
 Level-4s particle storage allocation now uses the active adapter stride for the
 main particle/send-buffer pair and boundary-send staging buffer.
 Level-4s boundary-send staging now also copies into the boundary buffer through

@@ -395,7 +395,7 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
 
     struct oh_state* state = oh4p_state();
     state->level4_pbuf_index = PbufIndex = NULL;
-    struct S_grid* Grid = state->grid;
+    struct S_grid* grid = state->grid;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     me = state->my_rank;
     set_grid_descriptor(state, 0, me);
@@ -403,9 +403,9 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
     Allocate_NOfPGrid(npgdummy, NOfPGrid, dint, size, "NOfPGrid");
     Allocate_NOfPGrid(npgtdummy, NOfPGridTotal, dint, size, "NOfPGridTotal");
 
-    size = Coord_To_Index(Grid[OH_DIM_X].size - 1,
-                          If_Dim(OH_DIM_Y, Grid[OH_DIM_Y].size - 1, 0),
-                          If_Dim(OH_DIM_Z, Grid[OH_DIM_Z].size - 1, 0),
+    size = Coord_To_Index(grid[OH_DIM_X].size - 1,
+                          If_Dim(OH_DIM_Y, grid[OH_DIM_Y].size - 1, 0),
+                          If_Dim(OH_DIM_Z, grid[OH_DIM_Z].size - 1, 0),
                           GridDesc[0].w, GridDesc[0].dw);
     for (loggrid = 0; size; loggrid++, size >>= 1);
     idmax = (dint)(((nn + OH_NEIGHBORS) << 1) - 1) << loggrid;
@@ -1455,23 +1455,23 @@ static void set_grid_descriptor(struct oh_state* state, const int idx,
                                 const int nid) {
     const int exto2 = OH_PGRID_EXT << 2;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
-    struct S_grid* Grid = state->grid;
-    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
-    const int w = GridDesc[idx].w = Grid[OH_DIM_X].size + (exto2);
+    struct S_grid* grid = state->grid;
+    int (*subdomains)[OH_DIMENSION][2] = state->subdomains;
+    const int w = GridDesc[idx].w = grid[OH_DIM_X].size + (exto2);
     const int d = GridDesc[idx].d =
-        If_Dim(OH_DIM_Y, Grid[OH_DIM_Y].size + (exto2), 1);
+        If_Dim(OH_DIM_Y, grid[OH_DIM_Y].size + (exto2), 1);
 
-    GridDesc[idx].h = If_Dim(OH_DIM_Z, Grid[OH_DIM_Z].size + (exto2), 1);
+    GridDesc[idx].h = If_Dim(OH_DIM_Z, grid[OH_DIM_Z].size + (exto2), 1);
     GridDesc[idx].dw = d * w;
     if (nid >= 0) {
-        GridDesc[idx].x = SubDomains[nid][OH_DIM_X][OH_UPPER] -
-            SubDomains[nid][OH_DIM_X][OH_LOWER];
+        GridDesc[idx].x = subdomains[nid][OH_DIM_X][OH_UPPER] -
+            subdomains[nid][OH_DIM_X][OH_LOWER];
         GridDesc[idx].y = If_Dim(OH_DIM_Y,
-                                 SubDomains[nid][OH_DIM_Y][OH_UPPER] -
-                                 SubDomains[nid][OH_DIM_Y][OH_LOWER], 0);
+                                 subdomains[nid][OH_DIM_Y][OH_UPPER] -
+                                 subdomains[nid][OH_DIM_Y][OH_LOWER], 0);
         GridDesc[idx].z = If_Dim(OH_DIM_Z,
-                                 SubDomains[nid][OH_DIM_Z][OH_UPPER] -
-                                 SubDomains[nid][OH_DIM_Z][OH_LOWER], 0);
+                                 subdomains[nid][OH_DIM_Z][OH_UPPER] -
+                                 subdomains[nid][OH_DIM_Z][OH_LOWER], 0);
     } else {
         GridDesc[idx].x = GridDesc[idx].y = GridDesc[idx].z = -exto2;
         /* to ensure, e.g., x+2*(OH_PGRID_EXT)<=-2*(OH_PGRID_EXT) */

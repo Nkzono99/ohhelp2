@@ -336,6 +336,9 @@ The current code now has this first migration layer:
 - Level-4p/4s initialization sizing now binds grid geometry and Level-4 grid
   descriptors through `oh_state` after `init3()`, including per-grid histogram
   setup entry points.
+- Level-4p/4s initialization and grid-descriptor setup now read grid,
+  subdomain, and boundary tables through `oh_state` mirrors instead of binding
+  new local aliases to the legacy global tables.
 - Level-4p/4s transfer setup now consumes destination/source neighbor arrays
   through `oh_state`; the active Level-4 translation units no longer read the
   legacy `Neighbors`, `DstNeighbors`, or `SrcNeighbors` globals directly.

@@ -1,8 +1,13 @@
-# API by OhHelp Level
+# API by OhHelp Level (C)
+
+Language: C | [Fortran mirror](api-by-level-fortran.md)
 
 OhHelp の level は、利用側がどこまでを自前で行い、どこからを OhHelp に
 任せるかを決める境界です。利用側ドキュメントでは level ごとに章を分ける
 方が適切です。
+
+このページは C 版です。Fortran 版は同じ章立てで
+[API by OhHelp Level (Fortran)](api-by-level-fortran.md) に分けています。
 
 v2.0 では Level 1-3 を supported scope とします。Level 4p/4s は v2.x で
 対応を進める拡張であり、v2.0 の完了条件には含めません。
@@ -26,10 +31,8 @@ v2.0 では Level 1-3 を supported scope とします。Level 4p/4s は v2.x �
 ## Context API
 
 v2.0 では C の `oh_default_context()` で現在の default OhHelp instance を
-`oh_context *` として取得できます。Fortran では `ohhelp_v2` module の
-`oh_default_context()` が `type(oh_context_handle)` を返します。複数 context の
-独立運用は v2.x 以降の対象ですが、Level 1-3 の主要操作には
-context-facing wrapper を用意しています。
+`oh_context *` として取得できます。複数 context の独立運用は v2.x 以降の対象ですが、
+Level 1-3 の主要操作には context-facing wrapper を用意しています。
 
 代表例:
 
@@ -51,21 +54,6 @@ Level 1 の collective は `oh_context_broadcast()` /
 `oh_context_remove_injected_particle()` から同じ default context state を使えます。
 Level 3 の座標 mapping は `oh_context_map_particle_to_neighbor()` と
 `oh_context_map_particle_to_subdomain()` から使えます。
-
-Fortran 例:
-
-```fortran
-use iso_c_binding
-use ohhelp_v2
-
-type(oh_context_handle) :: ctx
-real(c_double), target :: weights(nregions)
-integer(c_int) :: currmode
-
-ctx = oh_default_context()
-call oh_context_set_region_weights(ctx, weights)
-currmode = oh_context_transbound3(ctx, currmode, 0_c_int)
-```
 
 ## Level 1: スケジュールだけを使う
 
@@ -110,8 +98,6 @@ species 情報が OhHelp から読めるようにします。
 C API で粒子バッファを OhHelp に渡すときは、`void *raw_pbuf` で受け渡しし、
 初期化後に利用側の粒子型へ戻します。これは custom particle layout でも
 `struct S_particle` でも同じです。
-Fortran の従来 API では `type(oh_particle)` の配列を渡します。custom particle
-layout を使う場合は `ohhelp_v2` の opaque adapter handle を設定します。
 
 向いているケース:
 
@@ -198,15 +184,6 @@ oh_remove_injected_particle(pinj);
 `oh_remove_injected_particle()` で一度 count を取り消した injected particle を、
 現在の region/species で再計上する API です。
 
-Fortran には C の `oh_inject_particle_get()` 相当の pointer-return helper は
-ありません。`pbuf` の injection 領域にコピーされた `type(oh_particle)` 要素を
-後続の `oh_remap_injected_particle()` /
-`oh_remove_injected_particle()` に渡します。
-
-`ohhelp_v2` の context API を使う場合は、C と同じく
-`oh_context_inject_particle_get()` が `type(c_ptr)` を返します。custom particle
-layout の injected copy を後で remap/remove する場合は、この pointer を保持します。
-
 ## Level 3: 場データと空間 mapping も任せる
 
 Level 3 は、PIC コードで最も標準的な選択です。Level 2 の粒子転送に加えて、
@@ -279,45 +256,6 @@ oh_exchange_borders(j_primary, j_secondary, field_type_current, currmode);
 custom particle layout で Level 3 を使う最小の C 側セットアップ例は
 `sample/level3_custom_particle.c` にあります。このサンプルは Docker 検証で
 compile-check されます。
-
-Fortran の Level 3 利用例は `sample/sample.F90` にあり、default
-`type(oh_particle)` layout、`oh_map_particle_to_neighbor()`、field collective、
-border exchange の compile coverage に含めています。
-
-Fortran custom particle layout の最小セットアップは次の形です。
-
-```fortran
-use iso_c_binding
-use ohhelp_v2
-
-type, bind(C) :: pic_particle
-  real(c_double) :: x, y, z
-  real(c_double) :: vx, vy, vz
-  integer(c_int) :: region
-  integer(c_int) :: species
-end type
-
-type(pic_particle), target :: sample
-type(oh_context_handle) :: ctx
-type(oh_particle_adapter_handle) :: adapter
-integer(c_size_t) :: region_offset, species_offset
-integer(c_size_t) :: x_offset, y_offset, z_offset
-integer(c_int) :: ierr
-
-ctx = oh_default_context()
-call oh_particle_adapter_create_byte(adapter, c_sizeof(sample), ierr)
-
-region_offset = oh_particle_field_offset(c_loc(sample), c_loc(sample%region))
-species_offset = oh_particle_field_offset(c_loc(sample), c_loc(sample%species))
-x_offset = oh_particle_field_offset(c_loc(sample), c_loc(sample%x))
-y_offset = oh_particle_field_offset(c_loc(sample), c_loc(sample%y))
-z_offset = oh_particle_field_offset(c_loc(sample), c_loc(sample%z))
-
-call oh_particle_adapter_use_int_fields(adapter, region_offset, species_offset)
-call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
-                                                    y_offset, z_offset)
-call oh_context_set_particle_adapter(ctx, adapter)
-```
 
 ## Level 4p: position-aware particle management
 

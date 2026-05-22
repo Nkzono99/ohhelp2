@@ -115,7 +115,8 @@ check_present '#define oh_init[[:space:]]+oh3_init' include/ohhelp_f.h
 check_present 'oh1_set_region_weights' src/fortran/oh_mod1.F90
 check_present 'real\*8,intent\(in\) :: weights\(\*\)' src/fortran/oh_mod1.F90
 check_present 'oh_context_set_region_weights' include/oh_context.h
-check_present 'Fortran.*1\.0d0' doc/usage/v2-particle-and-weight.md
+check_present '1\.0_c_double' \
+  doc/usage/v2-particle-and-weight-fortran.md
 check_present 'oh_inject_particle_get' tests/test_ohhelp2_header.c
 check_present 'oh_inject_particle_get' tests/test_ohhelp_c_header.c
 check_present 'oh_set_region_weights' tests/test_ohhelp2_header.c
@@ -138,16 +139,31 @@ check_present 'EPSILON=1\.0d0,MU=1\.0d0' sample/sample.F90
 check_present 'particle adapter handles' README.md
 check_present 'Fortran からも Level 1-3 は利用対象' doc/usage/README.md
 check_present 'ohhelp_v2` module' doc/usage/README.md
-check_present 'Fortran では `ohhelp_v2` module' \
-  doc/usage/api-by-level.md
-check_present 'Fortran の Level 3 利用例は `sample/sample.F90`' \
-  doc/usage/api-by-level.md
+check_present 'pic-lifecycle-fortran\.md' doc/usage/README.md
+check_present 'api-by-level-fortran\.md' doc/usage/README.md
+check_present 'v2-particle-and-weight-fortran\.md' doc/usage/README.md
+check_present 'Fortran mirror' doc/usage/pic-lifecycle.md
+check_present 'C mirror' doc/usage/pic-lifecycle-fortran.md
+check_present 'Fortran mirror' doc/usage/api-by-level.md
+check_present 'C mirror' doc/usage/api-by-level-fortran.md
+check_present 'Fortran mirror' doc/usage/v2-particle-and-weight.md
+check_present 'C mirror' doc/usage/v2-particle-and-weight-fortran.md
+check_present 'Fortran では `ohhelp_v2` の opaque handle' \
+  doc/usage/api-by-level-fortran.md
+check_present 'sample/sample\.F90' \
+  doc/usage/README.md
+check_present 'oh_particle_adapter_create_byte' \
+  doc/usage/api-by-level-fortran.md
+check_present 'oh_context_inject_particle_get' \
+  doc/usage/pic-lifecycle-fortran.md
+check_present 'callback adapter' \
+  doc/usage/v2-particle-and-weight-fortran.md
 check_present 'oh_particle_adapter_use_level3_position_fields' \
-  doc/usage/api-by-level.md
+  doc/usage/api-by-level-fortran.md
 check_present 'oh_particle_adapter_set_callbacks' \
-  doc/usage/v2-particle-and-weight.md
+  doc/usage/v2-particle-and-weight-fortran.md
 check_present 'oh_context_inject_particle_get\(\)` が' \
-  doc/usage/v2-particle-and-weight.md
+  doc/usage/v2-particle-and-weight-fortran.md
 check_present 'module ohhelp_v2' src/fortran/oh_v2.F90
 check_present 'type :: oh_context_handle' src/fortran/oh_v2.F90
 check_present 'type :: oh_particle_adapter_handle' src/fortran/oh_v2.F90
@@ -286,7 +302,7 @@ check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts
 check_present 'oh_inject_particle_get\(\)' doc/design/v2-particle-contracts.md
 check_present 'C 専用の helper' doc/usage/pic-lifecycle.md
 check_present 'Fortran には pointer-return helper はなく' \
-  doc/usage/v2-particle-and-weight.md
+  doc/usage/v2-particle-and-weight-fortran.md
 check_present 'remap_injected_particle\(\)` is additive' \
   doc/design/v2-particle-contracts.md
 check_present '二重計上' doc/usage/v2-particle-and-weight.md

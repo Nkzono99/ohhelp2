@@ -7,14 +7,28 @@
 
 ## 読む順番
 
-1. [PIC integration lifecycle](pic-lifecycle.md)
+1. PIC integration lifecycle
+   - [C](pic-lifecycle.md)
+   - [Fortran](pic-lifecycle-fortran.md)
    - PIC の初期化、粒子 push、電流 scatter、場の solve、負荷分散を
      どの順番で呼ぶかを説明します。
-2. [API by OhHelp level](api-by-level.md)
+2. API by OhHelp level
+   - [C](api-by-level.md)
+   - [Fortran](api-by-level-fortran.md)
    - `OH_LIB_LEVEL` ごとの API と、どの level を選ぶべきかを説明します。
-3. [v2 particle layout and weighted load](v2-particle-and-weight.md)
+3. v2 particle layout and weighted load
+   - [C](v2-particle-and-weight.md)
+   - [Fortran](v2-particle-and-weight-fortran.md)
    - v2 で追加・整備中の particle adapter と region weight の使い方を
      説明します。
+
+## C / Fortran mirror 構成
+
+usage guide は C 版と Fortran 版を別ページとして mirror します。各ページの
+冒頭に相互リンクを置き、章立てと概念の順番はできるだけ揃えます。C 版は
+`ohhelp_c.h`、`oh_context *`、`oh_particle_adapter` を直接使う例を載せます。
+Fortran 版は `ohhelp_f.h` / `ohhelp1` / `ohhelp2` / `ohhelp3` と、
+v2 の `ohhelp_v2` opaque handle API を使う例を載せます。
 
 ## v2.0 の対象範囲
 

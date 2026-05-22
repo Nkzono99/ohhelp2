@@ -1,8 +1,10 @@
-# PIC Integration Lifecycle
+# PIC Integration Lifecycle (C)
+
+Language: C | [Fortran mirror](pic-lifecycle-fortran.md)
 
 この文書では、PIC コードに OhHelp を組み込むときの典型的な呼び出し順を
-説明します。例は C 風の擬似コードですが、Fortran でも同じ順序です。
-C だけにある helper は、その場で明記します。
+説明します。このページは C 版です。Fortran 版は同じ章立てで
+[PIC Integration Lifecycle (Fortran)](pic-lifecycle-fortran.md) に分けています。
 
 ## 1. ビルド時に level と次元を選ぶ
 

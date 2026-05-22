@@ -1,0 +1,200 @@
+# API by OhHelp Level (Fortran)
+
+Language: [C mirror](api-by-level.md) | Fortran
+
+OhHelp の level は、利用側がどこまでを自前で行い、どこからを OhHelp に
+任せるかを決める境界です。このページは Fortran 版です。
+
+v2.0 では Level 1-3 を supported scope とします。Level 4p/4s は v2.x で
+対応を進める拡張であり、v2.0 の完了条件には含めません。
+
+## 共通 API
+
+Fortran では `ohhelp_f.h` の `oh_*` alias と `ohhelp1` / `ohhelp2` /
+`ohhelp3` module を使います。v2 context/adapter API は `ohhelp_v2` module です。
+
+| API | 呼ぶ段階 | 目的 |
+| --- | --- | --- |
+| `oh_init()` | 初期化 | OhHelp の領域分割、通信、統計、内部配列を初期化する。 |
+| `oh_transbound(currmode, stats)` | timestep 中の粒子 push 後 | 粒子移動、負荷分散、primary/secondary 遷移を実行する。 |
+| `oh_neighbors()` | 初期化後 | 隣接領域情報を取得する。 |
+| `oh_families()` | 初期化後 | helpand/helper family 情報を取得する。 |
+| `oh_accom_mode()` | 必要時 | 現在の accommodation mode を取得する。 |
+| `oh_broadcast()` | primary/secondary 同期 | family 内で primary 側データを secondary 側へ配る。 |
+| `oh_all_reduce()` / `oh_reduce()` | primary/secondary 同期 | secondary 側の寄与を集約する。 |
+| `oh_set_region_weights()` | `oh_init()` 後 | region ごとの計算コスト重みを設定する。 |
+
+## Context API
+
+Fortran では `ohhelp_v2` の opaque handle を使います。現時点では default context
+に対する facade です。
+
+```fortran
+use iso_c_binding
+use ohhelp_v2
+
+type(oh_context_handle) :: ctx
+real(c_double), target :: weights(nregions)
+integer(c_int) :: currmode
+
+ctx = oh_default_context()
+call oh_context_set_region_weights(ctx, weights)
+currmode = oh_context_transbound3(ctx, currmode, 0_c_int)
+```
+
+Level 1 collective、Level 2 injection、Level 3 mapping/field exchange も
+`oh_context_*` から呼べます。field や particle を渡す API では `c_loc()` で
+`type(c_ptr)` を渡します。
+
+## Level 1: スケジュールだけを使う
+
+Level 1 は、粒子データを OhHelp に渡しません。利用側が粒子転送を実装し、
+OhHelp から負荷分散に必要な通信・領域情報を得ます。
+
+```fortran
+#define OH_LIB_LEVEL 1
+#include "ohhelp_f.h"
+module sim_l1
+  use ohhelp1
+  implicit none
+end module
+```
+
+初期化:
+
+```fortran
+call oh_init(sdid, nspec, maxfrac, nphgram, totalp, &
+             rcounts, scounts, mycomm, nbor, pcoord, &
+             stats, repiter, verbose)
+```
+
+timestep 中:
+
+```fortran
+call update_particle_histogram_by_user_code(nphgram)
+currmode = oh_transbound(currmode, stats)
+call exchange_particles_by_user_code(rcounts, scounts, mycomm)
+```
+
+## Level 2: 粒子バッファ転送まで任せる
+
+Level 2 は、OhHelp が粒子バッファを移動します。従来 Fortran API では
+`type(oh_particle)` 配列を渡します。
+
+```fortran
+#define OH_LIB_LEVEL 2
+#include "ohhelp_f.h"
+module sim_l2
+  use ohhelp2
+  implicit none
+end module
+```
+
+初期化:
+
+```fortran
+maxlocalp = oh_max_local_particles(npmax, maxfrac, minmargin)
+allocate(pbuf(maxlocalp))
+
+call oh_init(sdid, nspec, maxfrac, nphgram, totalp, &
+             pbuf, pbase, maxlocalp, mycomm, nbor, pcoord, &
+             stats, repiter, verbose)
+```
+
+custom particle layout を使う場合は `ohhelp_v2` の adapter handle を使います。
+
+```fortran
+type(oh_context_handle) :: ctx
+type(oh_particle_adapter_handle) :: adapter
+integer(c_int) :: ierr
+
+ctx = oh_default_context()
+call oh_particle_adapter_create_byte(adapter, c_sizeof(sample_particle), ierr)
+call oh_particle_adapter_use_int_fields(adapter, region_offset, species_offset)
+call oh_context_set_particle_adapter(ctx, adapter)
+```
+
+injection/removal:
+
+```fortran
+type(oh_particle) :: part
+
+part%nid = -1
+call oh_inject_particle(part)
+call oh_remap_injected_particle(pbuf(injected_index))
+call oh_remove_injected_particle(pbuf(injected_index))
+```
+
+`ohhelp_v2` の context API では `oh_context_inject_particle_get()` が
+`type(c_ptr)` を返します。
+
+## Level 3: 場データと空間 mapping も任せる
+
+Level 3 は Fortran PIC での標準選択です。Level 2 の粒子転送に加えて、
+subdomain geometry、粒子の隣接領域 mapping、場データの境界交換を使えます。
+
+```fortran
+#define OH_LIB_LEVEL 3
+#include "ohhelp_f.h"
+module sim_l3
+  use ohhelp3
+  implicit none
+end module
+```
+
+初期化:
+
+```fortran
+call oh_init(sdid, nspec, maxfrac, nphgram, totalp, &
+             pbuf, pbase, maxlocalp, mycomm, nbor, pcoord, &
+             sdoms, scoord, nbound, bcond, bounds, &
+             ftypes, cfields, ctypes, fsizes, &
+             stats, repiter, verbose)
+```
+
+粒子 mapping:
+
+```fortran
+m = oh_map_particle_to_neighbor(pbuf(p)%x, pbuf(p)%y, pbuf(p)%z, ps)
+pbuf(p)%nid = m
+nphgram(n+1,s) = nphgram(n+1,s) - 1
+nphgram(m+1,s) = nphgram(m+1,s) + 1
+```
+
+field 同期:
+
+```fortran
+if (currmode < 0) then
+  call oh_bcast_field(eb(1,0,0,0,1), eb(1,0,0,0,2), FEB)
+  currmode = 1
+end if
+
+if (currmode /= 0) then
+  call oh_allreduce_field(cd(1,0,0,0,1), cd(1,0,0,0,2), FCD)
+end if
+
+call oh_exchange_borders(eb(1,0,0,0,1), eb(1,0,0,0,2), FEB, currmode)
+```
+
+custom particle layout では、Level 3 用 position fields を adapter に設定します。
+
+```fortran
+call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
+                                                    y_offset, z_offset)
+call oh_context_set_particle_adapter(ctx, adapter)
+```
+
+## Level 4p / 4s
+
+Level 4p/4s は v2.x の継続対応対象です。v2.0 では compile coverage と
+移行境界を維持しますが、custom particle layout を含む supported API としては
+固めません。
+
+## Level 選択の目安
+
+| 状況 | 推奨 level |
+| --- | --- |
+| 既存の粒子通信を維持し、負荷分散だけ使いたい | Level 1 |
+| 粒子通信を OhHelp に任せたい | Level 2 |
+| 通常の格子 PIC で、field 境界交換も任せたい | Level 3 |
+| 粒子位置・per-grid 粒子管理まで OhHelp に寄せたい | Level 4p / 4s（v2.x 対象） |

@@ -1,14 +1,18 @@
-# v2 Particle Layout and Weighted Load
+# v2 Particle Layout and Weighted Load (C)
+
+Language: C | [Fortran mirror](v2-particle-and-weight-fortran.md)
 
 v2 では、従来の固定 `S_particle` / `oh_particle` 前提から離れ、利用側が
 粒子レイアウトと region ごとの計算コストを明示できる設計へ移行しています。
 
+このページは C 版です。Fortran 版は
+[v2 Particle Layout and Weighted Load (Fortran)](v2-particle-and-weight-fortran.md)
+に分けています。
+
 ## Particle adapter
 
 C API では `oh_particle_adapter` を使って、OhHelp が粒子をどう扱うかを
-指定できます。Fortran では `ohhelp_v2` module の
-`type(oh_particle_adapter_handle)` を使い、C 側の adapter を opaque handle として
-操作します。
+指定できます。
 
 ```c
 typedef struct oh_particle_adapter {
@@ -248,12 +252,6 @@ OH_DEFINE_PARTICLE_ADAPTER_SINGLE_SPECIES_ACCESSORS(my_particle,
                                                     region)
 ```
 
-Fortran では `oh_particle_adapter_set_callbacks()` に `c_funloc()` で取得した
-`bind(C)` callback を渡すことで同じ callback contract を使えます。offset で
-表現できる粒子 layout なら callback は不要で、`oh_particle_field_offset()` と
-`oh_particle_adapter_use_int_fields()` /
-`oh_particle_adapter_use_integer_fields()` を使います。
-
 ## Level 3 mapping callback の標準形
 
 Level 3 では、利用側が `my_map_to_neighbor` や `my_map_to_subdomain` を
@@ -342,11 +340,6 @@ region field が同じ役割を持ちます。
   `oh_inject_particle_get()` を使って、OhHelp の particle buffer 内にコピーされた
   粒子ポインタを保持してください。`oh_remap_injected_particle()` と
   `oh_remove_injected_particle()` は、その buffer 内ポインタを受け取ります。
-Fortran には pointer-return helper はなく、`pbuf` の injection 領域にある
-要素そのものを remap/remove API に渡します。
-`ohhelp_v2` の context API では `oh_context_inject_particle_get()` が
-`type(c_ptr)` を返すため、custom particle layout でも C と同じ injected-copy
-pointer を保持できます。
 - `oh_remap_injected_particle()` は、負の region で注入した粒子、または
   `oh_remove_injected_particle()` で一度 count を取り消した injected particle を、
   現在の region/species で再計上するための API です。正の region で count 済みの
@@ -415,19 +408,6 @@ oh_set_region_weights(weights);
 ```c
 oh_set_region_weights(NULL);
 ```
-
-Fortran では `real*8` 配列を渡します。
-
-```fortran
-real*8 :: weights(nregions)
-
-weights(:) = 1.0d0
-weights(hot_region) = 2.5d0
-call oh_set_region_weights(weights)
-```
-
-Fortran で粒子数ベースへ戻す場合は、全要素を `1.0d0` にした配列を
-再設定します。
 
 ## いつ重みを設定するか
 

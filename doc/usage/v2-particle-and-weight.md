@@ -184,8 +184,28 @@ oh_particle_adapter_use_single_species_int_region(
     &adapter, offsetof(struct my_particle, region));
 ```
 
-region/species field が `int` ではない、あるいは座標や補助データを使って mapping
-したい場合は、`oh_particle_adapter.h` のマクロで型付き callback を生成できます。
+region/species field が `int` ではなく `long` や `long long` の場合は、field 幅を
+明示する helper を使えます。`OH_BIG_SPACE` や Level 4 の packed id を custom
+particle に持たせる場合は、region field を `long long` 相当にしてこの helper を
+使うのが安全です。
+
+```c
+oh_particle_adapter_use_integer_fields(
+    &adapter,
+    offsetof(struct my_particle, region), sizeof(((struct my_particle*)0)->region),
+    offsetof(struct my_particle, species), sizeof(((struct my_particle*)0)->species));
+```
+
+single-species 版もあります。
+
+```c
+oh_particle_adapter_use_single_species_integer_region(
+    &adapter,
+    offsetof(struct my_particle, region), sizeof(((struct my_particle*)0)->region));
+```
+
+region/species field が整数 field ではない、あるいは座標や補助データを使って
+mapping したい場合は、`oh_particle_adapter.h` のマクロで型付き callback を生成できます。
 
 ```c
 struct my_particle {

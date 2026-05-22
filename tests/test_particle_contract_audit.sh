@@ -98,6 +98,12 @@ check_present 'oh_inject_particle_get' tests/test_ohhelp_c_header.c
 check_present 'oh_set_region_weights' tests/test_ohhelp2_header.c
 check_present 'oh_set_region_weights' tests/test_ohhelp_c_header.c
 check_present 'oh_context_set_region_weights' tests/test_oh_context_header.c
+check_present 'oh_particle_adapter_use_integer_fields' include/oh_particle_adapter.h
+check_present 'oh_particle_adapter_use_single_species_integer_region' \
+  include/oh_particle_adapter.h
+check_present 'oh_particle_adapter_use_integer_fields' \
+  tests/test_oh_particle_adapter.c
+check_present 'OH_BIG_SPACE' doc/usage/v2-particle-and-weight.md
 check_present 'int \*\*totalp, void \*\*pbuf' include/ohhelp2.h
 
 # Level 3 may touch S_particle.x/y/z only inside the default S_particle mapping

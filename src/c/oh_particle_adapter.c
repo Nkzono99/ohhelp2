@@ -2,6 +2,7 @@
    v2 particle layout adapter draft.
 */
 #include <limits.h>
+#include <string.h>
 
 #include "oh_particle_adapter.h"
 #include "oh_part.h"
@@ -40,13 +41,54 @@ default_get_species(const oh_particle_adapter *adapter, const void *particle) {
 #endif
 }
 
+static int
+integer_field_size_valid(size_t size) {
+  return size == sizeof(int) || size == sizeof(long) ||
+         size == sizeof(long long);
+}
+
+static oh_particle_region_t
+read_integer_field(const void *field, size_t size) {
+  if (size == sizeof(int)) {
+    int value;
+    memcpy(&value, field, sizeof(value));
+    return value;
+  }
+  if (size == sizeof(long long)) {
+    long long value;
+    memcpy(&value, field, sizeof(value));
+    return value;
+  }
+  if (size == sizeof(long)) {
+    long value;
+    memcpy(&value, field, sizeof(value));
+    return value;
+  }
+  return 0;
+}
+
+static void
+write_integer_field(void *field, size_t size, oh_particle_region_t value) {
+  if (size == sizeof(int)) {
+    int narrowed = (int)value;
+    memcpy(field, &narrowed, sizeof(narrowed));
+  } else if (size == sizeof(long long)) {
+    long long narrowed = (long long)value;
+    memcpy(field, &narrowed, sizeof(narrowed));
+  } else if (size == sizeof(long)) {
+    long narrowed = (long)value;
+    memcpy(field, &narrowed, sizeof(narrowed));
+  }
+}
+
 static oh_particle_region_t
 int_field_get_region(const oh_particle_adapter *adapter, const void *particle,
                      int primary_or_secondary) {
   const char *base = (const char*)particle;
 
   (void)primary_or_secondary;
-  return *(const int*)(base + adapter->region_offset);
+  return read_integer_field(base + adapter->region_offset,
+                            adapter->region_size);
 }
 
 static void
@@ -55,7 +97,8 @@ int_field_set_region(const oh_particle_adapter *adapter, void *particle,
   char *base = (char*)particle;
 
   (void)primary_or_secondary;
-  *(int*)(base + adapter->region_offset) = region;
+  write_integer_field(base + adapter->region_offset, adapter->region_size,
+                      region);
 }
 
 static int
@@ -64,7 +107,8 @@ int_field_get_species(const oh_particle_adapter *adapter,
   const char *base = (const char*)particle;
 
   if (adapter->single_species) return 0;
-  return *(const int*)(base + adapter->species_offset);
+  return (int)read_integer_field(base + adapter->species_offset,
+                                 adapter->species_size);
 }
 
 static oh_particle_region_t
@@ -88,6 +132,15 @@ oh_particle_adapter_validate(const oh_particle_adapter *adapter) {
   }
   if (!adapter->get_region || !adapter->set_region) return 0;
   if (!adapter->get_species) return 0;
+  if ((adapter->get_region == int_field_get_region ||
+       adapter->set_region == int_field_set_region ||
+       adapter->get_species == int_field_get_species) &&
+      !integer_field_size_valid(adapter->region_size))
+    return 0;
+  if (adapter->get_species == int_field_get_species &&
+      !adapter->single_species &&
+      !integer_field_size_valid(adapter->species_size))
+    return 0;
   return 1;
 }
 
@@ -147,9 +200,28 @@ void
 oh_particle_adapter_use_int_fields(oh_particle_adapter *adapter,
                                    size_t region_offset,
                                    size_t species_offset) {
+  oh_particle_adapter_use_integer_fields(adapter, region_offset, sizeof(int),
+                                         species_offset, sizeof(int));
+}
+
+void
+oh_particle_adapter_use_single_species_int_region(oh_particle_adapter *adapter,
+                                                  size_t region_offset) {
+  oh_particle_adapter_use_single_species_integer_region(
+    adapter, region_offset, sizeof(int));
+}
+
+void
+oh_particle_adapter_use_integer_fields(oh_particle_adapter *adapter,
+                                       size_t region_offset,
+                                       size_t region_size,
+                                       size_t species_offset,
+                                       size_t species_size) {
   if (!adapter) return;
   adapter->region_offset = region_offset;
+  adapter->region_size = region_size;
   adapter->species_offset = species_offset;
+  adapter->species_size = species_size;
   adapter->single_species = 0;
   adapter->get_region = int_field_get_region;
   adapter->set_region = int_field_set_region;
@@ -159,11 +231,13 @@ oh_particle_adapter_use_int_fields(oh_particle_adapter *adapter,
 }
 
 void
-oh_particle_adapter_use_single_species_int_region(oh_particle_adapter *adapter,
-                                                  size_t region_offset) {
+oh_particle_adapter_use_single_species_integer_region(
+  oh_particle_adapter *adapter, size_t region_offset, size_t region_size) {
   if (!adapter) return;
   adapter->region_offset = region_offset;
+  adapter->region_size = region_size;
   adapter->species_offset = 0;
+  adapter->species_size = 0;
   adapter->single_species = 1;
   adapter->get_region = int_field_get_region;
   adapter->set_region = int_field_set_region;
@@ -180,7 +254,9 @@ oh_default_particle_adapter(MPI_Datatype mpi_type) {
   adapter.mpi_type = mpi_type;
   adapter.user_data = 0;
   adapter.region_offset = 0;
+  adapter.region_size = sizeof(OH_nid_t);
   adapter.species_offset = 0;
+  adapter.species_size = sizeof(int);
   adapter.position_offset[0] = offsetof(struct S_particle, x);
   adapter.position_offset[1] = offsetof(struct S_particle, y);
   adapter.position_offset[2] = offsetof(struct S_particle, z);

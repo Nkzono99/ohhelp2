@@ -9,8 +9,14 @@ int
 main(int argc, char **argv) {
   MPI_Datatype particle_type;
   MPI_Datatype padded_type;
+  MPI_Datatype wide_type;
   oh_particle_adapter adapter;
   struct S_particle particle;
+  struct wide_particle {
+    double x, y, z;
+    long long region;
+    long species;
+  } wide_particle;
 
   MPI_Init(&argc, &argv);
   assert(oh_particle_adapter_make_byte_type(0, &particle_type) != MPI_SUCCESS);
@@ -54,6 +60,28 @@ main(int argc, char **argv) {
   adapter.stride = sizeof(struct S_particle)+8;
   assert(oh_particle_adapter_validate(&adapter));
 
+  assert(oh_particle_adapter_make_byte_type(sizeof(wide_particle),
+                                            &wide_type) == MPI_SUCCESS);
+  adapter = oh_default_particle_adapter(wide_type);
+  adapter.stride = sizeof(wide_particle);
+  oh_particle_adapter_use_integer_fields(
+    &adapter, offsetof(struct wide_particle, region),
+    sizeof(wide_particle.region), offsetof(struct wide_particle, species),
+    sizeof(wide_particle.species));
+  wide_particle.region = 4000000000LL;
+  wide_particle.species = 2;
+  assert(oh_particle_adapter_validate(&adapter));
+  assert(adapter.get_region(&adapter, &wide_particle, 0) == 4000000000LL);
+  assert(adapter.get_species(&adapter, &wide_particle) == 2);
+  adapter.set_region(&adapter, &wide_particle, 5000000000LL, 0);
+  assert(wide_particle.region == 5000000000LL);
+
+  oh_particle_adapter_use_integer_fields(
+    &adapter, offsetof(struct wide_particle, region), 3,
+    offsetof(struct wide_particle, species), sizeof(wide_particle.species));
+  assert(!oh_particle_adapter_validate(&adapter));
+
+  MPI_Type_free(&wide_type);
   MPI_Type_free(&padded_type);
   MPI_Type_free(&particle_type);
   MPI_Finalize();

@@ -48,5 +48,9 @@ main(void) {
   oh_particle_adapter_use_single_species_int_region(
     &adapter, offsetof(struct my_particle, region));
   assert(adapter.get_species(&adapter, &particle) == 0);
+  oh_particle_adapter_use_single_species_integer_region(
+    &adapter, offsetof(struct my_particle, region),
+    sizeof(particle.region));
+  assert(adapter.get_species(&adapter, &particle) == 0);
   return 0;
 }

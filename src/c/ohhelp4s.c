@@ -688,7 +688,8 @@ static int transbound4s(int currmode, int stats, const int level) {
     int (*z_bound)[2];
     Decl_For_All_Grid();
 
-    stats = stats && statsMode;
+    state = oh4s_state();
+    stats = stats && state->stats_mode;
     currmode = transbound1(currmode, stats, level);
     state = oh4s_state();
     nn = state->n_of_nodes;  ns = state->n_of_species;

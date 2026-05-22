@@ -217,8 +217,9 @@ oh2_transbound(int currmode, int stats) {
 int
 transbound2(int currmode, int stats, int level) {
   int ret=MODE_NORM_SEC;
+  struct oh_state *state=oh1_state();
 
-  stats = stats && statsMode;
+  stats = stats && state->stats_mode;
   currmode = transbound1(currmode, stats, level);
 
   if (try_primary2(currmode, level, stats))  ret = MODE_NORM_PRI;

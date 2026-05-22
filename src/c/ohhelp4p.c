@@ -619,7 +619,8 @@ static int transbound4p(int currmode, int stats, const int level) {
     int i, ps, s, tp;
     Decl_For_All_Grid();
 
-    stats = stats && statsMode;
+    state = oh4p_state();
+    stats = stats && state->stats_mode;
     currmode = transbound1(currmode, stats, level);
     state = oh4p_state();
     nn = state->n_of_nodes;  ns = state->n_of_species;

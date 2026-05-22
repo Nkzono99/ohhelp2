@@ -54,6 +54,8 @@ The current code now has this first migration layer:
 - Level-1 stats initialization, timing updates, communication counters,
   aggregation, and printing now resolve `Stats`, stats MPI handles, rank, node
   count, and communicator through `oh_state`.
+- Level-2 and Level-4 transbound entry points now gate stats collection through
+  `oh_state.stats_mode` instead of reading the global `statsMode` directly.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

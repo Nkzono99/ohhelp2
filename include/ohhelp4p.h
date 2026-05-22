@@ -9,47 +9,6 @@
 #define OH_PGRID_EXT 1
 #define OH_NBR_SELF (OH_NEIGHBORS>>1)
 
-EXTERN int* PbufIndex;                                  /* [2*ns+1] */
-EXTERN dint** NOfPGrid[2], ** NOfPGridTotal[2];          /* [2][ns][z][y][x] */
-EXTERN int** NOfPGridOut[2];                            /* [2][ns][z][y][x] */
-
-struct S_griddesc {
-    int x, y, z, w, d, h, dw;
-    };
-EXTERN struct S_griddesc GridDesc[3];
-
-EXTERN int gridOverflowLimit;
-EXTERN struct S_commlist* AltSecRList;
-EXTERN int SecRLIndex[OH_NEIGHBORS + 1];
-
-struct S_recvsched_context {
-    int x, y, z, g, hs;
-    dint nptotal, nplimit, carryover;
-    struct S_commlist* cptr;
-    };
-struct S_hotspot {
-    int g, n, lev, self;
-    struct S_commlist* comm;
-    struct S_hotspot* next;
-    };
-EXTERN struct S_hotspot* HotSpotList, * HotSpotTop;      /* [2*nn+2*3^D+1] */
-struct S_hotspotbase {
-    struct S_hotspot* head, * tail;
-    };
-EXTERN struct S_hotspotbase HotSpot[3][OH_NEIGHBORS];
-
-EXTERN int* HSRecv[OH_NEIGHBORS];                       /* [3^D][nn][ns] */
-EXTERN int* HSSend, * HSRecvFromParent, * HSReceiver;     /* [ns] */
-EXTERN MPI_Datatype T_Hgramhalf;
-
-EXTERN int FirstNeighbor[OH_NEIGHBORS], GridOffset[2][OH_NEIGHBORS];
-struct S_realneighbor {
-    int n, * nbor;
-    };
-EXTERN struct S_realneighbor RealDstNeighbors[2][2], RealSrcNeighbors[2][2];
-
-EXTERN int BoundaryCondition[OH_DIMENSION][2];
-
 /* Prototypes for the functions called from simulator code */
 void oh4p_init(int** sdid, const int nspec, const int maxfrac, int** totalp,
     struct S_particle** pbuf, int** pbase, const int maxlocalp,

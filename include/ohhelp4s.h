@@ -11,54 +11,6 @@
 #define OH_NBR_BCC      (1+1*3+0*3*3)
 #define OH_NBR_TCC      (1+1*3+2*3*3)
 
-EXTERN int* PbufIndex;                                  /* [2*ns+1] */
-EXTERN dint** NOfPGrid[2], ** NOfPGridTotal[2];          /* [2][ns][z][y][x] */
-EXTERN int** NOfPGridOut[2], ** NOfPGridOutShadow[2];    /* [2][ns][z][y][x] */
-EXTERN int** NOfPGridIndex[2], ** NOfPGridIndexShadow[2];/* [2][ns][z][y][x] */
-EXTERN dint* NOfPGridZ;                                 /* [z] */
-EXTERN int ZBound[2][2], (*ZBoundShadow)[2];
-struct S_hplane {
-    int nbor, stag, rtag;
-    int* nsend, * nrecv, * sbuf, * rbuf;                     /* [ns] */
-    };
-EXTERN struct S_hplane HPlane[2][2];                    /* [2][2] */
-struct S_vplane {
-    int nbor, stag, rtag;
-    int nsend, nrecv, sbuf, rbuf;
-    };
-EXTERN struct S_vplane* VPlane;                         /* [2*nn+6] */
-EXTERN int VPlaneHead[2 * 2 * 2 + 1];
-EXTERN struct S_particle* BoundarySendBuf;
-
-struct S_griddesc {
-    int x, y, z, w, d, h, dw;
-    };
-EXTERN struct S_griddesc GridDesc[3];
-
-struct S_interiorp {
-    int head, size;
-    };
-EXTERN struct S_interiorp* InteriorParts;
-
-EXTERN struct S_commlist* AltSecRList, PrimaryCommList[2][OH_NEIGHBORS];
-EXTERN int SecRLIndex[OH_NEIGHBORS + 1], AltSecRLIndex[OH_NEIGHBORS + 1];
-EXTERN int PrimaryRLIndex[OH_NEIGHBORS];
-
-struct S_recvsched_context {
-    int z;
-    dint nptotal, nplimit;
-    struct S_commlist* cptr;
-    };
-EXTERN MPI_Datatype T_Hgramhalf;
-
-EXTERN int FirstNeighbor[OH_NEIGHBORS], GridOffset[2][OH_NEIGHBORS];
-struct S_realneighbor {
-    int n, * nbor;
-    };
-EXTERN struct S_realneighbor RealDstNeighbors[2][2], RealSrcNeighbors[2][2];
-
-EXTERN int BoundaryCondition[OH_DIMENSION][2];
-
 /* Prototypes for the functions called from simulator code */
 void oh4s_init(int** sdid, const int nspec, const int maxfrac,
     const dint npmax, const int minmargin,

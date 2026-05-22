@@ -15,7 +15,7 @@
 #include "ohhelp4_particle.h"
 #undef  EXTERN
 #define EXTERN
-#include "ohhelp4p.h"
+#include "ohhelp4p_internal.h"
 
 static struct oh_state* oh4p_state(void);
 static void init4p(int** sdid, const int nspec, const int maxfrac,

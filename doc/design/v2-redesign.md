@@ -462,6 +462,10 @@ sites.
 The public Level-4 headers no longer publish the old packed-id helper macros,
 so application code is not encouraged to depend on `gridmask` / `loggrid` or
 the process-global particle adapter.
+Level-4p/4s mutable implementation globals and scheduling/helper structs are
+now declared from `src/c/ohhelp4_internal.h`,
+`src/c/ohhelp4p_internal.h`, and `src/c/ohhelp4s_internal.h` instead of the
+public Level-4 headers.
 Level-4s particle storage allocation now uses the active adapter stride for the
 main particle/send-buffer pair and boundary-send staging buffer.
 Level-4s boundary-send staging now also copies into the boundary buffer through

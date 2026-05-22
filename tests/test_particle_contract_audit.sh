@@ -63,6 +63,7 @@ check_absent '\b(Grid_Position|Combine_Subdom_Pos|Primarize_Id_Only|Secondarize_
   include/ohhelp4p.h include/ohhelp4s.h
 check_absent '\b(ParticleAdapter|gridmask|loggrid)\b' \
   include/ohhelp4p.h include/ohhelp4s.h
+check_absent '^EXTERN ' include/ohhelp4p.h include/ohhelp4s.h
 
 # New direct accesses must not spread outside the known migration boundary.
 legacy_accesses=$(

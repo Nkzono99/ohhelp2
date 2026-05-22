@@ -976,28 +976,34 @@ static void make_recv_list(const int currmode, const int level, const int reb,
         state->sec_recv_list = SecRList = state->comm_list + rlidx;
     alt_sec_rl_index[OH_NEIGHBORS] = 0;
     if (Mode_PS(currmode)) {
-        oh1_broadcast(rl_index, sec_rl_index, OH_NEIGHBORS + 1,
-                      OH_NEIGHBORS + 1, MPI_INT, MPI_INT);
-        oh1_broadcast(state->comm_list, state->sec_recv_list, rlidx,
-                      sec_rl_index[OH_NEIGHBORS], T_Commlist, T_Commlist);
+        oh1_broadcast_state(state, rl_index, sec_rl_index,
+                            OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
+                            MPI_INT, MPI_INT);
+        oh1_broadcast_state(state, state->comm_list, state->sec_recv_list,
+                            rlidx, sec_rl_index[OH_NEIGHBORS],
+                            T_Commlist, T_Commlist);
         AltSecRList = state->level4_alt_sec_recv_list =
             state->level4_alt_sec_recv_list + sec_rl_index[OH_NEIGHBORS];
     }
     if (reb) {
-        build_new_comm(currmode, -level, 2, stats);
+        build_new_comm_state(state, currmode, -level, 2, stats);
         update_descriptors(state, oldp, newp);
         set_grid_descriptor(state, 2, newp);
         update_real_neighbors(state, URN_TRN, Mode_PS(currmode), oldp, newp);
-        oh1_broadcast(rl_index, alt_sec_rl_index, OH_NEIGHBORS + 1,
-                      OH_NEIGHBORS + 1,
-                      MPI_INT, MPI_INT);
-        oh1_broadcast(state->comm_list, state->level4_alt_sec_recv_list,
-                      rl_index[OH_NEIGHBORS], alt_sec_rl_index[OH_NEIGHBORS],
-                      T_Commlist, T_Commlist);
+        oh1_broadcast_state(state, rl_index, alt_sec_rl_index,
+                            OH_NEIGHBORS + 1, OH_NEIGHBORS + 1,
+                            MPI_INT, MPI_INT);
+        oh1_broadcast_state(state, state->comm_list,
+                            state->level4_alt_sec_recv_list,
+                            rl_index[OH_NEIGHBORS],
+                            alt_sec_rl_index[OH_NEIGHBORS],
+                            T_Commlist, T_Commlist);
     }
-    oh1_broadcast(state->level4_particle_grid_total[0][0] + npgbase,
-                  state->level4_particle_grid_total[1][0] + npgbase,
-                  npgsize[0], npgsize[1], MPI_LONG_LONG_INT, MPI_LONG_LONG_INT);
+    oh1_broadcast_state(state,
+                        state->level4_particle_grid_total[0][0] + npgbase,
+                        state->level4_particle_grid_total[1][0] + npgbase,
+                        npgsize[0], npgsize[1],
+                        MPI_LONG_LONG_INT, MPI_LONG_LONG_INT);
 }
 
 static void sched_recv(struct oh_state* state, const int reb, const int get,

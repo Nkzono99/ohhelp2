@@ -398,6 +398,10 @@ The current code now has this first migration layer:
   staging, primary exchange, displacement setup, and secondary particle
   exchange. The legacy wrappers remain for older internal callers, but Level-4
   no longer re-enters the default context facade for these steps.
+- Level-4p/4s receive-list construction now also uses the Level-1
+  state-backed broadcast and communicator-rebuild helpers, avoiding the public
+  Level-1 wrapper path while schedule data is already being threaded through
+  `oh_state`.
 
 ## Particle Layout
 

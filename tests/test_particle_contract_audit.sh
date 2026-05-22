@@ -96,9 +96,10 @@ check_absent '\b(Grid_Position|Combine_Subdom_Pos|Primarize_Id_Only|Secondarize_
 check_absent '\b(ParticleAdapter|gridmask|loggrid)\b' \
   include/ohhelp4p.h include/ohhelp4s.h
 check_absent '^EXTERN ' include/ohhelp4p.h include/ohhelp4s.h
-check_absent '\b(try_primary1|try_stable1|rebalance1|move_to_sendbuf_primary|exchange_primary_particles|set_sendbuf_disps|exchange_particles)\s*\(' \
+check_absent '\b(try_primary1|try_stable1|rebalance1|build_new_comm|oh1_broadcast|move_to_sendbuf_primary|exchange_primary_particles|set_sendbuf_disps|exchange_particles)\s*\(' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_present 'try_primary1_state' src/c/ohhelp1_internal.h
+check_present 'oh1_broadcast_state' src/c/ohhelp1_internal.h
 check_present 'exchange_particles_state' src/c/ohhelp2_internal.h
 
 # New direct accesses must not spread outside the known migration boundary.

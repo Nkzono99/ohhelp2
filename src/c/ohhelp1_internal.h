@@ -132,6 +132,11 @@ void  rebalance1(int currmode, int level, int stats);
 void  rebalance1_state(struct oh_state *state, int currmode, int level,
                        int stats);
 void  build_new_comm(int currmode, int level, int nbridx, int stats);
+void  build_new_comm_state(struct oh_state *state, int currmode, int level,
+                           int nbridx, int stats);
+void  oh1_broadcast_state(struct oh_state *state, void* pbuf, void* sbuf,
+                          int pcount, int scount, MPI_Datatype ptype,
+                          MPI_Datatype stype);
 void  vprint(char* format, ...);
 void  dprint(char* format, ...);
 

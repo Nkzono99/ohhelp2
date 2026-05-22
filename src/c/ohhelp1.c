@@ -69,11 +69,6 @@ static void  print_stats_state(struct oh_state *state,
                                struct S_statstotal *stotal, int cstep, int n);
 static void  stats_reduce_time(void* inarg, void* ioarg, int* len,
                                MPI_Datatype* type);
-static void  build_new_comm_state(struct oh_state *state, int currmode,
-                                  int level, int nbridx, int stats);
-static void  oh1_broadcast_state(struct oh_state *state, void* pbuf,
-                                 void* sbuf, int pcount, int scount,
-                                 MPI_Datatype ptype, MPI_Datatype stype);
 static void  oh1_all_reduce_state(struct oh_state *state, void *pbuf,
                                   void *sbuf, int pcount, int scount,
                                   MPI_Datatype ptype, MPI_Datatype stype,
@@ -1088,7 +1083,7 @@ oh1_broadcast(void* pbuf, void* sbuf, int pcount, int scount,
               MPI_Datatype ptype, MPI_Datatype stype) {
   oh1_broadcast_state(oh1_state(), pbuf, sbuf, pcount, scount, ptype, stype);
 }
-static void
+void
 oh1_broadcast_state(struct oh_state *state, void* pbuf, void* sbuf,
                     int pcount, int scount,
                     MPI_Datatype ptype, MPI_Datatype stype) {
@@ -1267,7 +1262,7 @@ void
 build_new_comm(int currmode, int level, int nbridx, int stats) {
   build_new_comm_state(oh1_state(), currmode, level, nbridx, stats);
 }
-static void
+void
 build_new_comm_state(struct oh_state *state, int currmode, int level,
                      int nbridx, int stats) {
   int nn=state->n_of_nodes, bot=nn-1, me=state->my_rank;

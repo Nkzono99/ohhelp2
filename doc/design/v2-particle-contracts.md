@@ -139,6 +139,10 @@ When editing particle movement or mapping code, check for:
 - Public Level-1 headers must not publish implementation helper prototypes
   used only by other library levels; those declarations belong in
   `src/c/ohhelp1_internal.h`.
+- Public headers must not publish the `oh_state` or default context layout.
+  `struct oh_state` and `OhDefaultState` belong in
+  `src/c/oh_context_internal.h`, and user code should treat `oh_context` as an
+  opaque handle even while the default-context migration is incomplete.
 - Public Level-4 headers must not publish `EXTERN` mutable implementation
   globals or internal scheduling structs. Those declarations belong in
   `src/c/ohhelp4*_internal.h`.

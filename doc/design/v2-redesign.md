@@ -31,6 +31,9 @@ The current code now has this first migration layer:
 - `oh1_state()` returns the synchronized default state.
 - `include/oh_context.h` exposes an opaque `oh_context` alias and
   `oh_default_context()`.
+- `struct oh_state` and `OhDefaultState` are declared only from
+  `src/c/oh_context_internal.h`; public headers keep `oh_context` opaque and
+  do not expose the default context layout.
 - `oh_context_set_region_weights()` provides the first context-shaped setter.
 - `src/c/oh_context.c` owns the default context facade, while Level-1 code calls
   the internal sync hook during the migration away from process globals.

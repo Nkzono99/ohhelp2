@@ -13,6 +13,7 @@
 #include "ohhelp2_internal.h"
 #include "ohhelp3.h"
 #include "ohhelp3_internal.h"
+#include "oh_context_internal.h"
 #include "oh_particle_buffer.h"
 #include "ohhelp4_particle.h"
 #undef  EXTERN

@@ -2071,19 +2071,19 @@ static void move_and_sort_secondary(const int psold, const int psnew, const int 
     const int mysubdom[2] = { me, oldp }, ninj = state->n_of_injections;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
-    struct S_particle* p, * rbb;
+    struct S_particle* p;
     struct S_particle* sb = oh_particle_buffer_at(state->particle_adapter,
                                                   state->send_buffer,
                                                   nacc[0] + nacc[1]);
     int* nofr;
-    int ps, s, t, npt, i;
+    int ps, s, t, npt, i, pidx, rbb_index;
     Decl_For_All_Grid();
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_MOVE, 1);
     state_set_sendbuf_disps4p(state, trans);
-    for (ps = 0, t = 0, nofr = state->n_of_recv, rbb = state->particles,
-         npt = 0; ps <= psnew; ps++) {
+    for (ps = 0, t = 0, nofr = state->n_of_recv, rbb_index = 0, npt = 0;
+         ps <= psnew; ps++) {
         const int nnbr = real_src[trans][ps].n;
         const int* rnbr = real_src[trans][ps].nbor;
         const int gdidx = ps ? trans + 1 : 0;
@@ -2092,28 +2092,32 @@ static void move_and_sort_secondary(const int psold, const int psnew, const int 
             dint* npgt = state->level4_particle_grid_total[ps][s];
             const int* npgo = state->level4_particle_grid_out[ps][s];
             for (n = 0, nrec = 0; n < nnbr; n++)  nrec += nofr[rnbr[n]];
-            state->recv_buffer_bases[t] = rbb;  rbb += nrec;
+            state->recv_buffer_bases[t] = level4_particle_at(state, rbb_index);
+            rbb_index += nrec;
             For_All_Grid(gdidx, 0, 0, 0, 0, 0, 0) {
                 const int np = npgo[The_Grid()];
                 npgt[The_Grid()] = npt;  npt += np;
             }
         }
     }
-    state->recv_buffer_bases[t] = rbb;
+    state->recv_buffer_bases[t] = level4_particle_at(state, rbb_index);
 
-    for (ps = 0, p = state->particles, t = 0; ps <= psold; ps++) {
+    for (ps = 0, pidx = 0, t = 0; ps <= psold; ps++) {
         const int mysd = mysubdom[ps];
         for (s = 0; s < ns; s++, t++) {
             dint* npg = state->level4_particle_grid[ps][s];
             dint* npgt = state->level4_particle_grid_total[ps][s];
             const int itail = state->total_particles[t];
-            for (i = 0; i < itail; i++, p++)
+            for (i = 0; i < itail; i++, pidx++) {
+                p = level4_particle_at(state, pidx);
                 Move_Or_Do(p, ps, mysd, 1,
                            level4_copy_particle_to_buffer(
                                state, state->send_buffer, npgt[g]++, p));
+            }
         }
     }
-    for (i = 0; i < ninj; i++, p++) {
+    for (i = 0; i < ninj; i++, pidx++) {
+        p = level4_particle_at(state, pidx);
         const int s = level4_particle_species(state, p);
         const OH_nid_t nid = level4_particle_region(state, p, 0);
         const int ps = Secondary_Injected(nid) ? 1 : 0;

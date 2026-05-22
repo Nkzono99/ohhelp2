@@ -69,6 +69,8 @@ The current code now has this first migration layer:
 - Level-4p upward/downward in-place particle compaction now walks and copies
   particles through adapter-aware helpers instead of raw `state->particles`
   pointer arithmetic.
+- Level-4p secondary move-and-sort now uses adapter-aware particle and receive
+  buffer indices instead of raw particle pointer increments.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

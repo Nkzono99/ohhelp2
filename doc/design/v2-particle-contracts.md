@@ -119,6 +119,10 @@ When editing particle movement or mapping code, check for:
 - Level 4 implementation code must not directly read or write `nid` or `spec`.
   Packed-id manipulation is still present, but it must pass through local helper
   functions/macros using the active particle adapter.
+- Level 4 packed-id manipulation must be implemented in
+  `src/c/ohhelp4_particle.h`; Level-4p/4s call sites may keep compatibility
+  macros, but the bit layout arithmetic should not be duplicated in those
+  translation units.
 - Level 4 implementation code must not directly read or write particle
   coordinates. Position access must pass through adapter offsets.
 - Level 4 particle-buffer allocation must use adapter stride, not

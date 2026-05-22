@@ -54,6 +54,8 @@ check_absent 'state->send_buffer\s*(\[|\+)' \
 check_absent '\b(Particles|SendBuf)\s*(\[|\+)' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\bsb\s*\[[^]]+\]\s*=' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_absent '\b(nidelement|subdomid|gridmask)\b' \
+  src/c/ohhelp4p.c src/c/ohhelp4s.c
 
 # New direct accesses must not spread outside the known migration boundary.
 legacy_accesses=$(
@@ -78,6 +80,7 @@ check_present 'nid < 0' doc/design/v2-particle-contracts.md
 check_present 'nid == -2' doc/design/v2-particle-contracts.md
 check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts.md
 check_present 'packed-grid id operations' doc/design/v2-particle-contracts.md
+check_present 'level4_secondary_injected' src/c/ohhelp4_particle.h
 
 if [ "$failures" -ne 0 ]; then
   exit 1

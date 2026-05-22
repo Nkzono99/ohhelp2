@@ -87,4 +87,78 @@ level4_init_particle_at(struct S_particle* base, int index) {
     return base + index;
 }
 
+static inline int
+level4_grid_position(struct oh_state* state, OH_nid_t region) {
+    return (int)(region & state->grid_mask);
+}
+
+static inline OH_nid_t
+level4_combine_subdomain_position(struct oh_state* state, int subdomain,
+                                  int grid_position) {
+    return (((OH_nid_t)subdomain << state->log_grid) + grid_position);
+}
+
+static inline int
+level4_subdomain_id(struct oh_state* state, OH_nid_t region,
+                    int primary_or_secondary) {
+    int subdomain;
+
+    if (region < 0) return -1;
+    subdomain = (int)(region >> state->log_grid);
+    if (subdomain < OH_NEIGHBORS)
+        return state->abs_neighbors[primary_or_secondary][subdomain];
+    return subdomain - OH_NEIGHBORS;
+}
+
+static inline int
+level4_neighbor_subdomain_id(struct oh_state* state, OH_nid_t region,
+                             int primary_or_secondary) {
+    return state->abs_neighbors[primary_or_secondary]
+                               [(int)(region >> state->log_grid)];
+}
+
+static inline int
+level4_primarize_particle(struct oh_state* state, struct S_particle* part) {
+    const OH_nid_t offset =
+        ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << state->log_grid);
+    const OH_nid_t region = level4_particle_region(state, part, 1) - offset;
+
+    level4_set_particle_region(state, part, region, 1);
+    return level4_subdomain_id(state, region, 1);
+}
+
+static inline void
+level4_primarize_particle_only(struct oh_state* state,
+                               struct S_particle* part) {
+    const OH_nid_t offset =
+        ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << state->log_grid);
+
+    level4_set_particle_region(
+        state, part, level4_particle_region(state, part, 1) - offset, 1);
+}
+
+static inline void
+level4_secondarize_particle(struct oh_state* state, struct S_particle* part) {
+    const OH_nid_t offset =
+        ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << state->log_grid);
+
+    level4_set_particle_region(
+        state, part, level4_particle_region(state, part, 1) + offset, 1);
+}
+
+static inline int
+level4_secondary_injected(struct oh_state* state, OH_nid_t region) {
+    return (int)((region >> state->log_grid) >=
+                 state->n_of_nodes + OH_NEIGHBORS);
+}
+
+static inline int
+level4_local_grid_position(struct oh_state* state, int grid_position,
+                           OH_nid_t region, int primary_or_secondary) {
+    const int neighbor = (int)(region >> state->log_grid);
+    return grid_position +
+           state->level4_grid_offset[primary_or_secondary * OH_NEIGHBORS +
+                                     neighbor];
+}
+
 #endif

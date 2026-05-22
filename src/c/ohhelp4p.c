@@ -172,40 +172,30 @@ oh4p_state(void) {
 
 #ifdef OH_POS_AWARE
 #undef Decl_Grid_Info
+#undef Grid_Position
+#undef Combine_Subdom_Pos
 #undef Subdomain_Id
 #undef Primarize_Id
 #undef Primarize_Id_Only
 #undef Secondarize_Id
 #undef Secondary_Injected
 #undef Neighbor_Subdomain_Id
-#define Decl_Grid_Info() \
-  OH_nid_t nidelement;  int subdomid;\
-  const int gridmask = state->grid_mask, loggrid = state->log_grid
+#define Decl_Grid_Info()
+#define Grid_Position(ID) level4_grid_position(state, ID)
+#define Combine_Subdom_Pos(ID, G) \
+  level4_combine_subdomain_position(state, ID, G)
 #define Subdomain_Id(ID, PS) \
-  ((nidelement = (ID)) < 0 ? -1 :\
-      ((subdomid = nidelement >> loggrid) < OH_NEIGHBORS ?\
-          state->abs_neighbors[PS][subdomid] : subdomid - OH_NEIGHBORS))
-#define Primarize_Id(P, SD) {\
-  const OH_nid_t nidelem =\
-    level4_particle_region(state, P, 1) -\
-    ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid);\
-  level4_set_particle_region(state, P, nidelem, 1);\
-  SD = Subdomain_Id(nidelem, 1);\
-}
+  level4_subdomain_id(state, ID, PS)
+#define Primarize_Id(P, SD) \
+  do { SD = level4_primarize_particle(state, P); } while (0)
 #define Primarize_Id_Only(P) \
-  level4_set_particle_region(\
-      state, P,\
-      level4_particle_region(state, P, 1) -\
-      ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid), 1)
+  level4_primarize_particle_only(state, P)
 #define Secondarize_Id(P) \
-  level4_set_particle_region(\
-      state, P,\
-      level4_particle_region(state, P, 1) +\
-      ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid), 1)
+  level4_secondarize_particle(state, P)
 #define Secondary_Injected(ID) \
-  (((ID) >> loggrid) >= state->n_of_nodes + OH_NEIGHBORS)
+  level4_secondary_injected(state, ID)
 #define Neighbor_Subdomain_Id(ID, PS) \
-  state->abs_neighbors[PS][(ID) >> loggrid]
+  level4_neighbor_subdomain_id(state, ID, PS)
 #endif
 
 #define Level4_Boundary_Condition(DIM, SIDE) \
@@ -1785,7 +1775,7 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
 }
 
 #define Local_Grid_Position(G, NID, PS) \
-  ((G) + state->level4_grid_offset[(PS) * OH_NEIGHBORS + ((NID) >> loggrid)])
+  level4_local_grid_position(state, G, NID, PS)
 
 #define Move_Or_Do(P, PS, MYSD, MOVEIF, ACT) {\
   const OH_nid_t nid = level4_particle_region(state, P, PS);\

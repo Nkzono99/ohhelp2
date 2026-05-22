@@ -447,6 +447,11 @@ Level-4p/4s share the adapter-aware particle addressing, copy, species,
 position, and region helpers through `src/c/ohhelp4_particle.h`, keeping the
 remaining packed-id migration boundary in one internal place instead of
 duplicating it across both Level-4 implementations.
+The same internal helper now owns Level-4 packed-id operations for grid-position
+extraction, subdomain/id composition, primary/secondary id conversion,
+secondary-injected detection, and local grid-position adjustment; the Level-4p
+and Level-4s translation units keep only thin compatibility macros at call
+sites.
 Level-4s particle storage allocation now uses the active adapter stride for the
 main particle/send-buffer pair and boundary-send staging buffer.
 Level-4s boundary-send staging now also copies into the boundary buffer through

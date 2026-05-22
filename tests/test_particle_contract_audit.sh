@@ -151,6 +151,7 @@ check_present 'InjectedParticles' doc/design/v2-particle-contracts.md
 check_present 'OH_BIG_SPACE' doc/design/v2-particle-contracts.md
 check_present 'boundary plane thickness' doc/design/v2-particle-contracts.md
 check_present '粒子ポインタを `void \*`' doc/usage/v2-particle-and-weight.md
+check_absent '\bp\.nid\s*=' doc/usage/api-by-level.md doc/usage/pic-lifecycle.md
 check_present 'level4_secondary_injected' src/c/ohhelp4_particle.h
 
 if [ "$failures" -ne 0 ]; then

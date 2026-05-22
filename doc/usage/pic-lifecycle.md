@@ -167,8 +167,7 @@ if (particle_is_outside_subdomain(&p, sdom)) {
 
     nphgram[species][old_region]--;
     nphgram[species][dst]++;
-    /* default S_particle の例。custom particle では adapter の region field を更新する。 */
-    p.nid = dst;
+    adapter.set_region(&adapter, &p, dst, primary_or_secondary);
 }
 ```
 

@@ -10,11 +10,20 @@
 #include "ohhelp1.h"
 #include "ohhelp2.h"
 #include "ohhelp3.h"
+#include "oh_particle_buffer.h"
 #undef  EXTERN
 #define EXTERN
 #include "ohhelp4s.h"
 
 static struct oh_state* oh4s_state(void);
+static struct S_particle* level4_particle_at(struct oh_state* state, int index);
+static int  level4_particle_index(struct oh_state* state,
+                                  const struct S_particle* part);
+static int  level4_particle_is_injected(struct oh_state* state,
+                                        const struct S_particle* part);
+static void level4_copy_particle(struct oh_state* state,
+                                 struct S_particle* dst,
+                                 const struct S_particle* src);
 static void init4s(int** sdid, const int nspec, const int maxfrac,
                    const dint npmax, const int minmargin, const int maxdensity,
                    int** totalp, int** pbase, int* maxlocalp, int* cbufsize,
@@ -162,6 +171,30 @@ oh4s_state(void) {
     state->level4_z_bound = &ZBound[0][0];
     state->level4_z_bound_shadow = ZBoundShadow ? &ZBoundShadow[0][0] : NULL;
     return state;
+}
+
+static struct S_particle*
+level4_particle_at(struct oh_state* state, int index) {
+    return oh_particle_buffer_at(state->particle_adapter,
+                                 state->particles, index);
+}
+
+static int
+level4_particle_index(struct oh_state* state, const struct S_particle* part) {
+    return oh_particle_buffer_index(state->particle_adapter,
+                                    state->particles, part);
+}
+
+static int
+level4_particle_is_injected(struct oh_state* state,
+                            const struct S_particle* part) {
+    return level4_particle_index(state, part) >= state->total_parts;
+}
+
+static void
+level4_copy_particle(struct oh_state* state, struct S_particle* dst,
+                     const struct S_particle* src) {
+    oh_particle_buffer_copy(state->particle_adapter, dst, src);
 }
 
 #ifdef OH_POS_AWARE
@@ -2298,7 +2331,7 @@ static void check_particle_location4s(struct oh_state* state,
 #ifndef OH_NO_CHECK
     const int ns = state->n_of_species;
     const int t = ps ? s + ns : s;
-    const int pidx = part - state->particles;
+    const int pidx = level4_particle_index(state, part);
     if (ps < 0 || ps > 1 || s < 0 || s >= ns ||
         (state->level4_pbuf_index &&
          (inj ? ((ps && state->region_id[1] < 0) ||
@@ -2359,7 +2392,7 @@ int oh4s_map_particle_to_neighbor(struct S_particle* part, const int ps,
                                   const int s) {
     struct oh_state* state = oh4s_state();
     const int ns = state->n_of_species, nn = state->n_of_nodes;
-    const int inj = part >= state->particles + state->total_parts;
+    const int inj = level4_particle_is_injected(state, part);
     struct S_grid* Grid = state->grid;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
@@ -2476,7 +2509,7 @@ int oh4s_map_particle_to_subdomain(struct S_particle* part, const int ps,
                                    const int s) {
     struct oh_state* state = oh4s_state();
     const int ns = state->n_of_species, nn = state->n_of_nodes;
-    const int inj = part >= state->particles + state->total_parts;
+    const int inj = level4_particle_is_injected(state, part);
     struct S_grid* Grid = state->grid;
     struct S_subdomdesc* SubDomainDesc = state->subdomain_desc;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
@@ -2535,7 +2568,7 @@ int oh4s_inject_particle(const struct S_particle* part, const int ps) {
     struct oh_state* state = oh4s_state();
     const int ns = state->n_of_species;
     int inj = state->total_parts + state->n_of_injections++;
-    struct S_particle* p = state->particles + inj;
+    struct S_particle* p = level4_particle_at(state, inj);
     int s = Particle_Spec(part->spec - state->spec_base);
     int sd;
 
@@ -2548,7 +2581,7 @@ int oh4s_inject_particle(const struct S_particle* part, const int ps) {
     nOfInjections = state->n_of_injections;
     if (inj >= state->n_of_local_particles_limit)
         local_errstop("injection causes local particle buffer overflow");
-    *p = *part;
+    level4_copy_particle(state, p, part);
     sd = oh4s_map_particle_to_neighbor(p, ps, s);
     if (sd < 0) {
         state->n_of_injections--;
@@ -2564,7 +2597,7 @@ void oh4s_remove_mapped_particle(struct S_particle* part, const int ps,
                                  const int s) {
     struct oh_state* state = oh4s_state();
     const int nn = state->n_of_nodes, ns = state->n_of_species;
-    const int inj = part >= state->particles + state->total_parts;
+    const int inj = level4_particle_is_injected(state, part);
     OH_nid_t nid = part->nid;
     int sd, g, psreal = ps, mysd, t;
     Decl_Grid_Info();

@@ -370,6 +370,11 @@ remain fully application-owned; if an application provides its own particle
 layout, it should also provide `map_to_neighbor` / `map_to_subdomain` callbacks
 when Level-3 particle remapping needs coordinate-aware behavior.
 
+Level-4 now includes local adapter-stride helpers for particle buffer
+addressing, index validation, and copies. The public Level-4 injection and
+mapped-particle validation paths use those helpers instead of raw
+`struct S_particle` pointer arithmetic and assignments.
+
 Level-4 now mirrors the POS-aware packed-grid id parameters (`gridMask` and
 `logGrid`) into `oh_state` as `grid_mask` and `log_grid`. The Level-4
 translation units override their local `Decl_Grid_Info()` expansion to read the

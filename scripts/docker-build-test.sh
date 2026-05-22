@@ -31,6 +31,8 @@ mpicc -Iinclude tests/test_oh_context_header.c \
   -c -o build/docker/test_oh_context_header.o
 mpicc -Iinclude tests/test_ohhelp_c_header.c \
   -c -o build/docker/test_ohhelp_c_header.o
+mpicc -Iinclude tests/test_ohhelp2_header.c \
+  -c -o build/docker/test_ohhelp2_header.o
 mpicc -Iinclude tests/test_ohhelp4p_header.c \
   -c -o build/docker/test_ohhelp4p_header.o
 mpicc -Iinclude tests/test_ohhelp4s_header.c \

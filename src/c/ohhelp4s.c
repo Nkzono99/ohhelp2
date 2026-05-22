@@ -1141,12 +1141,11 @@ static int make_send_sched_body(struct oh_state* state, const int ps,
     const int nn = state->n_of_nodes;
     const int nx = n % 3, ny = n / 3 % 3, nz = n / 9;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
-    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
     int xl, xu, yl, yu, zl, zu, zn;
     int rlz = rlist->region, rid, ridp = -1, ridn = -1, nofsbase;
     int nsend = 0;
-    const int zmax = (SubDomains[sdid][OH_DIM_Z][OH_UPPER] -
-                      SubDomains[sdid][OH_DIM_Z][OH_LOWER]) - 1;
+    const int zmax = (state->subdomains[sdid][OH_DIM_Z][OH_UPPER] -
+                      state->subdomains[sdid][OH_DIM_Z][OH_LOWER]) - 1;
     Decl_For_All_Grid();
 
     Grid_Exterior_Boundary(nx, GridDesc[ps].x, xl, xu);
@@ -1299,7 +1298,8 @@ static void update_descriptors(struct oh_state* state, const int oldp,
 }
 
 #define Neighbor_Grid_Offset(PS, N, SD, D, XYZ)\
-  (N==0 ? 0 : (N<0 ? SubDomains[SD][D][OH_LOWER]-SubDomains[SD][D][OH_UPPER] :\
+  (N==0 ? 0 : (N<0 ? state->subdomains[SD][D][OH_LOWER] - \
+                         state->subdomains[SD][D][OH_UPPER] :\
                      GridDesc[ps].XYZ))
 
 static void update_neighbors(struct oh_state* state, const int ps) {
@@ -1307,7 +1307,6 @@ static void update_neighbors(struct oh_state* state, const int ps) {
     const int nn = state->n_of_nodes;
     int (*abs_neighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int* grid_offset = state->level4_grid_offset;
-    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     struct S_commlist (*primary_comm_list)[OH_NEIGHBORS] =
         (struct S_commlist (*)[OH_NEIGHBORS])state->level4_primary_comm_list;
@@ -1328,8 +1327,9 @@ static void update_neighbors(struct oh_state* state, const int ps) {
                                        Neighbor_Grid_Offset(ps, ny, nbr, OH_DIM_Y, y),
                                        Neighbor_Grid_Offset(ps, nz, nbr, OH_DIM_Z, z),
                                        GridDesc[0].w, GridDesc[0].dw);
-                    cl[nrev].region = SubDomains[nbr][OH_DIM_Z][OH_UPPER] -
-                        SubDomains[nbr][OH_DIM_Z][OH_LOWER] - 1;
+                    cl[nrev].region =
+                        state->subdomains[nbr][OH_DIM_Z][OH_UPPER] -
+                        state->subdomains[nbr][OH_DIM_Z][OH_LOWER] - 1;
                 }
             }
         }
@@ -2400,27 +2400,28 @@ static void check_particle_location4s(struct oh_state* state,
 
 #define Map_Particle_To_Neighbor(P, XYZ, DIM, MYSD, K, INC, UB, G, IDX) {\
   const double xyz = XYZ;\
-  const double gsize = Grid[DIM].gsize;\
-  const double lb = Grid[DIM].fcoord[OH_LOWER];\
+  const double gsize = state->grid[DIM].gsize;\
+  const double lb = state->grid[DIM].fcoord[OH_LOWER];\
   const double gf =\
-    (G = (xyz-lb)*Grid[DIM].rgsize + Grid[DIM].coord[OH_LOWER]) * gsize;\
+    (G = (xyz-lb)*state->grid[DIM].rgsize +\
+         state->grid[DIM].coord[OH_LOWER]) * gsize;\
   if (gf>xyz) G--;\
   else if (gf+gsize<=xyz) G++;\
-  G -= SubDomains[MYSD][DIM][OH_LOWER];  IDX += G;\
+  G -= state->subdomains[MYSD][DIM][OH_LOWER];  IDX += G;\
   if (G<0) {\
     K -= INC;\
     if (xyz<lb) {\
-      if (Boundaries[MYSD][DIM][OH_LOWER]) {\
+      if (state->boundaries[MYSD][DIM][OH_LOWER]) {\
         level4_set_particle_region(state, P, -1, ps);  return(-1);\
       }\
-      XYZ += Grid[DIM].fcoord[OH_UPPER] - lb;\
+      XYZ += state->grid[DIM].fcoord[OH_UPPER] - lb;\
     }\
     if (G<-OH_PGRID_EXT)  K = -OH_NEIGHBORS;\
   } else if (G>=UB) {\
-    double ub = Grid[DIM].fcoord[OH_UPPER];\
+    double ub = state->grid[DIM].fcoord[OH_UPPER];\
     K += INC;\
     if (xyz>=ub) {\
-      if (Boundaries[MYSD][DIM][OH_UPPER]) {\
+      if (state->boundaries[MYSD][DIM][OH_UPPER]) {\
         level4_set_particle_region(state, P, -1, ps);  return(-1);\
       }\
       XYZ -= ub - lb;\
@@ -2431,7 +2432,8 @@ static void check_particle_location4s(struct oh_state* state,
 }
 
 #define Adjust_Neighbor_Grid(G, N, DIM)\
-  if (G<0) G += SubDomains[N][DIM][OH_UPPER]-SubDomains[N][DIM][OH_LOWER];
+  if (G<0) G += state->subdomains[N][DIM][OH_UPPER] - \
+                 state->subdomains[N][DIM][OH_LOWER];
 
 int oh4s_map_particle_to_neighbor_(struct S_particle* part, const int* ps,
                                    const int* s) {
@@ -2444,10 +2446,7 @@ int oh4s_map_particle_to_neighbor(void* particle, const int ps,
     struct S_particle* part = (struct S_particle*)particle;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
     const int inj = level4_particle_is_injected(state, part);
-    struct S_grid* Grid = state->grid;
-    struct S_griddesc* GridDesc = state->level4_grid_desc;
-    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
-    int (*Boundaries)[OH_DIMENSION][2] = state->boundaries;
+    struct S_griddesc* grid_desc = state->level4_grid_desc;
     int (*abs_neighbors)[OH_NEIGHBORS] = state->abs_neighbors;
     int x, y, z, w, d, dw, mysd;
     const int psnn = ps ? (s + ns) * nn : s * nn;
@@ -2457,8 +2456,8 @@ int oh4s_map_particle_to_neighbor(void* particle, const int ps,
     int sd;
 
     check_particle_location4s(state, part, ps, s, inj);
-    x = GridDesc[ps].x;  y = GridDesc[ps].y;  z = GridDesc[ps].z;
-    w = GridDesc[ps].w;  d = GridDesc[ps].d;  dw = GridDesc[ps].dw;
+    x = grid_desc[ps].x;  y = grid_desc[ps].y;  z = grid_desc[ps].z;
+    w = grid_desc[ps].w;  d = grid_desc[ps].d;  dw = grid_desc[ps].dw;
     mysd = state->region_id[ps];
     xpos = level4_particle_position(state, part, OH_DIM_X);
     ypos = level4_particle_position(state, part, OH_DIM_Y);
@@ -2517,9 +2516,9 @@ int oh4s_map_particle_to_neighbor(void* particle, const int ps,
 }
 
 #define Map_To_Grid(P, PXYZ, XYZ, DIM, GG, LG) {\
-  const double gsize = Grid[DIM].gsize;\
-  const double lb = Grid[DIM].fcoord[OH_LOWER];\
-  const double ub = Grid[DIM].fcoord[OH_UPPER];\
+  const double gsize = state->grid[DIM].gsize;\
+  const double lb = state->grid[DIM].fcoord[OH_LOWER];\
+  const double ub = state->grid[DIM].fcoord[OH_UPPER];\
   double gf;\
   XYZ = PXYZ;\
   LG = 0;\
@@ -2528,16 +2527,19 @@ int oh4s_map_particle_to_neighbor(void* particle, const int ps,
       level4_set_particle_region(state, P, -1, ps);  return(-1);\
     }\
     XYZ += (ub - lb);  PXYZ = XYZ;\
-    LG = Grid[DIM].coord[OH_LOWER] - Grid[DIM].coord[OH_UPPER];\
+    LG = state->grid[DIM].coord[OH_LOWER] -\
+         state->grid[DIM].coord[OH_UPPER];\
   }\
   else if (XYZ>=ub) {\
     if (Level4_Boundary_Condition(DIM, OH_UPPER)) {\
       level4_set_particle_region(state, P, -1, ps);  return(-1);\
     }\
     XYZ -= (ub - lb);  PXYZ = XYZ;\
-    LG = Grid[DIM].coord[OH_UPPER] - Grid[DIM].coord[OH_LOWER];\
+    LG = state->grid[DIM].coord[OH_UPPER] -\
+         state->grid[DIM].coord[OH_LOWER];\
   }\
-  GG = (XYZ-lb)*Grid[DIM].rgsize + Grid[DIM].coord[OH_LOWER];\
+  GG = (XYZ-lb)*state->grid[DIM].rgsize +\
+       state->grid[DIM].coord[OH_LOWER];\
   gf = GG * gsize;\
   if (gf>XYZ) GG--;\
   else if (gf+gsize<=XYZ) GG++;\
@@ -2545,22 +2547,24 @@ int oh4s_map_particle_to_neighbor(void* particle, const int ps,
 }
 
 #define Map_Particle_To_Subdomain(XYZ, DIM, SDOM) {\
-  double thresh = Grid[DIM].light.thresh;\
+  double thresh = state->grid[DIM].light.thresh;\
   if (XYZ<thresh)\
-    SDOM = (XYZ - Grid[DIM].coord[OH_LOWER]) / Grid[DIM].light.size;\
+    SDOM = (XYZ - state->grid[DIM].coord[OH_LOWER]) /\
+           state->grid[DIM].light.size;\
   else\
-    SDOM = (XYZ - thresh)/ (Grid[DIM].light.size + 1) + Grid[DIM].light.n;\
+    SDOM = (XYZ - thresh)/ (state->grid[DIM].light.size + 1) +\
+           state->grid[DIM].light.n;\
 }
 
 #define Local_Coordinate(N, MYSD, GG, LG, DIM, K, INC, AA) {\
-  GG -= SubDomains[N][DIM][OH_LOWER];\
+  GG -= state->subdomains[N][DIM][OH_LOWER];\
   if (N==MYSD)  LG = GG;\
   else {\
-    const int ub = SubDomains[MYSD][DIM][OH_UPPER];\
+    const int ub = state->subdomains[MYSD][DIM][OH_UPPER];\
     if (LG>=ub+OH_PGRID_EXT)  AA = 1;\
     else {\
       const int inc = LG<ub ? 0 : INC;\
-      LG -= SubDomains[MYSD][DIM][OH_LOWER];\
+      LG -= state->subdomains[MYSD][DIM][OH_LOWER];\
       if (LG<-OH_PGRID_EXT)  AA = 1;\
       k += LG<0 ? -INC : inc;\
     }\
@@ -2578,12 +2582,10 @@ int oh4s_map_particle_to_subdomain(void* particle, const int ps,
     struct S_particle* part = (struct S_particle*)particle;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
     const int inj = level4_particle_is_injected(state, part);
-    struct S_grid* Grid = state->grid;
-    struct S_subdomdesc* SubDomainDesc = state->subdomain_desc;
-    struct S_griddesc* GridDesc = state->level4_grid_desc;
-    int (*SubDomains)[OH_DIMENSION][2] = state->subdomains;
-    const int nx = Grid[OH_DIM_X].n;
-    const int nxy = If_Dim(OH_DIM_Y, nx * Grid[OH_DIM_Y].n, 0);
+    struct S_subdomdesc* subdomain_desc = state->subdomain_desc;
+    struct S_griddesc* grid_desc = state->level4_grid_desc;
+    const int nx = state->grid[OH_DIM_X].n;
+    const int nxy = If_Dim(OH_DIM_Y, nx * state->grid[OH_DIM_Y].n, 0);
     const int t = ps ? ns + s : s;
     int w, dw, mysd;
     int sd;
@@ -2595,14 +2597,14 @@ int oh4s_map_particle_to_subdomain(void* particle, const int ps,
     int k = OH_NBR_SELF, aacc = 0;
 
     check_particle_location4s(state, part, ps, s, inj);
-    w = GridDesc[ps].w;  dw = GridDesc[ps].dw;  mysd = state->region_id[ps];
+    w = grid_desc[ps].w;  dw = grid_desc[ps].dw;  mysd = state->region_id[ps];
     xpos = level4_particle_position(state, part, OH_DIM_X);
     ypos = level4_particle_position(state, part, OH_DIM_Y);
     zpos = level4_particle_position(state, part, OH_DIM_Z);
     Map_To_Grid(part, *xpos, x, OH_DIM_X, gx, lx);
     Do_Y(Map_To_Grid(part, *ypos, y, OH_DIM_Y, gy, ly));
     Do_Z(Map_To_Grid(part, *zpos, z, OH_DIM_Z, gz, lz));
-    if (SubDomainDesc) {
+    if (subdomain_desc) {
         sd = map_irregular_subdomain(x, If_Dim(OH_DIM_Y, y, 0),
                                      If_Dim(OH_DIM_Z, z, 0));
         if (sd < 0) {

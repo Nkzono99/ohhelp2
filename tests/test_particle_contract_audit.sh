@@ -115,6 +115,9 @@ check_absent '^#(undef|define) (Grid_Position|Combine_Subdom_Pos|Subdomain_Id|Pr
 check_absent '\b(Grid_Position|Combine_Subdom_Pos|Subdomain_Id|Primarize_Id|Primarize_Id_Only|Secondarize_Id|Secondary_Injected|Neighbor_Subdomain_Id|Local_Grid_Position)\b' \
     src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\bDecl_Grid_Info\s*\(' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_absent 'struct S_grid\* Grid = state->grid' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_absent 'int \(\*SubDomains\).*state->subdomains' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_absent 'int \(\*Boundaries\).*state->boundaries' src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\b(ParticleAdapter|gridmask|loggrid)\b' \
   include/ohhelp4p.h include/ohhelp4s.h
 check_absent '^EXTERN ' include/ohhelp4p.h include/ohhelp4s.h

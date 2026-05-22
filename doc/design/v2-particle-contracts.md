@@ -126,6 +126,9 @@ When editing particle movement or mapping code, check for:
 - Public Level-1 headers must not publish implementation struct layouts for the
   node tree, communication lists, rebalance heaps, communicator containers, or
   stats accumulators; those layouts belong in `src/c/ohhelp1_internal.h`.
+- Public Level-1 headers must not publish implementation helper prototypes
+  used only by other library levels; those declarations belong in
+  `src/c/ohhelp1_internal.h`.
 - Public Level-4 headers must not publish `EXTERN` mutable implementation
   globals or internal scheduling structs. Those declarations belong in
   `src/c/ohhelp4*_internal.h`.

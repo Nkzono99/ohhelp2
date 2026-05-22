@@ -319,22 +319,4 @@ void oh1_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
                int *repiter, int *verbose);
 int  oh1_transbound_(int *currmode, int *stats);
 
-/* Prototypes for the functions called from higher-level library code */
-void  init1(int **sdid, int nspec, int maxfrac, int **nphgram,
-            int **totalp, int **rcounts, int **scounts,
-            struct S_mycommc *mycommc, struct S_mycommf *mycommf, int **nbor,
-            int *pcoord, int stats, int repiter, int verbose);
-void* mem_alloc(int esize, int count, char* varname);
-void  mem_alloc_error(char* varname, size_t size);
-void  errstop(char* format, ...);
-void  local_errstop(char* format, ...);
-void  set_total_particles();
-int   transbound1(int currmode, int stats, int level);
-int   try_primary1(int currmode, int level, int stats);
-int   try_stable1(int currmode, int level, int stats);
-void  rebalance1(int currmode, int level, int stats);
-void  build_new_comm(int currmode, int level, int nbridx, int stats);
-void  vprint(char* format, ...);
-void  dprint(char* format, ...);
-
 #endif

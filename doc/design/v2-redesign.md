@@ -61,6 +61,10 @@ The current code now has this first migration layer:
   statistics struct definitions now also live in `src/c/ohhelp1_internal.h`.
   The public header keeps forward declarations for context mirrors and public
   prototypes without exposing those implementation layouts.
+- Level-1 implementation-entry prototypes used by higher levels (`init1`,
+  `transbound1`, `try_primary1`, `mem_alloc`, and related helpers) now live in
+  `src/c/ohhelp1_internal.h`; `include/ohhelp1.h` is limited to public C and
+  Fortran-facing declarations.
 - Level-2 and Level-4 transbound entry points now gate stats collection through
   `oh_state.stats_mode` instead of reading the global `statsMode` directly.
 - Level-4p initialization now sizes its particle/send-buffer storage with the

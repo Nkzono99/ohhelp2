@@ -24,6 +24,9 @@ static int  level4_particle_is_injected(struct oh_state* state,
 static void level4_copy_particle(struct oh_state* state,
                                  struct S_particle* dst,
                                  const struct S_particle* src);
+static void level4_push_particle(struct oh_state* state,
+                                 struct S_particle** cursor,
+                                 const struct S_particle* src);
 static void level4_copy_particle_to_buffer(struct oh_state* state,
                                            struct S_particle* base,
                                            int index,
@@ -199,6 +202,13 @@ static void
 level4_copy_particle(struct oh_state* state, struct S_particle* dst,
                      const struct S_particle* src) {
     oh_particle_buffer_copy(state->particle_adapter, dst, src);
+}
+
+static void
+level4_push_particle(struct oh_state* state, struct S_particle** cursor,
+                     const struct S_particle* src) {
+    level4_copy_particle(state, *cursor, src);
+    *cursor = oh_particle_buffer_at(state->particle_adapter, *cursor, 1);
 }
 
 static void
@@ -1808,10 +1818,22 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
     }
     move_to_sendbuf_dw4s(state, 0, me, state->primary_parts, nacc[0]);
 
-    for (i = 0, p = state->send_buffer + nsend; i < ninjp; i++, p++)
-        *(state->recv_buffer_bases[Particle_Spec(p->spec - sbase)]++) = *p;
-    for (i = ninjs, p = state->send_buffer + ninjs; i < nplim; i++, p++)
-        *(state->recv_buffer_bases[Particle_Spec(p->spec - sbase) + ns]++) = *p;
+    for (i = 0; i < ninjp; i++) {
+        p = oh_particle_buffer_at(state->particle_adapter, state->send_buffer,
+                                  nsend + i);
+        level4_push_particle(state,
+                             state->recv_buffer_bases +
+                             Particle_Spec(p->spec - sbase),
+                             p);
+    }
+    for (i = ninjs; i < nplim; i++) {
+        p = oh_particle_buffer_at(state->particle_adapter, state->send_buffer,
+                                  i);
+        level4_push_particle(state,
+                             state->recv_buffer_bases +
+                             Particle_Spec(p->spec - sbase) + ns,
+                             p);
+    }
 
     primaryParts = state->primary_parts = *state->secondary_base = nacc[0];
 }

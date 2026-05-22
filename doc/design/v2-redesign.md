@@ -378,6 +378,9 @@ Level-4s particle storage allocation now uses the active adapter stride for the
 main particle/send-buffer pair and boundary-send staging buffer.
 Level-4s boundary-send staging now also copies into the boundary buffer through
 adapter-stride helpers.
+Level-4p/4s reinsertion of injected particles into receive-buffer cursors now
+uses adapter-aware push helpers, so both the copy and cursor advance honor the
+active particle stride.
 Level-4p also uses adapter-aware addressing when temporarily offsetting the
 primary send buffer for direct primary exchange.
 

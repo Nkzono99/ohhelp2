@@ -419,7 +419,7 @@ transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
   double *region_weights=state->region_weights;
   int *neighbors=(int*)state->neighbors;
   int *nofrecv=state->n_of_recv, *nofsend=state->n_of_send;
-  int *recvcounts=RecvCounts, *sendcounts=SendCounts;
+  int *recvcounts=state->recv_counts, *sendcounts=state->send_counts;
   int *totalp=state->total_particles, *totalp_next=state->total_particles_next;
   int i, j, k, s, p, tp, tpn, *nbor;
   dint nofp;

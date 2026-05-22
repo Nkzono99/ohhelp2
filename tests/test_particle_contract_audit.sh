@@ -54,6 +54,8 @@ check_present 'void \*particles;' src/c/oh_context_internal.h
 check_present 'void \*send_buffer;' src/c/oh_context_internal.h
 check_present 'void \*\*recv_buffer_bases;' src/c/oh_context_internal.h
 check_present 'void \*level4_boundary_send_buffer;' src/c/oh_context_internal.h
+check_present 'int \*recv_counts;' src/c/oh_context_internal.h
+check_present 'int \*send_counts;' src/c/oh_context_internal.h
 check_absent 'struct S_particle \*particles;' src/c/oh_context_internal.h
 check_absent 'struct S_particle \*send_buffer;' src/c/oh_context_internal.h
 check_absent 'struct S_particle \*\*recv_buffer_bases;' \
@@ -120,6 +122,8 @@ check_absent '\b(try_primary1|try_stable1|rebalance1|build_new_comm|oh1_broadcas
 check_absent '\btransbound1\s*\(' src/c/ohhelp3.c src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\btransbound2\s*\(' src/c/ohhelp3.c
 check_absent '\boh1_(broadcast|reduce|all_reduce)\s*\(' src/c/ohhelp3.c
+check_absent '\b(RecvCounts|SendCounts)\b' src/c/ohhelp2.c src/c/ohhelp3.c \
+  src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_present 'try_primary1_state' src/c/ohhelp1_internal.h
 check_present 'transbound1_state' src/c/ohhelp1_internal.h
 check_present 'transbound2_state' src/c/ohhelp2_internal.h

@@ -32,6 +32,8 @@ struct oh_state {
   int *injected_particles;
   int *n_of_recv;
   int *n_of_send;
+  int *recv_counts;
+  int *send_counts;
   int primary_parts;
   int total_parts;
   struct S_node *nodes;

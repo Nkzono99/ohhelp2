@@ -51,6 +51,9 @@ The current code now has this first migration layer:
   and communication histograms through `oh_state`.
 - Level-1 primary-mode acceptance now writes send/receive count histograms
   through `oh_state` instead of the process-global `NOfSend`/`NOfRecv`.
+- Level-1 user-facing receive/send count buffers are mirrored as
+  `oh_state.recv_counts` / `oh_state.send_counts`; transbound finalization uses
+  those context fields instead of reading `RecvCounts` / `SendCounts` directly.
 - Level-1 communication-count setup now keeps the secondary receive-list cursor
   in `oh_state` and mirrors `SecRList` only for the default global context.
 - Level-1 stats initialization, timing updates, communication counters,
@@ -213,9 +216,10 @@ The current code now has this first migration layer:
   through the default-context collective wrappers.
 - Level-3 grid-size scaling now updates grid geometry, floating subdomain
   bounds, and irregular subdomain descriptors through a state-backed helper.
-- Level-3 transbound now keeps its Level-1/2 delegation wrapper but reads
-  `excludeLevel2`, region ids, field types, and subdomain descriptors through
-  `oh_state` when deciding whether to rebuild secondary field descriptors.
+- Level-3 transbound now calls Level-1/2 state-backed internals directly and
+  reads `excludeLevel2`, region ids, field types, and subdomain descriptors
+  through `oh_state` when deciding whether to rebuild secondary field
+  descriptors.
 - Level-3 secondary border-exchange clearing now reads exchange counts and
   descriptors through `oh_state`, including the transbound path that invalidates
   stale secondary datatypes after the secondary region changes.

@@ -39,6 +39,8 @@ oh1_sync_default_state(void) {
   OhDefaultState.injected_particles = InjectedParticles;
   OhDefaultState.n_of_recv = NOfRecv;
   OhDefaultState.n_of_send = NOfSend;
+  OhDefaultState.recv_counts = RecvCounts;
+  OhDefaultState.send_counts = SendCounts;
   OhDefaultState.primary_parts = primaryParts;
   OhDefaultState.total_parts = totalParts;
   OhDefaultState.nodes = Nodes;

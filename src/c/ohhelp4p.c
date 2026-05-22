@@ -1958,11 +1958,12 @@ static void move_to_sendbuf_sec4p(const int psold, const int trans, const int ol
         move_to_sendbuf_dw4p(state, 1, oldp, state->total_parts,
                              nacc[0] + nacc[1]);
     } else {
-        struct S_particle* rbb = state->particles + nacc[0];
+        int rbb_index = nacc[0];
         int s;
         for (s = 0; s < ns; s++) {
-            state->recv_buffer_bases[ns + s] = rbb;
-            rbb += state->total_particles_next[ns + s];
+            state->recv_buffer_bases[ns + s] =
+                level4_particle_at(state, rbb_index);
+            rbb_index += state->total_particles_next[ns + s];
         }
     }
     move_to_sendbuf_dw4p(state, 0, me, state->primary_parts, nacc[0]);
@@ -2003,22 +2004,36 @@ static void move_to_sendbuf_uw4p(struct oh_state* state, const int ps,
         dint* npg = state->level4_particle_grid[ps][s];
         cn = c + ctp[s];  dn = d + ntp[s];
         if (d <= c) {
-            for (p = state->particles + c; c < cn; c++, p++)
-                Move_Or_Do(p, ps, mysd, 1, (state->particles[d++] = *p));
-            rbb[s] = state->particles + d;
+            for (; c < cn; c++) {
+                p = level4_particle_at(state, c);
+                Move_Or_Do(p, ps, mysd, 1,
+                           level4_copy_particle_to_buffer(
+                               state, state->particles, d++, p));
+            }
+            rbb[s] = level4_particle_at(state, d);
         } else if (dn > cn) {
-            rbb[s] = state->particles + d;
+            rbb[s] = level4_particle_at(state, d);
         } else {
             const int cb = c;
             int cm, dm;
-            for (p = state->particles + c; c < d; c++, p++)
+            for (; c < d; c++) {
+                p = level4_particle_at(state, c);
                 Move_Or_Do(p, ps, mysd, -1, (d++));
+            }
             cm = c - 1;  dm = d - 1;
-            for (p = state->particles + c; c < cn; c++, p++)
-                Move_Or_Do(p, ps, mysd, 1, (state->particles[d++] = *p));
-            rbb[s] = state->particles + d;
-            for (c = dm, d = dm, p = state->particles + c; c >= cb; c--, p--)
-                Move_Or_Do(p, ps, mysd, 0, (state->particles[d--] = *p));
+            for (; c < cn; c++) {
+                p = level4_particle_at(state, c);
+                Move_Or_Do(p, ps, mysd, 1,
+                           level4_copy_particle_to_buffer(
+                               state, state->particles, d++, p));
+            }
+            rbb[s] = level4_particle_at(state, d);
+            for (c = dm, d = dm; c >= cb; c--) {
+                p = level4_particle_at(state, c);
+                Move_Or_Do(p, ps, mysd, 0,
+                           level4_copy_particle_to_buffer(
+                               state, state->particles, d--, p));
+            }
         }
     }
 }
@@ -2039,8 +2054,12 @@ static void move_to_sendbuf_dw4p(struct oh_state* state, const int ps,
         dint* npg = state->level4_particle_grid[ps][s];
         cn -= ctp[s];  dn -= ntp[s];
         if (c >= d || cn >= dn)  continue;
-        for (p = state->particles + c; c >= cn; c--, p--)
-            Move_Or_Do(p, ps, mysd, 1, (state->particles[d--] = *p));
+        for (; c >= cn; c--) {
+            p = level4_particle_at(state, c);
+            Move_Or_Do(p, ps, mysd, 1,
+                       level4_copy_particle_to_buffer(
+                           state, state->particles, d--, p));
+        }
     }
 }
 

@@ -66,6 +66,9 @@ The current code now has this first migration layer:
   and copies through adapter helpers instead of raw pointer walks.
 - Level-4p secondary move routing now uses adapter copy helpers for `Move_Or_Do`
   send-buffer writes and injected-particle staging.
+- Level-4p upward/downward in-place particle compaction now walks and copies
+  particles through adapter-aware helpers instead of raw `state->particles`
+  pointer arithmetic.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

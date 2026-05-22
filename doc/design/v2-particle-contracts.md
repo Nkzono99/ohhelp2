@@ -119,6 +119,8 @@ When editing particle movement or mapping code, check for:
   functions/macros using the active particle adapter.
 - Level 4 implementation code must not directly read or write particle
   coordinates. Position access must pass through adapter offsets.
+- Level 4 particle-buffer allocation must use adapter stride, not
+  `sizeof(struct S_particle)`, when custom adapters can be active.
 - Shared position offset arithmetic belongs in
   `oh_particle_adapter_position()` or
   `oh_particle_adapter_const_position()`, not in level-specific code.

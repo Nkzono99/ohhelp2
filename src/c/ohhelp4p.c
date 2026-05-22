@@ -39,6 +39,9 @@ static void level4_copy_particle(struct oh_state* state,
 static void level4_push_particle(struct oh_state* state,
                                  struct S_particle** cursor,
                                  const struct S_particle* src);
+static size_t level4_init_particle_stride(void);
+static struct S_particle* level4_init_particle_at(struct S_particle* base,
+                                                  int index);
 static void init4p(int** sdid, const int nspec, const int maxfrac,
                    int** totalp, struct S_particle** pbuf, int** pbase,
                    int maxlocalp, struct S_mycommc* mycommc,
@@ -250,6 +253,20 @@ level4_push_particle(struct oh_state* state, struct S_particle** cursor,
     *cursor = oh_particle_buffer_at(state->particle_adapter, *cursor, 1);
 }
 
+static size_t
+level4_init_particle_stride(void) {
+    if (useCustomParticleAdapter)
+        return oh_particle_buffer_stride(&CustomParticleAdapter);
+    return sizeof(struct S_particle);
+}
+
+static struct S_particle*
+level4_init_particle_at(struct S_particle* base, int index) {
+    if (useCustomParticleAdapter)
+        return oh_particle_buffer_at(&CustomParticleAdapter, base, index);
+    return base + index;
+}
+
 #ifdef OH_POS_AWARE
 #undef Decl_Grid_Info
 #undef Subdomain_Id
@@ -430,9 +447,9 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
         Particles = *pbuf;
     else
         Particles = *pbuf =
-        (struct S_particle*)mem_alloc(sizeof(struct S_particle),
+        (struct S_particle*)mem_alloc(level4_init_particle_stride(),
                                       maxlocalp << 1, "Particles");
-    SendBuf = Particles + maxlocalp;
+    SendBuf = level4_init_particle_at(Particles, maxlocalp);
 
     for (nf = 0; ft[nf][OH_FTYPE_ES] > 0; nf++);
     for (ne = 0; cf[ne] + cfid >= 0; ne++);

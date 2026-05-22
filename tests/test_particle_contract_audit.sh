@@ -45,6 +45,8 @@ check_absent '->(nid|spec)\b' src/c/ohhelp3.c
 # adapter contract.
 check_absent '->(nid|spec)\b' src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\b(part|p|P|sp)->(x|y|z)\b' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_absent 'mem_alloc\(sizeof\(struct S_particle\)' \
+  src/c/ohhelp4p.c src/c/ohhelp4s.c
 
 # New direct accesses must not spread outside the known migration boundary.
 legacy_accesses=$(

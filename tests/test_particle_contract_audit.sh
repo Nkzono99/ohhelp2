@@ -56,9 +56,6 @@ legacy_accesses=$(
     | grep -vE 'src/c/ohhelp3.c:' \
     | grep -vE 'src/c/ohhelp4p.c:' \
     | grep -vE 'src/c/ohhelp4s.c:' \
-    | grep -vE 'include/ohhelp2.h:' \
-    | grep -vE 'include/ohhelp4p.h:' \
-    | grep -vE 'include/ohhelp4s.h:' \
     || true
 )
 if [ -n "$legacy_accesses" ]; then

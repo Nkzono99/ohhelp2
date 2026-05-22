@@ -12,9 +12,15 @@
 #define Grid_Position(ID)         ((ID)&gridmask)
 #define Combine_Subdom_Pos(ID, G) (((OH_nid_t)(ID)<<loggrid) + (G))
 #define Primarize_Id_Only(P) \
-  (P)->nid -= (OH_nid_t)(nOfNodes+OH_NEIGHBORS)<<loggrid
+  ParticleAdapter.set_region(\
+    &ParticleAdapter, (P),\
+    ParticleAdapter.get_region(&ParticleAdapter, (P), 1) -\
+    ((OH_nid_t)(nOfNodes+OH_NEIGHBORS)<<loggrid), 1)
 #define Secondarize_Id(P) \
-  (P)->nid += (OH_nid_t)(nOfNodes+OH_NEIGHBORS)<<loggrid
+  ParticleAdapter.set_region(\
+    &ParticleAdapter, (P),\
+    ParticleAdapter.get_region(&ParticleAdapter, (P), 1) +\
+    ((OH_nid_t)(nOfNodes+OH_NEIGHBORS)<<loggrid), 1)
 #define Secondary_Injected(ID) \
   ((ID>>loggrid)>=nOfNodes+OH_NEIGHBORS)
 #define Neighbor_Subdomain_Id(ID, PS) \

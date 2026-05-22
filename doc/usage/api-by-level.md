@@ -147,6 +147,7 @@ oh_init(&sdid, nspec, maxfrac,
 ```c
 if (particle_left_subdomain(&p, sdoms[sdid[ps]])) {
     int dst = oh_map_particle_to_neighbor(&p.x, &p.y, &p.z, ps);
+    /* default S_particle の例。custom particle では adapter の region field を更新する。 */
     p.nid = dst;
     nphgram[species][self]--;
     nphgram[species][dst]++;

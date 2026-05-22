@@ -108,6 +108,9 @@ When editing particle movement or mapping code, check for:
 
 `tests/test_particle_contract_audit.sh` enforces the current boundary:
 
+- Public Level-2/4 headers must not encode `S_particle.nid` or
+  `S_particle.spec` directly. Packed-id helper macros must read/write the
+  region through the active `oh_particle_adapter`.
 - Level 2 implementation code must not directly read or write `nid` or `spec`.
 - Level 3 implementation code must not directly read or write `nid` or `spec`;
   direct `x/y/z` access is limited to the default `S_particle` mapping adapter.
@@ -120,8 +123,7 @@ When editing particle movement or mapping code, check for:
   `oh_particle_adapter_position()` or
   `oh_particle_adapter_const_position()`, not in level-specific code.
 - New direct particle-field access must not spread outside the known migration
-  files: `oh_particle_adapter.c`, `ohhelp3.c`, `ohhelp4p.c`, `ohhelp4s.c`, and
-  the legacy POS-aware headers.
+  files: `oh_particle_adapter.c`, `ohhelp3.c`, `ohhelp4p.c`, and `ohhelp4s.c`.
 
 This test is intentionally not a declaration that Level 4 is finished. It keeps
 the remaining hidden contracts visible while preventing new v2 code from

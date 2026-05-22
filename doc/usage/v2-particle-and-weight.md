@@ -229,6 +229,8 @@ default adapter は `nid` を region field として読み書きします。
 custom particle layout では、field 名は `nid` である必要はありません。
 `get_region` / `set_region`、または `oh_particle_adapter_use_int_fields()` で指定した
 region field が同じ役割を持ちます。
+公開ヘッダ内の packed-id helper も v2 では active adapter 経由で region を
+読み書きするため、`S_particle.nid` という field 名は必須条件ではありません。
 
 - 通常粒子: region が負値、または Level 3/4 mapping が `-1` を返す粒子は、
   次の transfer で送受信・保持対象から外れます。利用側は histogram/count も

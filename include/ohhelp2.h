@@ -45,7 +45,9 @@ EXTERN int AbsNeighbors[2][OH_NEIGHBORS];
           AbsNeighbors[PS][subdomid] : subdomid-OH_NEIGHBORS))
 #define Primarize_Id(P, SD) {\
   const OH_nid_t nidelem =\
-    ((P)->nid -= (OH_nid_t)(nOfNodes+OH_NEIGHBORS)<<loggrid);\
+    (OH_nid_t)ParticleAdapter.get_region(&ParticleAdapter, (P), 1) -\
+    ((OH_nid_t)(nOfNodes+OH_NEIGHBORS)<<loggrid);\
+  ParticleAdapter.set_region(&ParticleAdapter, (P), nidelem, 1);\
   SD = Subdomain_Id(nidelem, 1);\
 }
 #else

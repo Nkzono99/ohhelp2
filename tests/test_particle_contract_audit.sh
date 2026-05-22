@@ -92,6 +92,8 @@ check_absent 'state->send_buffer\s*(\[|\+)' \
 check_absent '\b(Particles|SendBuf)\s*(\[|\+)' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\bsb\s*\[[^]]+\]\s*=' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_absent 'struct S_particle' src/c/oh_particle_buffer.h
+check_present 'void \*' src/c/oh_particle_buffer.h
 check_absent '\b(nidelement|subdomid|gridmask)\b' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\b(Grid_Position|Combine_Subdom_Pos|Primarize_Id_Only|Secondarize_Id|Secondary_Injected|Neighbor_Subdomain_Id)\b' \

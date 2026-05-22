@@ -8,32 +8,27 @@
 #include <string.h>
 
 #include "oh_particle_adapter.h"
-#include "oh_part.h"
-
 static inline size_t
 oh_particle_buffer_stride(const oh_particle_adapter *adapter) {
   return adapter->stride;
 }
 
-static inline struct S_particle *
-oh_particle_buffer_at(const oh_particle_adapter *adapter,
-                      struct S_particle *base, int index) {
-  return (struct S_particle*)((char*)base +
-                              (size_t)index*oh_particle_buffer_stride(adapter));
+static inline void *
+oh_particle_buffer_at(const oh_particle_adapter *adapter, void *base,
+                      int index) {
+  return (char*)base + (size_t)index*oh_particle_buffer_stride(adapter);
 }
 
-static inline const struct S_particle *
+static inline const void *
 oh_particle_buffer_const_at(const oh_particle_adapter *adapter,
-                            const struct S_particle *base, int index) {
-  return (const struct S_particle*)((const char*)base +
-                                    (size_t)index*
-                                    oh_particle_buffer_stride(adapter));
+                            const void *base, int index) {
+  return (const char*)base +
+         (size_t)index*oh_particle_buffer_stride(adapter);
 }
 
 static inline int
-oh_particle_buffer_index(const oh_particle_adapter *adapter,
-                         const struct S_particle *base,
-                         const struct S_particle *part) {
+oh_particle_buffer_index(const oh_particle_adapter *adapter, const void *base,
+                         const void *part) {
   ptrdiff_t offset = (const char*)part - (const char*)base;
   size_t stride = oh_particle_buffer_stride(adapter);
 
@@ -42,16 +37,14 @@ oh_particle_buffer_index(const oh_particle_adapter *adapter,
 }
 
 static inline void
-oh_particle_buffer_copy(const oh_particle_adapter *adapter,
-                        struct S_particle *dst,
-                        const struct S_particle *src) {
+oh_particle_buffer_copy(const oh_particle_adapter *adapter, void *dst,
+                        const void *src) {
   memmove(dst, src, oh_particle_buffer_stride(adapter));
 }
 
 static inline void
-oh_particle_buffer_copy_n(const oh_particle_adapter *adapter,
-                          struct S_particle *dst,
-                          const struct S_particle *src, int count) {
+oh_particle_buffer_copy_n(const oh_particle_adapter *adapter, void *dst,
+                          const void *src, int count) {
   int i;
 
   for (i=0; i<count; i++)

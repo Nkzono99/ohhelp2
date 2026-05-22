@@ -487,7 +487,9 @@ particle layouts can reuse OhHelp's existing subdomain geometry for
 
 The stride-aware storage helpers live in `src/c/oh_particle_buffer.h` so
 Level-2 movement code can share one implementation for element addressing,
-index validation, and byte-wise copies.
+index validation, and byte-wise copies. Those helpers now take and return
+`void *`; the remaining `struct S_particle *` types are local staging aliases in
+movement code rather than part of the buffer helper contract.
 
 Level-3 initialization now installs default `S_particle` coordinate mapping
 callbacks into the active default adapter after geometry setup. Custom adapters

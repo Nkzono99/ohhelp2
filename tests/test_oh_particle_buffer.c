@@ -3,6 +3,7 @@
 
 #include <mpi.h>
 
+#include "oh_part.h"
 #include "oh_particle_buffer.h"
 
 struct padded_particle {

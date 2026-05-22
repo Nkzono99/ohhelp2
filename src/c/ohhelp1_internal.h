@@ -122,6 +122,8 @@ void  errstop(char* format, ...);
 void  local_errstop(char* format, ...);
 void  set_total_particles();
 int   transbound1(int currmode, int stats, int level);
+int   transbound1_state(struct oh_state *state, int currmode, int stats,
+                        int level);
 int   try_primary1(int currmode, int level, int stats);
 int   try_primary1_state(struct oh_state *state, int currmode, int level,
                          int stats);

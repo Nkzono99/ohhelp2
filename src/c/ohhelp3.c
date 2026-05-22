@@ -862,9 +862,9 @@ transbound3(struct oh_state *state, int currmode, int stats, int level) {
   int oldp=state->region_id[1], newp;
   int (*field_types)[OH_FTYPE_N]=(int(*)[OH_FTYPE_N])state->field_types;
 
-  currmode = state->exclude_level2 ? transbound1(currmode, stats, 1) :
-                                     transbound2(currmode, stats, level);
-  oh1_sync_default_state();
+  currmode = state->exclude_level2 ?
+             transbound1_state(state, currmode, stats, 1) :
+             transbound2_state(state, currmode, stats, level);
   newp = state->region_id[1];
   if (oldp!=newp) {
     if (oldp>=0)  state_clear_border_exchange(state);

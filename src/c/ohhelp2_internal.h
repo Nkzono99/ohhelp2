@@ -34,6 +34,8 @@ void init2(int **sdid, int nspec, int maxfrac, int **nphgram,
            struct S_mycommc *mycommc, struct S_mycommf *mycommf,
            int **nbor, int *pcoord, int stats, int repiter, int verbose);
 int  transbound2(int currmode, int stats, int level);
+int  transbound2_state(struct oh_state *state, int currmode, int stats,
+                       int level);
 void exchange_primary_particles(int currmode, int stats);
 void exchange_primary_particles_state(struct oh_state *state, int currmode,
                                       int stats);

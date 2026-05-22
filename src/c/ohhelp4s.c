@@ -593,7 +593,7 @@ static int transbound4s(int currmode, int stats, const int level) {
 
     state = oh4s_state();
     stats = stats && state->stats_mode;
-    currmode = transbound1(currmode, stats, level);
+    currmode = transbound1_state(state, currmode, stats, level);
     state = oh4s_state();
     nn = state->n_of_nodes;  ns = state->n_of_species;
     ns2 = ns << 1;  nnns2 = nn * ns2;

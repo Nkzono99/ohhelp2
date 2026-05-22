@@ -30,6 +30,8 @@ static void  allocate_particle_storage(struct S_particle **pbuf, int maxlocalp);
 static void  allocate_particle_base(int **pbase);
 static void  allocate_level2_work_buffers(int ns, int nn, int nnns,
                                           int maxlocalp);
+int          transbound2_state(struct oh_state *state, int currmode, int stats,
+                               int level);
 static int   finish_transbound2_state(struct oh_state *state, int ret);
 static void  move_to_sendbuf_secondary(int secondary, int stats);
 static void  move_to_sendbuf_secondary_state(struct oh_state *state,
@@ -213,17 +215,21 @@ oh2_transbound(int currmode, int stats) {
 }
 int
 transbound2(int currmode, int stats, int level) {
+  return transbound2_state(oh1_state(), currmode, stats, level);
+}
+int
+transbound2_state(struct oh_state *state, int currmode, int stats, int level) {
   int ret=MODE_NORM_SEC;
-  struct oh_state *state=oh1_state();
 
   stats = stats && state->stats_mode;
-  currmode = transbound1(currmode, stats, level);
+  currmode = transbound1_state(state, currmode, stats, level);
 
-  if (try_primary2(currmode, level, stats))  ret = MODE_NORM_PRI;
-  else if (!Mode_PS(currmode) || !try_stable2(currmode, level, stats)) {
-    rebalance2(currmode, level, stats);  ret = MODE_REB_SEC;
+  if (try_primary2_state(state, currmode, level, stats))  ret = MODE_NORM_PRI;
+  else if (!Mode_PS(currmode) ||
+           !try_stable2_state(state, currmode, level, stats)) {
+    rebalance2_state(state, currmode, level, stats);  ret = MODE_REB_SEC;
   }
-  return finish_transbound2_state(oh1_state(), ret);
+  return finish_transbound2_state(state, ret);
 }
 static int
 finish_transbound2_state(struct oh_state *state, int ret) {

@@ -35,8 +35,6 @@ static void  make_send_count_state(struct oh_state *state,
 static void  count_next_particles_state(struct oh_state *state,
                                         struct S_commlist* rlist, int rlsize);
 static void  set_total_particles_state(struct oh_state *state);
-static int   transbound1_state(struct oh_state *state, int currmode,
-                               int stats, int level);
 struct S_heap_key {
   dint *particles;
   double *loads;
@@ -416,7 +414,7 @@ int
 transbound1(int currmode, int stats, int level) {
   return transbound1_state(oh1_state(), currmode, stats, level);
 }
-static int
+int
 transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
   int ret=MODE_NORM_SEC;
   int nn=state->n_of_nodes, ns=state->n_of_species;

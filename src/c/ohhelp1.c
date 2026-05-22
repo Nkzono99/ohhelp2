@@ -50,9 +50,11 @@ static void  remove_heap(struct S_heap* heap, int greater, int rem,
 static int   heap_key_greater(const struct S_heap_key *key, int left,
                               int right);
 static void  clear_stats(struct S_statstotal *stotal);
-static void  stats_primary_comm(int currmode);
-static void  stats_secondary_comm(int currmode, int reb);
-static void  stats_comm(int* nrecv, int* nsend, dint* scp, int ns);
+static void  stats_primary_comm_state(struct oh_state *state, int currmode);
+static void  stats_secondary_comm_state(struct oh_state *state, int currmode,
+                                        int reb);
+static void  stats_comm_state(struct oh_state *state, int* nrecv, int* nsend,
+                              dint* scp, int ns);
 static void  update_stats(struct S_statstotal *stotal, int step, int currmode);
 static void  stats_reduce_part(void* inarg, void* ioarg, int* len,
                                MPI_Datatype* type);
@@ -551,7 +553,7 @@ try_primary1_state(struct oh_state *state, int currmode, int level, int stats) {
       if (total_load_global[i]>nlpmax_weighted) return(FALSE);
     } else if (totalp_global[i]>nlpmax) return(FALSE);
   }
-  if (stats) stats_primary_comm(currmode);
+  if (stats) stats_primary_comm_state(state, currmode);
   Verbose(2,vprint("try_primary=TRUE"));
 
   subdomain_id[1] = region_id[1] = -1;
@@ -1005,7 +1007,7 @@ make_comm_count_state(struct oh_state *state, int currmode, int level, int reb,
     if (newparent>=0)
       count_next_particles_state(state, SecRList, *sec_rl_size);
   }
-  if (stats) stats_secondary_comm(currmode, reb);
+  if (stats) stats_secondary_comm_state(state, currmode, reb);
   if (level==1) {
     for (ps=0,i=0; ps<(newparent<0?1:2); ps++) {
       int putme = ps==0 ? -mynode->get.prime : -mynode->get.sec;
@@ -1549,24 +1551,27 @@ oh1_stats_time(int key, int ps) {
   Stats.curr.time.key = (key<<1) + ps;
 }
 static void
-stats_primary_comm(int currmode) {
-  stats_comm(NOfPrimaries, NOfPLocal, Stats.curr.part, nOfSpecies*2);
+stats_primary_comm_state(struct oh_state *state, int currmode) {
+  stats_comm_state(state, state->n_of_primaries, state->n_of_particles_local,
+                   Stats.curr.part, state->n_of_species*2);
   Stats.curr.part[STATS_PART_PRIMARY] =
     (currmode==MODE_ANY_PRI) ? 3 : Mode_PS(currmode)+1;
 }
 static void
-stats_secondary_comm(int currmode, int reb) {
-  int ns=nOfSpecies, nnns=nOfNodes*ns;
+stats_secondary_comm_state(struct oh_state *state, int currmode, int reb) {
+  int ns=state->n_of_species, nnns=state->n_of_nodes*ns;
 
-  stats_comm(NOfRecv, NOfSend, Stats.curr.part, ns);
-  stats_comm(NOfRecv+nnns, NOfSend+nnns,
-             Stats.curr.part+STATS_PART_MOVE_SEC_MIN, ns);
+  stats_comm_state(state, state->n_of_recv, state->n_of_send,
+                   Stats.curr.part, ns);
+  stats_comm_state(state, state->n_of_recv+nnns, state->n_of_send+nnns,
+                   Stats.curr.part+STATS_PART_MOVE_SEC_MIN, ns);
   Stats.curr.part[STATS_PART_SECONDARY] =
     Mode_PS(currmode) ? (reb ? 3 : 2) : 1;
 }
 static void
-stats_comm(int* nrecv, int* nsend, dint* scp, int ns) {
-  int i, s, nn=nOfNodes, me=myRank;
+stats_comm_state(struct oh_state *state, int* nrecv, int* nsend, dint* scp,
+                 int ns) {
+  int i, s, nn=state->n_of_nodes, me=state->my_rank;
   int get=0, put=0, minmove=INT_MAX, maxmove=0, nmove=0;
 
   for (i=0; i<nn; i++) {

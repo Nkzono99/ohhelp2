@@ -143,9 +143,9 @@ The current code now has this first migration layer:
   state-backed scheduling/count construction paths.
 - Level-2 particle buffers, displacement arrays, request/status buffers,
   injection counters, particle MPI datatype, and particle adapter pointers are
-  now mirrored into `oh_state`. Level-2 code still reads the globals directly;
-  the mirror is the next migration bridge for threading state through movement
-  and exchange helpers.
+  now mirrored into `oh_state`. Initialization allocates these through
+  state-aware helpers, while the default global symbols remain as the current
+  compatibility mirror.
 - Primary-mode Level-2 particle exchange now has a state-backed internal path
   for communicator, rank, particle histograms, neighbor arrays, particle MPI
   datatype, send/receive buffers, displacement arrays, and scratch counts.

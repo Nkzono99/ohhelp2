@@ -160,6 +160,7 @@ oh4s_state(void) {
     state->level4_real_src_neighbors = RealSrcNeighbors;
     state->level4_boundary_condition = &BoundaryCondition[0][0];
     state->level4_z_bound = &ZBound[0][0];
+    state->level4_z_bound_shadow = ZBoundShadow ? &ZBoundShadow[0][0] : NULL;
     return state;
 }
 
@@ -370,7 +371,7 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
         2 * maxdensity * Grid[OH_DIM_Z].size *
         ((Grid[OH_DIM_X].size + ext2) * (Grid[OH_DIM_Y].size + ext2) -
          Grid[OH_DIM_X].size * Grid[OH_DIM_Y].size);
-    BoundarySendBuf =
+    state->level4_boundary_send_buffer = BoundarySendBuf =
         (struct S_particle*)mem_alloc(sizeof(struct S_particle), size,
                                       "BoundarySendBuf");
     size = Grid[OH_DIM_X].size + ext2;
@@ -412,28 +413,38 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     adjust_field_descriptor(state, 0);
 
     iptr = (int*)mem_alloc(sizeof(int), 2 * 2 * 4 * nspec, "HPlane");
+    state->level4_horizontal_planes = &HPlane[0][0];
     for (ps = 0; ps < 2; ps++)  for (i = OH_LOWER; i <= OH_UPPER; i++) {
-        HPlane[ps][i].nsend = iptr;  iptr += nspec;
-        HPlane[ps][i].nrecv = iptr;  iptr += nspec;
-        HPlane[ps][i].sbuf = iptr;  iptr += nspec;
-        HPlane[ps][i].rbuf = iptr;  iptr += nspec;
-        HPlane[ps][i].nbor = MPI_PROC_NULL;
+        struct S_hplane (*hplanes)[2] =
+            (struct S_hplane (*)[2])state->level4_horizontal_planes;
+        hplanes[ps][i].nsend = iptr;  iptr += nspec;
+        hplanes[ps][i].nrecv = iptr;  iptr += nspec;
+        hplanes[ps][i].sbuf = iptr;  iptr += nspec;
+        hplanes[ps][i].rbuf = iptr;  iptr += nspec;
+        hplanes[ps][i].nbor = MPI_PROC_NULL;
     }
     size = 2 * nn + 2 * 2 + 2;
-    VPlane = (struct S_vplane*)mem_alloc(sizeof(struct S_vplane), size,
-                                         "VPlane");
-    VPlaneHead[0] = VPlaneHead[1] = VPlaneHead[2] = VPlaneHead[3] =
-        VPlaneHead[4] = VPlaneHead[5] = VPlaneHead[6] = VPlaneHead[7] =
-        VPlaneHead[8] = 0;
+    state->level4_vertical_planes =
+        VPlane = (struct S_vplane*)mem_alloc(sizeof(struct S_vplane), size,
+                                             "VPlane");
+    memset(state->level4_vertical_plane_head, 0,
+           sizeof(int) * (2 * 2 * 2 + 1));
 
     iptr = *zbound;
     if (!iptr)  iptr = *zbound = mem_alloc(sizeof(int), 4, "ZBound");
     ZBoundShadow = (int(*)[2])iptr;
-    ZBoundShadow[0][OH_LOWER] = 0;  ZBoundShadow[0][OH_UPPER] = GridDesc[0].z;
-    ZBoundShadow[1][OH_UPPER] = ZBoundShadow[1][OH_UPPER] = 0;
+    state->level4_z_bound_shadow = &ZBoundShadow[0][0];
+    {
+        int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
+        int (*z_bound_shadow)[2] = (int (*)[2])state->level4_z_bound_shadow;
+        z_bound[0][OH_LOWER] = 0;  z_bound[0][OH_UPPER] = GridDesc[0].z;
+        z_bound[1][OH_LOWER] = z_bound[1][OH_UPPER] = 0;
+        memcpy(z_bound_shadow, z_bound, sizeof(int) * 2 * 2);
+    }
 
-    InteriorParts = mem_alloc(sizeof(struct S_interiorp), nspec * 2,
-                              "InteriorParts");
+    state->level4_interior_parts =
+        InteriorParts = mem_alloc(sizeof(struct S_interiorp), nspec * 2,
+                                  "InteriorParts");
 
     MPI_Type_vector(nspec, 1, nn, MPI_INT, &T_Hgramhalf);
     MPI_Type_commit(&T_Hgramhalf);
@@ -604,8 +615,8 @@ static int transbound4s(int currmode, int stats, const int level) {
                 npg[The_Grid()] = 0;
         }
     }
-    ZBoundShadow[0][0] = z_bound[0][0];    ZBoundShadow[0][1] = z_bound[0][1];
-    ZBoundShadow[1][0] = z_bound[1][0];    ZBoundShadow[1][1] = z_bound[1][1];
+    if (state->level4_z_bound_shadow)
+        memcpy(state->level4_z_bound_shadow, z_bound, sizeof(int) * 2 * 2);
     tmp = state->particles;
     Particles = state->particles = state->send_buffer;
     SendBuf = state->send_buffer = tmp;

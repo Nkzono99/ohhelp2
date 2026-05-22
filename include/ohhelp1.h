@@ -184,6 +184,7 @@ struct oh_state {
   void *level4_real_src_neighbors;
   int *level4_boundary_condition;
   int *level4_z_bound;
+  int *level4_z_bound_shadow;
 };
 extern struct oh_state OhDefaultState;
 

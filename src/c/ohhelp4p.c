@@ -164,6 +164,7 @@ oh4p_state(void) {
     state->level4_real_src_neighbors = RealSrcNeighbors;
     state->level4_boundary_condition = &BoundaryCondition[0][0];
     state->level4_z_bound = NULL;
+    state->level4_z_bound_shadow = NULL;
     return state;
 }
 

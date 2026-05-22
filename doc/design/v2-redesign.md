@@ -164,7 +164,9 @@ The current code now has this first migration layer:
   mirrored into `oh_state`. The existing allocation still owns `HPlane` and
   `VPlane`, but state-aware schedule, boundary-particle transfer, and user
   border-data exchange paths read the plane descriptors through the context
-  mirror.
+  mirror. Level-4s initialization now also populates the boundary-send buffer,
+  plane descriptor, interior-particle descriptor, and z-boundary shadow mirrors
+  while preserving the user-facing `zbound` copy-out.
 - Level-4 grid histogram/routing state is now mirrored into `oh_state` by
   Level-4p/4s-local sync helpers. `src/c/oh_context.c` deliberately does not
   include Level-4 headers because the Level-4p and Level-4s headers carry

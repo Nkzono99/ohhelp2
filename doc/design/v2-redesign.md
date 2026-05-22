@@ -71,6 +71,8 @@ The current code now has this first migration layer:
   pointer arithmetic.
 - Level-4p secondary move-and-sort now uses adapter-aware particle and receive
   buffer indices instead of raw particle pointer increments.
+- Level-4s move routing and sorting now use adapter copy helpers for
+  send-buffer writes and injected-particle staging.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

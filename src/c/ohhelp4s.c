@@ -883,7 +883,9 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
         make_bxfer_sched(state, 0, psnew, rlist, rlidx);
         move_and_sort(nextmode, psold, psnew, oldp, nacc, stats);
         state_xfer_particles4s(state, trans, psnew, nextmode,
-                               state->send_buffer + nacc[1]);
+                               oh_particle_buffer_at(state->particle_adapter,
+                                                     state->send_buffer,
+                                                     nacc[1]));
         sort_received_particles(state, nextmode, psnew, stats);
     }
     xfer_boundary_particles_v(state, psnew, trans, 0);
@@ -1786,10 +1788,13 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
   dst = npg[g];\
   if (dst==0)  { ACT; }\
   else if (!PIL) {\
-    if (TOSB)  sb[state->n_of_send[dst-1]++] = *P;\
+    if (TOSB) {\
+      level4_copy_particle_to_buffer(state, sb, state->n_of_send[dst-1]++, P);\
+    }\
   }\
   else if (dst>0)\
-    sb[state->n_of_send[Pillar_Lower(dst)-1]++] = *P;\
+    level4_copy_particle_to_buffer(\
+        state, sb, state->n_of_send[Pillar_Lower(dst)-1]++, P);\
   else {\
     ACT;\
     const dint bsbidx = -dst;\
@@ -1851,10 +1856,13 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
         if (ps) {
             Primarize_Id_Only(p);
             Move_Or_Do(p, ps, oldp, 1,
-                       (sb[--ninjs] = *p, interior_parts[ns + s].size++), 0);
+                       (level4_copy_particle_to_buffer(state, sb, --ninjs, p),
+                        interior_parts[ns + s].size++), 0);
         } else
             Move_Or_Do(p, ps, me, 1,
-                       (sb[nsend + ninjp++] = *p, interior_parts[s].size++), 0);
+                       (level4_copy_particle_to_buffer(state, sb,
+                                                       nsend + ninjp++, p),
+                        interior_parts[s].size++), 0);
     }
     move_to_sendbuf_uw4s(state, 0, me, 0, 0);
     if (psold) {
@@ -1956,7 +1964,7 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
 #define Sort_Particle(P) {\
   const int g = Grid_Position(level4_particle_region(state, P, ps));\
   const dint dst = npg[g];\
-  sb[npgt[g]++] = *P;\
+  level4_copy_particle_to_buffer(state, sb, npgt[g]++, P);\
   if (dst<0) {\
     const dint bsbidx = -dst;\
     if (!Is_Pillar_Voxel(bsbidx)) {\
@@ -2003,7 +2011,9 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
     struct S_particle* p, * rbb;
-    struct S_particle* sb = state->send_buffer + nacc[1];
+    struct S_particle* sb = oh_particle_buffer_at(state->particle_adapter,
+                                                  state->send_buffer,
+                                                  nacc[1]);
     int* nofr;
     int ps, s, t, i;
     Decl_For_All_Grid();
@@ -2031,7 +2041,8 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
             const int itail = state->total_particles[t];
             for (i = 0; i < itail; i++, p++)
                 Move_Or_Do(p, ps, mysd, 1,
-                           (state->send_buffer[npgt[g]++] = *p), 1);
+                           level4_copy_particle_to_buffer(
+                               state, state->send_buffer, npgt[g]++, p), 1);
         }
     }
     for (i = 0; i < ninj; i++, p++) {
@@ -2044,7 +2055,8 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
         if (nid < 0) continue;
         if (ps)  Primarize_Id_Only(p);
         Move_Or_Do(p, ps, mysd, 1,
-                   (state->send_buffer[npgt[g]++] = *p), 1);
+                   level4_copy_particle_to_buffer(state, state->send_buffer,
+                                                  npgt[g]++, p), 1);
     }
     primaryParts = state->primary_parts = *state->secondary_base = nacc[0];
 }

@@ -12,6 +12,14 @@
 
 struct oh_state OhDefaultState;
 
+static struct oh_state*
+default_context_or_stop(struct oh_state *context) {
+  if (!context) context = oh1_state();
+  if (context != &OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
+  return context;
+}
+
 void
 oh1_sync_default_state(void) {
   OhDefaultState.comm = MCW;
@@ -127,9 +135,7 @@ oh_default_context(void) {
 
 void
 oh_context_set_region_weights(struct oh_state *context, const double *weights) {
-  if (!context) context = oh1_state();
-  if (context!=&OhDefaultState)
-    local_errstop("only the default oh_context is implemented yet");
+  context = default_context_or_stop(context);
   oh1_set_region_weights_state(context, weights);
   weightedLoadBalancing = context->weighted_load_balancing;
   oh1_sync_default_state();
@@ -138,18 +144,14 @@ oh_context_set_region_weights(struct oh_state *context, const double *weights) {
 void
 oh_context_set_particle_adapter(struct oh_state *context,
                                 const oh_particle_adapter *adapter) {
-  if (!context) context = oh1_state();
-  if (context && context!=&OhDefaultState)
-    local_errstop("only the default oh_context is implemented yet");
+  context = default_context_or_stop(context);
   oh2_set_particle_adapter_state(context, adapter);
   oh1_sync_default_state();
 }
 
 void
 oh_context_set_particle_mpi_type(struct oh_state *context, MPI_Datatype type) {
-  if (!context) context = oh1_state();
-  if (context && context!=&OhDefaultState)
-    local_errstop("only the default oh_context is implemented yet");
+  context = default_context_or_stop(context);
   oh2_set_particle_mpi_type_state(context, type);
   oh1_sync_default_state();
 }

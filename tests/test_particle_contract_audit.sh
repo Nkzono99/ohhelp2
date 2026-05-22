@@ -86,6 +86,7 @@ check_present 'oh2_set_particle_adapter_state\(context, adapter\)' \
   src/c/oh_context.c
 check_present 'oh2_set_particle_mpi_type_state\(context, type\)' \
   src/c/oh_context.c
+check_present 'default_context_or_stop' src/c/oh_context.c
 check_present 'state-backed internal entry points' doc/design/v2-redesign.md
 check_absent '\b(Decl_Grid_Info|Subdomain_Id|Primarize_Id)\b' include/ohhelp2.h
 check_absent '\b(nidelement|subdomid|gridmask|loggrid)\b' include/ohhelp2.h

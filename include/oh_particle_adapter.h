@@ -12,18 +12,20 @@ extern "C" {
 #endif
 
 typedef struct oh_particle_adapter oh_particle_adapter;
+typedef long long oh_particle_region_t;
 
-typedef int (*oh_particle_get_region_fn)(const oh_particle_adapter *adapter,
-                                         const void *particle,
-                                         int primary_or_secondary);
+typedef oh_particle_region_t (*oh_particle_get_region_fn)(
+  const oh_particle_adapter *adapter, const void *particle,
+  int primary_or_secondary);
 typedef void (*oh_particle_set_region_fn)(const oh_particle_adapter *adapter,
-                                          void *particle, int region,
+                                          void *particle,
+                                          oh_particle_region_t region,
                                           int primary_or_secondary);
 typedef int (*oh_particle_get_species_fn)(const oh_particle_adapter *adapter,
                                           const void *particle);
-typedef int (*oh_particle_map_fn)(const oh_particle_adapter *adapter,
-                                  void *particle,
-                                  int primary_or_secondary);
+typedef oh_particle_region_t (*oh_particle_map_fn)(
+  const oh_particle_adapter *adapter, void *particle,
+  int primary_or_secondary);
 
 struct oh_particle_adapter {
   size_t stride;
@@ -41,16 +43,17 @@ struct oh_particle_adapter {
 };
 
 #define OH_DEFINE_PARTICLE_ADAPTER_ACCESSORS(PREFIX, TYPE, REGION_FIELD, SPECIES_FIELD) \
-  static int PREFIX##_get_region(const oh_particle_adapter *adapter, \
-                                 const void *particle, \
-                                 int primary_or_secondary) { \
+  static oh_particle_region_t PREFIX##_get_region( \
+      const oh_particle_adapter *adapter, const void *particle, \
+      int primary_or_secondary) { \
     const TYPE *p = (const TYPE*)particle; \
     (void)adapter; \
     (void)primary_or_secondary; \
-    return (int)p->REGION_FIELD; \
+    return (oh_particle_region_t)p->REGION_FIELD; \
   } \
   static void PREFIX##_set_region(const oh_particle_adapter *adapter, \
-                                  void *particle, int region, \
+                                  void *particle, \
+                                  oh_particle_region_t region, \
                                   int primary_or_secondary) { \
     TYPE *p = (TYPE*)particle; \
     (void)adapter; \
@@ -65,16 +68,17 @@ struct oh_particle_adapter {
   }
 
 #define OH_DEFINE_PARTICLE_ADAPTER_SINGLE_SPECIES_ACCESSORS(PREFIX, TYPE, REGION_FIELD) \
-  static int PREFIX##_get_region(const oh_particle_adapter *adapter, \
-                                 const void *particle, \
-                                 int primary_or_secondary) { \
+  static oh_particle_region_t PREFIX##_get_region( \
+      const oh_particle_adapter *adapter, const void *particle, \
+      int primary_or_secondary) { \
     const TYPE *p = (const TYPE*)particle; \
     (void)adapter; \
     (void)primary_or_secondary; \
-    return (int)p->REGION_FIELD; \
+    return (oh_particle_region_t)p->REGION_FIELD; \
   } \
   static void PREFIX##_set_region(const oh_particle_adapter *adapter, \
-                                  void *particle, int region, \
+                                  void *particle, \
+                                  oh_particle_region_t region, \
                                   int primary_or_secondary) { \
     TYPE *p = (TYPE*)particle; \
     (void)adapter; \
@@ -89,21 +93,21 @@ struct oh_particle_adapter {
   }
 
 #define OH_DEFINE_PARTICLE_ADAPTER_REGION_MAPPING(PREFIX, TYPE, REGION_FIELD) \
-  static int PREFIX##_map_to_neighbor(const oh_particle_adapter *adapter, \
-                                      void *particle, \
-                                      int primary_or_secondary) { \
+  static oh_particle_region_t PREFIX##_map_to_neighbor( \
+      const oh_particle_adapter *adapter, void *particle, \
+      int primary_or_secondary) { \
     const TYPE *p = (const TYPE*)particle; \
     (void)adapter; \
     (void)primary_or_secondary; \
-    return (int)p->REGION_FIELD; \
+    return (oh_particle_region_t)p->REGION_FIELD; \
   } \
-  static int PREFIX##_map_to_subdomain(const oh_particle_adapter *adapter, \
-                                       void *particle, \
-                                       int primary_or_secondary) { \
+  static oh_particle_region_t PREFIX##_map_to_subdomain( \
+      const oh_particle_adapter *adapter, void *particle, \
+      int primary_or_secondary) { \
     const TYPE *p = (const TYPE*)particle; \
     (void)adapter; \
     (void)primary_or_secondary; \
-    return (int)p->REGION_FIELD; \
+    return (oh_particle_region_t)p->REGION_FIELD; \
   }
 
 int oh_particle_adapter_validate(const oh_particle_adapter *adapter);

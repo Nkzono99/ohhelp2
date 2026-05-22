@@ -921,8 +921,11 @@ particle_region(const struct S_particle *part, int primary_or_secondary) {
 static int
 state_particle_region(struct oh_state *state, const struct S_particle *part,
                       int primary_or_secondary) {
-  return state->particle_adapter->get_region(state->particle_adapter, part,
-                                             primary_or_secondary);
+  oh_particle_region_t region =
+    state->particle_adapter->get_region(state->particle_adapter, part,
+                                        primary_or_secondary);
+
+  return (int)region;
 }
 static void
 set_particle_region(struct S_particle *part, int region,

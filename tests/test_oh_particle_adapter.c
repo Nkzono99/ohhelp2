@@ -28,6 +28,7 @@ main(int argc, char **argv) {
   assert(adapter.get_species(&adapter, &particle) == 3);
   adapter.set_region(&adapter, &particle, 5, 0);
   assert(particle.nid == 5);
+  assert(sizeof(oh_particle_region_t) >= sizeof(particle.nid));
 
   assert(oh_particle_adapter_make_byte_type(sizeof(struct S_particle)+8,
                                             &padded_type) == MPI_SUCCESS);

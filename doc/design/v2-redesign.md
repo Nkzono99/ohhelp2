@@ -322,11 +322,19 @@ Minimum C-side shape:
 struct oh_particle_ops {
   size_t stride;
   MPI_Datatype mpi_type;
-  int (*get_region)(const void *particle, int primary_or_secondary);
-  void (*set_region)(void *particle, int region, int primary_or_secondary);
+  oh_particle_region_t (*get_region)(const oh_particle_adapter *adapter,
+                                     const void *particle,
+                                     int primary_or_secondary);
+  void (*set_region)(const oh_particle_adapter *adapter, void *particle,
+                     oh_particle_region_t region,
+                     int primary_or_secondary);
   int (*get_species)(const void *particle);
-  int (*map_to_neighbor)(void *particle, int primary_or_secondary);
-  int (*map_to_subdomain)(void *particle, int primary_or_secondary);
+  oh_particle_region_t (*map_to_neighbor)(const oh_particle_adapter *adapter,
+                                          void *particle,
+                                          int primary_or_secondary);
+  oh_particle_region_t (*map_to_subdomain)(const oh_particle_adapter *adapter,
+                                           void *particle,
+                                           int primary_or_secondary);
 };
 ```
 

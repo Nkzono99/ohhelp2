@@ -13,19 +13,25 @@ typedef struct oh_particle_adapter {
     size_t stride;
     MPI_Datatype mpi_type;
     void *user_data;
-    int  (*get_region)(const oh_particle_adapter *adapter,
-                       const void *particle, int primary_or_secondary);
+    oh_particle_region_t (*get_region)(const oh_particle_adapter *adapter,
+                                       const void *particle,
+                                       int primary_or_secondary);
     void (*set_region)(const oh_particle_adapter *adapter,
-                       void *particle, int region,
+                       void *particle, oh_particle_region_t region,
                        int primary_or_secondary);
     int  (*get_species)(const oh_particle_adapter *adapter,
                         const void *particle);
-    int  (*map_to_neighbor)(const oh_particle_adapter *adapter,
-                            void *particle, int primary_or_secondary);
-    int  (*map_to_subdomain)(const oh_particle_adapter *adapter,
-                             void *particle, int primary_or_secondary);
+    oh_particle_region_t (*map_to_neighbor)(const oh_particle_adapter *adapter,
+                                            void *particle,
+                                            int primary_or_secondary);
+    oh_particle_region_t (*map_to_subdomain)(const oh_particle_adapter *adapter,
+                                             void *particle,
+                                             int primary_or_secondary);
 } oh_particle_adapter;
 ```
+
+`oh_particle_region_t` は packed Level-4 id も保持できる wide integer 型です。
+region field が `int` の通常用途でもそのまま使えます。
 
 呼び出し順:
 

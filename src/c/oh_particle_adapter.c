@@ -6,19 +6,19 @@
 #include "oh_particle_adapter.h"
 #include "oh_part.h"
 
-static int
+static oh_particle_region_t
 default_get_region(const oh_particle_adapter *adapter, const void *particle,
                    int primary_or_secondary) {
   const struct S_particle *p = (const struct S_particle*)particle;
 
   (void)adapter;
   (void)primary_or_secondary;
-  return (int)p->nid;
+  return (oh_particle_region_t)p->nid;
 }
 
 static void
 default_set_region(const oh_particle_adapter *adapter, void *particle,
-                   int region, int primary_or_secondary) {
+                   oh_particle_region_t region, int primary_or_secondary) {
   struct S_particle *p = (struct S_particle*)particle;
 
   (void)adapter;
@@ -40,7 +40,7 @@ default_get_species(const oh_particle_adapter *adapter, const void *particle) {
 #endif
 }
 
-static int
+static oh_particle_region_t
 int_field_get_region(const oh_particle_adapter *adapter, const void *particle,
                      int primary_or_secondary) {
   const char *base = (const char*)particle;
@@ -51,7 +51,7 @@ int_field_get_region(const oh_particle_adapter *adapter, const void *particle,
 
 static void
 int_field_set_region(const oh_particle_adapter *adapter, void *particle,
-                     int region, int primary_or_secondary) {
+                     oh_particle_region_t region, int primary_or_secondary) {
   char *base = (char*)particle;
 
   (void)primary_or_secondary;
@@ -67,7 +67,7 @@ int_field_get_species(const oh_particle_adapter *adapter,
   return *(const int*)(base + adapter->species_offset);
 }
 
-static int
+static oh_particle_region_t
 int_field_map_to_region(const oh_particle_adapter *adapter, void *particle,
                         int primary_or_secondary) {
   return int_field_get_region(adapter, particle, primary_or_secondary);

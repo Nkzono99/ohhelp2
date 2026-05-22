@@ -9,7 +9,9 @@ a documented v2 replacement, or an intentional removal.
 
 Level 2 no longer requires a field literally named `nid` for custom particles.
 The region identity is whatever `oh_particle_adapter.get_region()` returns, and
-updates go through `set_region()`.
+updates go through `set_region()`. The callback type is
+`oh_particle_region_t`, not `int`, so Level-4 packed ids and `OH_BIG_SPACE`
+values are not truncated by the adapter boundary.
 
 For common C structs with `int` fields, v2 provides:
 

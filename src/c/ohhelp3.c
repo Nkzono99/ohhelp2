@@ -43,16 +43,16 @@ static int  map_irregular(double p0, double p1, double p2, int dim, int from,
                           int n);
 static int  map_irregular_range(double p, int dim, int from, int to);
 static void install_default_level3_particle_maps(void);
-static int  default_level3_map_particle_to_neighbor(
+static oh_particle_region_t default_level3_map_particle_to_neighbor(
   const oh_particle_adapter *adapter, void *particle,
   int primary_or_secondary);
-static int  default_level3_map_particle_to_subdomain(
+static oh_particle_region_t default_level3_map_particle_to_subdomain(
   const oh_particle_adapter *adapter, void *particle,
   int primary_or_secondary);
-static int  offset_level3_map_particle_to_neighbor(
+static oh_particle_region_t offset_level3_map_particle_to_neighbor(
   const oh_particle_adapter *adapter, void *particle,
   int primary_or_secondary);
-static int  offset_level3_map_particle_to_subdomain(
+static oh_particle_region_t offset_level3_map_particle_to_subdomain(
   const oh_particle_adapter *adapter, void *particle,
   int primary_or_secondary);
 static int  state_map_particle_to_neighbor(struct oh_state *state, double *x,
@@ -1045,7 +1045,7 @@ state_map_particle_to_subdomain(struct oh_state *state, double x, double y,
 #endif
   return(sd);
 }
-static int
+static oh_particle_region_t
 default_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
                                         void *particle,
                                         int primary_or_secondary) {
@@ -1061,7 +1061,7 @@ default_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
                                       primary_or_secondary);
 #endif
 }
-static int
+static oh_particle_region_t
 default_level3_map_particle_to_subdomain(const oh_particle_adapter *adapter,
                                          void *particle,
                                          int primary_or_secondary) {
@@ -1082,7 +1082,7 @@ adapter_position_field(const oh_particle_adapter *adapter, void *particle,
                        int dim) {
   return (double*)((char*)particle + adapter->position_offset[dim]);
 }
-static int
+static oh_particle_region_t
 offset_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
                                        void *particle,
                                        int primary_or_secondary) {
@@ -1101,7 +1101,7 @@ offset_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
                                         primary_or_secondary);
 #endif
 }
-static int
+static oh_particle_region_t
 offset_level3_map_particle_to_subdomain(const oh_particle_adapter *adapter,
                                         void *particle,
                                         int primary_or_secondary) {

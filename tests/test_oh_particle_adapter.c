@@ -24,6 +24,13 @@ main(int argc, char **argv) {
   assert(adapter.position_offset[0] == offsetof(struct S_particle, x));
   assert(adapter.position_offset[1] == offsetof(struct S_particle, y));
   assert(adapter.position_offset[2] == offsetof(struct S_particle, z));
+  assert(oh_particle_adapter_position(&adapter, &particle, 0) == &particle.x);
+  assert(oh_particle_adapter_position(&adapter, &particle, 1) == &particle.y);
+  assert(oh_particle_adapter_position(&adapter, &particle, 2) == &particle.z);
+  assert(oh_particle_adapter_position(&adapter, &particle, -1) == 0);
+  assert(oh_particle_adapter_position(&adapter, &particle, 3) == 0);
+  assert(oh_particle_adapter_const_position(&adapter, &particle, 0) ==
+         &particle.x);
 
   particle.nid = 7;
   particle.spec = 3;

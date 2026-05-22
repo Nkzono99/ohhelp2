@@ -220,8 +220,7 @@ level4_particle_region(struct oh_state* state, const struct S_particle* part,
 static double*
 level4_particle_position(struct oh_state* state, struct S_particle* part,
                          int dim) {
-    return (double*)((char*)part +
-                    state->particle_adapter->position_offset[dim]);
+    return oh_particle_adapter_position(state->particle_adapter, part, dim);
 }
 
 static int

@@ -115,6 +115,9 @@ When editing particle movement or mapping code, check for:
   functions/macros using the active particle adapter.
 - Level 4 implementation code must not directly read or write particle
   coordinates. Position access must pass through adapter offsets.
+- Shared position offset arithmetic belongs in
+  `oh_particle_adapter_position()` or
+  `oh_particle_adapter_const_position()`, not in level-specific code.
 - New direct particle-field access must not spread outside the known migration
   files: `oh_particle_adapter.c`, `ohhelp3.c`, `ohhelp4p.c`, `ohhelp4s.c`, and
   the legacy POS-aware headers.

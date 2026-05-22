@@ -213,8 +213,12 @@ oh_set_particle_position_fields(&adapter,
                                 offsetof(struct my_particle, z));
 ```
 
-Level 4p/4s は Level 4 専用の packed particle id と per-grid 管理を使うため、
-custom particle layout での mapping は引き続き移行中です。
+adapter に position offset を設定すると、OhHelp 内部では
+`oh_particle_adapter_position()` / `oh_particle_adapter_const_position()` で
+座標 field を取得します。Level 4p/4s も mapping 時の座標アクセスはこの
+offset helper 経由になっています。ただし Level 4 専用の packed particle id と
+per-grid 管理はまだ残っているため、custom particle layout での完全対応は
+引き続き移行中です。
 
 ## `nid` と remove の扱い
 

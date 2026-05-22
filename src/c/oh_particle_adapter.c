@@ -119,6 +119,20 @@ oh_particle_adapter_make_byte_type(size_t stride, MPI_Datatype *type) {
   return MPI_SUCCESS;
 }
 
+double*
+oh_particle_adapter_position(const oh_particle_adapter *adapter,
+                             void *particle, int dim) {
+  if (!adapter || !particle || dim < 0 || dim >= 3) return 0;
+  return (double*)((char*)particle + adapter->position_offset[dim]);
+}
+
+const double*
+oh_particle_adapter_const_position(const oh_particle_adapter *adapter,
+                                   const void *particle, int dim) {
+  if (!adapter || !particle || dim < 0 || dim >= 3) return 0;
+  return (const double*)((const char*)particle + adapter->position_offset[dim]);
+}
+
 void
 oh_particle_adapter_use_int_fields(oh_particle_adapter *adapter,
                                    size_t region_offset,

@@ -1077,26 +1077,21 @@ default_level3_map_particle_to_subdomain(const oh_particle_adapter *adapter,
   return oh3_map_particle_to_subdomain(p->x, p->y, p->z);
 #endif
 }
-static double*
-adapter_position_field(const oh_particle_adapter *adapter, void *particle,
-                       int dim) {
-  return (double*)((char*)particle + adapter->position_offset[dim]);
-}
 static oh_particle_region_t
 offset_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
                                        void *particle,
                                        int primary_or_secondary) {
-  double *x = adapter_position_field(adapter, particle, OH_DIM_X);
+  double *x = oh_particle_adapter_position(adapter, particle, OH_DIM_X);
 #if OH_DIMENSION==1
   return state_map_particle_to_neighbor(oh1_state(), x, NULL, NULL,
                                         primary_or_secondary);
 #elif OH_DIMENSION==2
-  double *y = adapter_position_field(adapter, particle, OH_DIM_Y);
+  double *y = oh_particle_adapter_position(adapter, particle, OH_DIM_Y);
   return state_map_particle_to_neighbor(oh1_state(), x, y, NULL,
                                         primary_or_secondary);
 #else
-  double *y = adapter_position_field(adapter, particle, OH_DIM_Y);
-  double *z = adapter_position_field(adapter, particle, OH_DIM_Z);
+  double *y = oh_particle_adapter_position(adapter, particle, OH_DIM_Y);
+  double *z = oh_particle_adapter_position(adapter, particle, OH_DIM_Z);
   return state_map_particle_to_neighbor(oh1_state(), x, y, z,
                                         primary_or_secondary);
 #endif
@@ -1105,17 +1100,17 @@ static oh_particle_region_t
 offset_level3_map_particle_to_subdomain(const oh_particle_adapter *adapter,
                                         void *particle,
                                         int primary_or_secondary) {
-  double *x = adapter_position_field(adapter, particle, OH_DIM_X);
+  double *x = oh_particle_adapter_position(adapter, particle, OH_DIM_X);
 
   (void)primary_or_secondary;
 #if OH_DIMENSION==1
   return state_map_particle_to_subdomain(oh1_state(), *x, 0.0, 0.0);
 #elif OH_DIMENSION==2
-  double *y = adapter_position_field(adapter, particle, OH_DIM_Y);
+  double *y = oh_particle_adapter_position(adapter, particle, OH_DIM_Y);
   return state_map_particle_to_subdomain(oh1_state(), *x, *y, 0.0);
 #else
-  double *y = adapter_position_field(adapter, particle, OH_DIM_Y);
-  double *z = adapter_position_field(adapter, particle, OH_DIM_Z);
+  double *y = oh_particle_adapter_position(adapter, particle, OH_DIM_Y);
+  double *z = oh_particle_adapter_position(adapter, particle, OH_DIM_Z);
   return state_map_particle_to_subdomain(oh1_state(), *x, *y, *z);
 #endif
 }

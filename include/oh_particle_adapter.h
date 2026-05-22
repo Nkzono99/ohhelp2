@@ -112,6 +112,10 @@ struct oh_particle_adapter {
 
 int oh_particle_adapter_validate(const oh_particle_adapter *adapter);
 int oh_particle_adapter_make_byte_type(size_t stride, MPI_Datatype *type);
+double *oh_particle_adapter_position(const oh_particle_adapter *adapter,
+                                     void *particle, int dim);
+const double *oh_particle_adapter_const_position(
+  const oh_particle_adapter *adapter, const void *particle, int dim);
 void oh_particle_adapter_use_int_fields(oh_particle_adapter *adapter,
                                         size_t region_offset,
                                         size_t species_offset);

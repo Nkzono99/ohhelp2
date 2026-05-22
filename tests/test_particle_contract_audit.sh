@@ -223,6 +223,10 @@ check_present 'level4p_bind_state' src/c/ohhelp4p_state.h
 check_present 'level4s_bind_state' src/c/ohhelp4s_state.h
 check_present 'default context layout' doc/design/v2-particle-contracts.md
 check_present 'primary_or_secondary' doc/design/v2-particle-contracts.md
+check_present 'negative-id convention' doc/design/v2-particle-contracts.md
+check_present '-\(node \+ 1\)' doc/design/v2-particle-contracts.md
+check_present 'Neighbor_Id' doc/design/v2-particle-contracts.md
+check_present 'AbsNeighbors' doc/design/v2-particle-contracts.md
 check_present 'specBase = 1' doc/design/v2-particle-contracts.md
 check_present 'InjectedParticles' doc/design/v2-particle-contracts.md
 check_present 'OH_BIG_SPACE' doc/design/v2-particle-contracts.md

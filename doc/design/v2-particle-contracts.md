@@ -54,6 +54,15 @@ Level 3/4 uses it to decode different packed-region meanings through
 primary and secondary region encodings must honor this argument; adapters with a
 single region field may ignore it.
 
+Neighbor tables have a separate negative-id convention that must not be confused
+with a removed particle region. In Level 3 and Level 4, some entries in
+`Neighbors`, `DstNeighbors`, or `SrcNeighbors` use `-(node + 1)` to mark a
+periodic or otherwise indirect neighbor while preserving the absolute node id.
+The code resolves that form through `Neighbor_Id()` or by filling
+`AbsNeighbors`. That convention belongs to topology tables only; user particle
+region values still use negative values as removal/skip markers unless they are
+inside a documented packed Level-4 encoding path.
+
 Species numbering is also normalized at the adapter boundary. C entry points use
 zero-based species ids, while Fortran-compatible entry points set `specBase = 1`
 and then subtract it before indexing internal arrays. A custom
@@ -151,6 +160,7 @@ When editing particle movement or mapping code, check for:
 - injected-particle paths that need explicit removal accounting,
 - `specBase` or caller-side one-based species indexing,
 - `primary_or_secondary` callback behavior in mapping code,
+- negative topology-table ids encoded as `-(node + 1)`,
 - Level-4 packed id manipulation that has not yet moved behind adapter helpers.
 
 `tests/test_particle_contract_audit.sh` enforces the current boundary:

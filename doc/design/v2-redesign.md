@@ -73,6 +73,8 @@ The current code now has this first migration layer:
   buffer indices instead of raw particle pointer increments.
 - Level-4s move routing and sorting now use adapter copy helpers for
   send-buffer writes and injected-particle staging.
+- Level-4s upward/downward in-place particle compaction now walks and copies
+  particles through adapter-aware helpers while preserving interior part indices.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

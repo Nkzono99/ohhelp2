@@ -28,6 +28,9 @@ check_present() {
 
 # Level 2 must stay layout-agnostic in the implementation.  Region/species
 # semantics are provided by oh_particle_adapter.
+check_absent '^EXTERN ' include/ohhelp1.h
+check_absent '\bfam_comm\b' include/ohhelp1.h
+check_present 'oh1_comm' include/ohhelp1.h
 check_absent '->(nid|spec)\b' src/c/ohhelp2.c
 check_absent '\b(Decl_Grid_Info|Subdomain_Id|Primarize_Id)\b' include/ohhelp2.h
 check_absent '\b(nidelement|subdomid|gridmask|loggrid)\b' include/ohhelp2.h

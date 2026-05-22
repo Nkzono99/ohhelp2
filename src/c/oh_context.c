@@ -2,6 +2,7 @@
    v2 context facade for the current default OhHelp instance.
 */
 #include "ohhelp1.h"
+#include "ohhelp1_internal.h"
 #include "ohhelp2.h"
 #include "ohhelp2_internal.h"
 #include "ohhelp3.h"

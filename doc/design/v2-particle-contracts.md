@@ -119,6 +119,10 @@ When editing particle movement or mapping code, check for:
 - Public Level-2 headers must not publish `EXTERN` mutable implementation
   globals. During migration those declarations belong in internal headers under
   `src/c/`.
+- Public Level-1 headers must not publish mutable implementation globals or the
+  default communicator storage. During migration those declarations belong in
+  `src/c/ohhelp1_internal.h`; public code should use API calls rather than
+  linking against `nOfNodes`, `myRank`, `fam_comm`, or similar mirrors.
 - Public Level-4 headers must not publish `EXTERN` mutable implementation
   globals or internal scheduling structs. Those declarations belong in
   `src/c/ohhelp4*_internal.h`.

@@ -9,9 +9,8 @@
 
 ## State Ownership
 
-The current code exposes most state through `EXTERN` declarations in
-`include/ohhelp1.h`, `include/ohhelp2.h`, and `include/ohhelp3.h`. The v2 target
-is an explicit context, for example:
+The v1 code exposed most state through `EXTERN` declarations in the public
+level headers. The v2 target is an explicit context, for example:
 
 ```c
 typedef struct oh_context oh_context;
@@ -54,6 +53,10 @@ The current code now has this first migration layer:
 - Level-1 stats initialization, timing updates, communication counters,
   aggregation, and printing now resolve `Stats`, stats MPI handles, rank, node
   count, and communicator through `oh_state`.
+- Level-1 mutable implementation globals are now declared from
+  `src/c/ohhelp1_internal.h` instead of the public `include/ohhelp1.h`.
+  The public `MCW` shorthand resolves through `oh1_comm()` so `fam_comm` is no
+  longer a public header definition.
 - Level-2 and Level-4 transbound entry points now gate stats collection through
   `oh_state.stats_mode` instead of reading the global `statsMode` directly.
 - Level-4p initialization now sizes its particle/send-buffer storage with the

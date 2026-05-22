@@ -8,6 +8,7 @@
 */
 #define EXTERN extern
 #include "ohhelp1.h"
+#include "ohhelp1_internal.h"
 #include "ohhelp2.h"
 #include "ohhelp2_internal.h"
 #include "ohhelp3.h"

@@ -9,6 +9,7 @@
 #define EXTERN
 #define OH_DEFINE_STATS
 #include "ohhelp1.h"
+#include "ohhelp1_internal.h"
 #include "oh_context_internal.h"
 #include "oh_load_balance.h"
 
@@ -86,6 +87,11 @@ static void  oh1_all_reduce_state(struct oh_state *state, void *pbuf,
 static void  oh1_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
                               int pcount, int scount, MPI_Datatype ptype,
                               MPI_Datatype stype, MPI_Op pop, MPI_Op sop);
+
+MPI_Comm
+oh1_comm(void) {
+  return fam_comm;
+}
 
 void
 oh1_fam_comm_(MPI_Comm *fortran_comm) {

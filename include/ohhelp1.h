@@ -6,6 +6,9 @@
    commercial purpose providing that the copyright notice above remains
    unchanged.
 */
+#ifndef OHHELP1_H
+#define OHHELP1_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,9 +43,9 @@
 #define OH_NEIGHBORS    (3*3*3)
 #endif
 
-MPI_Comm fam_comm;
+MPI_Comm oh1_comm(void);
 
-#define MCW fam_comm      /* shorthand of communicator, MPI_COMM_WORLD or CTCA_subcomm */
+#define MCW oh1_comm()    /* shorthand of communicator, MPI_COMM_WORLD or CTCA_subcomm */
 
 typedef long long int dint;     /* shorthand of 64-bit integer */
 
@@ -195,10 +198,7 @@ struct oh_state {
 };
 extern struct oh_state OhDefaultState;
 
-/* Basic process configuration variables */
-EXTERN int nOfNodes;
-EXTERN int myRank;
-EXTERN int RegionId[2], *SubdomainId;
+/* Basic process configuration modes */
 #define MODE_NORM_PRI (0)
 #define MODE_NORM_SEC (1)
 #define MODE_REB_SEC  (-1)
@@ -212,31 +212,6 @@ EXTERN int RegionId[2], *SubdomainId;
 #define Mode_Set_Any(M)  (M|2)
 #define Mode_Is_Norm(M)  (M<2)
 #define Mode_Is_Any(M)   (M>=2)
-EXTERN int currMode, accMode;
-
-/* Number of particles and related variables */
-EXTERN int  nOfSpecies;
-EXTERN int  maxFraction;
-EXTERN int  *NOfPLocal;                 /* [2][nOfSpecies][nOfNodes] */
-EXTERN int  *NOfPrimaries;              /* [2][nOfSpecies][nOfNodes] */
-EXTERN dint *TotalPGlobal;              /* [nOfNodes+1] */
-EXTERN double *RegionWeights;           /* [nOfNodes] */
-EXTERN double *TotalLoadGlobal;         /* [nOfNodes] */
-EXTERN dint nOfParticles;
-EXTERN double nOfLoad;
-EXTERN int  nOfLocalPMax;
-EXTERN double nOfLocalLoadMax;
-EXTERN int  weightedLoadBalancing;
-EXTERN dint *NOfPToStay;                /* [nOfNodes] */
-EXTERN int  *TotalP;                    /* [2][nOfSpecies] */
-EXTERN int  *TotalPNext;                /* [2][nOfSpecies] */
-EXTERN int  primaryParts, totalParts;
-EXTERN int  *NOfRecv, *RecvCounts;      /* [2][nOfSpecies][nOfNodes] */
-EXTERN int  *NOfSend, *SendCounts;      /* [2][nOfSpecies][nOfNodes] */
-EXTERN int  *InjectedParticles;         /* [2][2][nOfSpecies] */
-EXTERN int  *TempArray;                 /* [nOfNodes] */
-EXTERN MPI_Datatype T_Histogram;
-
 /* Computation node descriptors */
 struct S_node {
   struct {int prime, sec;} stay;
@@ -245,49 +220,33 @@ struct S_node {
   struct S_node *parent, *sibling, *child;
   int id, parentid;
 };
-EXTERN struct S_node *Nodes, *NodesNext, **NodeQueue;
 
 /* Heap structure for load rebalancing */
 struct S_heap {
   int n, *node, *index;
 };
-EXTERN struct S_heap LessHeap, GreaterHeap;
 
 /* Structured variables for particle transfer */
 struct S_commlist {
   int sid, rid, region, count, tag;     /* tag = spec + nOfSpecies*sec */
 };
-EXTERN struct S_commlist *CommList, *SecRList;
-EXTERN int RLIndex[OH_NEIGHBORS+1];
-EXTERN int SLHeadTail[2], SecSLHeadTail[2], SecRLSize;
-EXTERN MPI_Datatype T_Commlist;
 struct S_commsched_context {
   int neighbor, sender, spec, comidx, dones, donen;
 };
 
 /* Structured variables for MPI communicator */
-EXTERN MPI_Group GroupWorld;
 struct S_comms {
   int n;
   MPI_Comm *body;       /* [nOfNodes] */
 };
-EXTERN struct S_comms Comms;
 struct S_mycommc {
   MPI_Comm prime, sec;
   int rank, root, black;
 };
-EXTERN struct S_mycommc *MyComm, *MyCommC;
-EXTERN struct S_mycommf {
+struct S_mycommf {
   int prime, sec;
   int rank, root, black;
-} *MyCommF;
-
-/* Neighboring information */
-EXTERN int Neighbors[3][OH_NEIGHBORS], SrcNeighbors[OH_NEIGHBORS];
-  /* <BSW,BS,BSE,BW,B,BE,BNW,BN,BNE,    : 00..04..08
-       SW, S, SE, W,O  E, NW, N, NE,    : 09..13..17
-      TSW,TS,TSE,TW,T,TE,TNW,TN,TNE>    : 18..22..26 */
-EXTERN int *DstNeighbors;
+};
 
 /* Structures and variables for statistics and verbose messaging */
 #define STATS_PART_MOVE_PRI_MIN 0
@@ -351,14 +310,10 @@ struct S_statstotal {
   struct S_statstime time[2*STATS_TIMINGS];
   struct S_statspart part[STATS_PARTS];
 };
-EXTERN struct S_stats {
+struct S_stats {
   struct S_statscurr curr;
   struct S_statstotal subtotal, total;
-} Stats;
-
-EXTERN MPI_Datatype T_StatsTime;
-EXTERN MPI_Op Op_StatsTime, Op_StatsPart;
-EXTERN int statsMode, reportIteration, verboseMode;
+};
 
 /* Prototypes for the functions called from simulator code */
 void oh1_neighbors(int **nbor);
@@ -431,10 +386,4 @@ void  build_new_comm(int currmode, int level, int nbridx, int stats);
 void  vprint(char* format, ...);
 void  dprint(char* format, ...);
 
-/* Macro for verbose messaging. */
-#define Verbose(L,VP) {\
-  if (verboseMode>=L) {\
-    MPI_Barrier(MCW);\
-    if (myRank==0 || verboseMode>=3) VP;\
-  }\
-}
+#endif

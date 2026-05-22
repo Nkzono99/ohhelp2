@@ -69,6 +69,10 @@ The current code now has this first migration layer:
   definition is protected by a single `OHHELP_MYCOMMC_DEFINED` guard. This lets
   users include `ohhelp1.h` and `ohhelp_c.h` together while the v2 public API is
   being consolidated.
+- `ohhelp_c.h` now includes the level-specific public headers directly instead
+  of relying only on locally duplicated declarations. The compatibility macro
+  layer remains, but the canonical declarations can continue moving toward the
+  per-level headers.
 - Level-2 and Level-4 transbound entry points now gate stats collection through
   `oh_state.stats_mode` instead of reading the global `statsMode` directly.
 - Level-4p initialization now sizes its particle/send-buffer storage with the

@@ -12,14 +12,20 @@
 #include <mpi.h>
 #include "oh_context.h"
 #include "oh_particle_adapter.h"
-#ifndef OHHELP_MYCOMMC_DEFINED
-#define OHHELP_MYCOMMC_DEFINED
-struct S_mycommc {
-  MPI_Comm prime, sec;
-  int rank, root, black;
-};
-#endif
+#include "ohhelp1.h"
 #include "oh_config.h"
+#if OH_LIB_LEVEL >= 2
+#include "ohhelp2.h"
+#endif
+#if OH_LIB_LEVEL >= 3
+#include "ohhelp3.h"
+#endif
+#ifdef OH_LIB_LEVEL_4P
+#include "ohhelp4p.h"
+#endif
+#ifdef OH_LIB_LEVEL_4S
+#include "ohhelp4s.h"
+#endif
 
 #define oh_neighbors(A1) \
         oh1_neighbors(A1)

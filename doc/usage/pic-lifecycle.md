@@ -2,6 +2,7 @@
 
 この文書では、PIC コードに OhHelp を組み込むときの典型的な呼び出し順を
 説明します。例は C 風の擬似コードですが、Fortran でも同じ順序です。
+C だけにある helper は、その場で明記します。
 
 ## 1. ビルド時に level と次元を選ぶ
 
@@ -208,6 +209,10 @@ oh_remove_injected_particle(pinj);
 ための API です。正の region で注入済みの粒子を別 region へ移す場合は、先に
 `oh_remove_injected_particle()` で既存 count を取り消してから region を更新し、
 `oh_remap_injected_particle()` を呼びます。
+
+`oh_inject_particle_get()` は C 専用の helper です。Fortran では injection 領域の
+要素、つまり `pbuf(totalp(1,1)+k)` に相当する injected particle そのものを
+`oh_remap_injected_particle()` / `oh_remove_injected_particle()` に渡します。
 
 Level 4p/4s:
 

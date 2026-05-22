@@ -314,6 +314,8 @@ region field が同じ役割を持ちます。
   `oh_inject_particle_get()` を使って、OhHelp の particle buffer 内にコピーされた
   粒子ポインタを保持してください。`oh_remap_injected_particle()` と
   `oh_remove_injected_particle()` は、その buffer 内ポインタを受け取ります。
+  Fortran には pointer-return helper はなく、`pbuf` の injection 領域にある
+  要素そのものを remap/remove API に渡します。
 - `oh_remap_injected_particle()` は、負の region で注入した粒子、または
   `oh_remove_injected_particle()` で一度 count を取り消した injected particle を、
   現在の region/species で再計上するための API です。正の region で count 済みの

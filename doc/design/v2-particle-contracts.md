@@ -77,6 +77,8 @@ Injected particles:
 - C callers that need to remap or remove the injected copy can use
   `oh_inject_particle_get()` to receive the pointer inside the OhHelp particle
   buffer.
+  Fortran-compatible APIs keep the v1-style interface; callers pass the
+  injected particle element already stored in `pbuf`.
 - If the particle has a negative region at injection time, it is copied but not
   counted for any destination.
 - After an injected particle has been counted/remapped, removal must call

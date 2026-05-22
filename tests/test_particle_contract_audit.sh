@@ -86,6 +86,7 @@ check_absent '^EXTERN ' include/ohhelp2.h
 check_present 'void oh2_inject_particle\(void \*part\)' include/ohhelp2.h
 check_present 'void \*oh2_inject_particle_get\(void \*part\)' include/ohhelp2.h
 check_present 'oh_inject_particle_get\(A1\)' include/ohhelp_c.h
+check_absent 'oh_inject_particle_get' include/ohhelp_f.h
 check_present 'oh_inject_particle_get' tests/test_ohhelp2_header.c
 check_present 'oh_inject_particle_get' tests/test_ohhelp_c_header.c
 check_present 'int \*\*totalp, void \*\*pbuf' include/ohhelp2.h
@@ -193,6 +194,9 @@ check_present 'nid < 0' doc/design/v2-particle-contracts.md
 check_present 'nid == -2' doc/design/v2-particle-contracts.md
 check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts.md
 check_present 'oh_inject_particle_get\(\)' doc/design/v2-particle-contracts.md
+check_present 'C 専用の helper' doc/usage/pic-lifecycle.md
+check_present 'Fortran には pointer-return helper はなく' \
+  doc/usage/v2-particle-and-weight.md
 check_present 'remap_injected_particle\(\)` is additive' \
   doc/design/v2-particle-contracts.md
 check_present '二重計上' doc/usage/v2-particle-and-weight.md

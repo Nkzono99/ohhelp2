@@ -2016,9 +2016,11 @@ static void sort_particles(struct oh_state* state, const int nextmode,
             dint* npg = state->level4_particle_grid[ps][s];
             dint* npgt = state->level4_particle_grid_total[ps][s];
             const int ips = state->level4_interior_parts[t].size;
-            for (i = 0, p = state->particles + state->level4_interior_parts[t].head; i < ips;
-                 i++, p++)
+            const int head = state->level4_interior_parts[t].head;
+            for (i = 0; i < ips; i++) {
+                p = level4_particle_at(state, head + i);
                 Sort_Particle(p);
+            }
         }
     }
 }
@@ -2031,42 +2033,46 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
     const int mysubdom[2] = { me, oldp }, ninj = state->n_of_injections;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
-    struct S_particle* p, * rbb;
+    struct S_particle* p;
     struct S_particle* sb = oh_particle_buffer_at(state->particle_adapter,
                                                   state->send_buffer,
                                                   nacc[1]);
     int* nofr;
-    int ps, s, t, i;
+    int ps, s, t, i, pidx, rbb_index;
     Decl_For_All_Grid();
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_MOVE, nextmode);
     state_set_sendbuf_disps4s(state, nextmode, 0);
-    for (ps = 0, t = 0, nofr = state->n_of_recv, rbb = state->particles;
+    for (ps = 0, t = 0, nofr = state->n_of_recv, rbb_index = 0;
          ps <= psnew; ps++) {
         const int nnbr = real_src[0][ps].n;
         const int* rnbr = real_src[0][ps].nbor;
         for (s = 0; s < ns; s++, t++, nofr += nn) {
             int n, nrec;
             for (n = 0, nrec = 0; n < nnbr; n++)  nrec += nofr[rnbr[n]];
-            state->recv_buffer_bases[t] = rbb;  rbb += nrec;
+            state->recv_buffer_bases[t] = level4_particle_at(state, rbb_index);
+            rbb_index += nrec;
         }
     }
-    state->recv_buffer_bases[t] = rbb;
+    state->recv_buffer_bases[t] = level4_particle_at(state, rbb_index);
 
-    for (ps = 0, p = state->particles, t = 0; ps <= psold; ps++) {
+    for (ps = 0, pidx = 0, t = 0; ps <= psold; ps++) {
         const int mysd = mysubdom[ps];
         for (s = 0; s < ns; s++, t++) {
             dint* npg = state->level4_particle_grid[ps][s];
             dint* npgt = state->level4_particle_grid_total[ps][s];
             const int itail = state->total_particles[t];
-            for (i = 0; i < itail; i++, p++)
+            for (i = 0; i < itail; i++, pidx++) {
+                p = level4_particle_at(state, pidx);
                 Move_Or_Do(p, ps, mysd, 1,
                            level4_copy_particle_to_buffer(
                                state, state->send_buffer, npgt[g]++, p), 1);
+            }
         }
     }
-    for (i = 0; i < ninj; i++, p++) {
+    for (i = 0; i < ninj; i++, pidx++) {
+        p = level4_particle_at(state, pidx);
         const int s = level4_particle_species(state, p);
         const OH_nid_t nid = level4_particle_region(state, p, 0);
         const int ps = Secondary_Injected(nid) ? 1 : 0;
@@ -2085,8 +2091,8 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
 static void sort_received_particles(struct oh_state* state, const int nextmode,
                                     const int psnew, const int stats) {
     const int ns = state->n_of_species;
-    int ps, s;
-    struct S_particle* p = state->particles, * sb = state->send_buffer;
+    int ps, s, pidx = 0;
+    struct S_particle* sb = state->send_buffer;
     struct S_particle** rbb = state->recv_buffer_bases + 1;
     Decl_Grid_Info();
 
@@ -2095,8 +2101,11 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
         for (s = 0; s < ns; s++, rbb++) {
             dint* npg = state->level4_particle_grid[ps][s];
             dint* npgt = state->level4_particle_grid_total[ps][s];
-            const struct S_particle* rbtail = *rbb;
-            for (; p < rbtail; p++)  Sort_Particle(p);
+            const int rbtail = level4_particle_index(state, *rbb);
+            for (; pidx < rbtail; pidx++) {
+                struct S_particle* p = level4_particle_at(state, pidx);
+                Sort_Particle(p);
+            }
         }
     }
 }

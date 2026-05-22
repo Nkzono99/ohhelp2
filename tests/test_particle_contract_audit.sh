@@ -43,6 +43,9 @@ check_absent '^(void|int)\s+oh[0-9]' include/ohhelp_c.h
 # semantics are provided by oh_particle_adapter.
 check_absent '^EXTERN ' include/ohhelp1.h
 check_absent '\bfam_comm\b' include/ohhelp1.h
+check_absent '\b(InjectedParticles|nOfInjections|specBase|primaryParts|secondaryBase|gridMask|logGrid|BoundaryCondition|BoundarySendBuf)\b' \
+  include/ohhelp1.h include/ohhelp2.h include/ohhelp3.h \
+  include/ohhelp4p.h include/ohhelp4s.h
 check_absent 'struct oh_state\s*\{' include/ohhelp1.h
 check_absent '\bOhDefaultState\b' include/ohhelp1.h
 check_present 'struct oh_state\s*\{' src/c/oh_context_internal.h
@@ -118,6 +121,11 @@ check_present 'nid == -2' doc/design/v2-particle-contracts.md
 check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts.md
 check_present 'packed-grid id operations' doc/design/v2-particle-contracts.md
 check_present 'default context layout' doc/design/v2-particle-contracts.md
+check_present 'primary_or_secondary' doc/design/v2-particle-contracts.md
+check_present 'specBase = 1' doc/design/v2-particle-contracts.md
+check_present 'InjectedParticles' doc/design/v2-particle-contracts.md
+check_present 'OH_BIG_SPACE' doc/design/v2-particle-contracts.md
+check_present 'boundary plane thickness' doc/design/v2-particle-contracts.md
 check_present 'level4_secondary_injected' src/c/ohhelp4_particle.h
 
 if [ "$failures" -ne 0 ]; then

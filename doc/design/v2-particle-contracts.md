@@ -47,6 +47,19 @@ The Level-3 position-field mapping reuses OhHelp's own subdomain geometry. Its
 neighbor mapping intentionally mutates position fields when periodic wrapping is
 needed, matching the original `oh3_map_particle_to_neighbor()` behavior.
 
+Adapter callbacks receive `primary_or_secondary` as a channel selector. Level 2
+mostly treats this as the primary/secondary histogram side, but POS-aware
+Level 3/4 uses it to decode different packed-region meanings through
+`AbsNeighbors[0]` and `AbsNeighbors[1]`. Custom adapters that store separate
+primary and secondary region encodings must honor this argument; adapters with a
+single region field may ignore it.
+
+Species numbering is also normalized at the adapter boundary. C entry points use
+zero-based species ids, while Fortran-compatible entry points set `specBase = 1`
+and then subtract it before indexing internal arrays. A custom
+`get_species()` callback should return the species numbering used by the caller
+side of the API; OhHelp will normalize it before using `Particle_Spec()`.
+
 ## Removal And Injection
 
 There are two different cases.
@@ -69,6 +82,12 @@ Injected particles:
 - `oh_remove_injected_particle()` validates that the pointer is inside the
   current injection buffer, decrements the relevant counters, then sets the
   region to `-1`.
+- Injected-particle pointers are recognized by their buffer index. Indices
+  greater than or equal to `totalParts` and lower than
+  `totalParts + nOfInjections` are treated as the injection area.
+- `InjectedParticles` is an internal counter array with primary/secondary and
+  species dimensions. Mapping/removal code must update it when an injected
+  particle becomes local, becomes secondary-local, or is explicitly removed.
 
 ## Level 4 Contracts Still Requiring Migration
 
@@ -80,6 +99,11 @@ The remaining hidden contracts include:
 - packed-grid id operations such as `Grid_Position()`,
   `Combine_Subdom_Pos()`, `Primarize_Id()`, `Secondarize_Id()`, and
   `Secondary_Injected()`,
+- `OH_BIG_SPACE` / `OH_nid_t` width: packed ids include subdomain and grid
+  position bits, so Level 4 initialization can reject configurations that do
+  not fit in `int` ids,
+- `gridMask` and `logGrid`: these encode the grid-position bitfield size inside
+  packed region ids,
 - sentinel values:
   - `nid < 0`: removed/skipped particle,
   - `nid == -2`: temporary boundary-exchange marker in Level 4s send buffers.
@@ -87,6 +111,10 @@ The remaining hidden contracts include:
 The v2 target is to move these behind adapter/state helpers. Until that work is
 complete, Level 4 custom particle layouts are only partially supported even
 though stride-aware storage and copy paths are being migrated.
+
+Level 4s has one additional geometry contract: boundary plane thickness must be
+one grid cell. The current implementation aborts otherwise, so a v2 redesign
+must either preserve that constraint explicitly or replace the scheduling logic.
 
 The public Level-4 injection/removal entry points now use the active particle
 adapter for species reads and for writing the negative removal marker. Packed
@@ -106,6 +134,8 @@ When editing particle movement or mapping code, check for:
 - assumptions that `sizeof(struct S_particle)` is the particle stride,
 - counter updates that depend on `region >= 0`,
 - injected-particle paths that need explicit removal accounting,
+- `specBase` or caller-side one-based species indexing,
+- `primary_or_secondary` callback behavior in mapping code,
 - Level-4 packed id manipulation that has not yet moved behind adapter helpers.
 
 `tests/test_particle_contract_audit.sh` enforces the current boundary:
@@ -133,6 +163,10 @@ When editing particle movement or mapping code, check for:
   default communicator storage. During migration those declarations belong in
   `src/c/ohhelp1_internal.h`; public code should use API calls rather than
   linking against `nOfNodes`, `myRank`, `fam_comm`, or similar mirrors.
+- Public headers must not publish hidden particle-accounting globals such as
+  `InjectedParticles`, `nOfInjections`, `specBase`, `primaryParts`,
+  `secondaryBase`, `gridMask`, `logGrid`, `BoundaryCondition`, or
+  `BoundarySendBuf`.
 - Public Level-1 headers must not publish implementation struct layouts for the
   node tree, communication lists, rebalance heaps, communicator containers, or
   stats accumulators; those layouts belong in `src/c/ohhelp1_internal.h`.

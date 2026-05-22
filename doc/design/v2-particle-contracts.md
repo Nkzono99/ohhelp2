@@ -115,6 +115,8 @@ When editing particle movement or mapping code, check for:
 - `ohhelp_c.h` must include the level-specific public headers so declarations
   stay anchored to the same public API surface while the compatibility macro
   layer is being reduced.
+- `ohhelp_c.h` must not duplicate `ohN_*` function prototypes; those
+  declarations belong in the guarded level headers.
 - Public Level-2/4 headers must not encode `S_particle.nid` or
   `S_particle.spec` directly. Packed-id helper macros must read/write the
   region through the active `oh_particle_adapter`.

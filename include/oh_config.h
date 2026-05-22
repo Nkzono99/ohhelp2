@@ -6,6 +6,9 @@
    commercial purpose providing that the copyright notice above remains
    unchanged.
 */
+#ifndef OH_CONFIG_H
+#define OH_CONFIG_H
+
 #ifndef OH_DIMENSION
 #define OH_DIMENSION    3
 #endif
@@ -39,4 +42,6 @@
 #ifndef OH_LIB_LEVEL
 #define OH_LIB_LEVEL 3
 #endif
+#endif
+
 #endif

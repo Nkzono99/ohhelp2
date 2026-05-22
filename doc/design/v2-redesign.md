@@ -73,6 +73,10 @@ The current code now has this first migration layer:
   of relying only on locally duplicated declarations. The compatibility macro
   layer remains, but the canonical declarations can continue moving toward the
   per-level headers.
+- `ohhelp_c.h` no longer duplicates the level-specific function prototypes; it
+  is now a compatibility macro facade over the guarded level headers. The
+  remaining support headers `oh_config.h` and `ohhelp_f.h` also have include
+  guards.
 - Level-2 and Level-4 transbound entry points now gate stats collection through
   `oh_state.stats_mode` instead of reading the global `statsMode` directly.
 - Level-4p initialization now sizes its particle/send-buffer storage with the

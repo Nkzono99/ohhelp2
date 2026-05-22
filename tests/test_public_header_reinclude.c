@@ -1,4 +1,6 @@
 #include "ohhelp1.h"
+#include "oh_config.h"
+#include "oh_config.h"
 #include "ohhelp_c.h"
 #include "ohhelp1.h"
 #include "ohhelp2.h"

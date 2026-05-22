@@ -191,6 +191,8 @@ When editing particle movement or mapping code, check for:
   used only by Level-4; those declarations belong in
   `src/c/ohhelp3_internal.h`.
 - Level 2 implementation code must not directly read or write `nid` or `spec`.
+  Region writes use `OH_nid_t` at the state helper boundary so packed ids are
+  not narrowed before reaching the active adapter.
 - Level 3 implementation code must not directly read or write `nid` or `spec`;
   direct `x/y/z` access is limited to the default `S_particle` mapping adapter.
 - Level 4 implementation code must not directly read or write `nid` or `spec`.

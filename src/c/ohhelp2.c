@@ -61,8 +61,12 @@ static OH_nid_t state_particle_region(struct oh_state *state,
                                       const struct S_particle *part,
                                       int primary_or_secondary);
 static void  state_set_particle_region(struct oh_state *state,
-                                       struct S_particle *part, int region,
+                                       struct S_particle *part,
+                                       OH_nid_t region,
                                        int primary_or_secondary);
+static void  state_mark_particle_removed(struct oh_state *state,
+                                         struct S_particle *part,
+                                         int primary_or_secondary);
 static int   state_particle_species(struct oh_state *state,
                                     const struct S_particle *part);
 static int   state_particle_subdomain(struct oh_state *state,
@@ -897,7 +901,7 @@ oh2_remove_injected_particle_state(struct oh_state *state,
     state->n_of_particles_local[nn*s+n]--;
     if (n==state->my_rank)  state->injected_particles[s]--;
   }
-  state_set_particle_region(state, part, -1, 0);
+  state_mark_particle_removed(state, part, 0);
 }
 static OH_nid_t
 state_particle_region(struct oh_state *state, const struct S_particle *part,
@@ -910,9 +914,14 @@ state_particle_region(struct oh_state *state, const struct S_particle *part,
 }
 static void
 state_set_particle_region(struct oh_state *state, struct S_particle *part,
-                          int region, int primary_or_secondary) {
+                          OH_nid_t region, int primary_or_secondary) {
   state->particle_adapter->set_region(state->particle_adapter, part, region,
                                       primary_or_secondary);
+}
+static void
+state_mark_particle_removed(struct oh_state *state, struct S_particle *part,
+                            int primary_or_secondary) {
+  state_set_particle_region(state, part, (OH_nid_t)-1, primary_or_secondary);
 }
 static int
 state_particle_species(struct oh_state *state, const struct S_particle *part) {

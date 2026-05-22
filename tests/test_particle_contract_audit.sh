@@ -67,6 +67,8 @@ check_absent '\b(init1|mem_alloc|mem_alloc_error|errstop|local_errstop|set_total
 check_present 'oh1_comm' include/ohhelp1.h
 check_absent 'return\(accMode\)' src/c/ohhelp1.c
 check_absent '\bif \(myRank==0\)' src/c/ohhelp1.c
+check_absent 'collective wrappers still need to read from the context' \
+  doc/design/v2-redesign.md
 check_absent '->(nid|spec)\b' src/c/ohhelp2.c
 check_present 'OH_nid_t region' src/c/ohhelp2.c
 check_present 'state_mark_particle_removed' src/c/ohhelp2.c

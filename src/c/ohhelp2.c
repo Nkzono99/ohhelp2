@@ -61,9 +61,9 @@ static void  oh2_remap_injected_particle_state(struct oh_state *state,
                                                struct S_particle *part);
 static void  oh2_remove_injected_particle_state(struct oh_state *state,
                                                 struct S_particle *part);
-static int   state_particle_region(struct oh_state *state,
-                                   const struct S_particle *part,
-                                   int primary_or_secondary);
+static OH_nid_t state_particle_region(struct oh_state *state,
+                                      const struct S_particle *part,
+                                      int primary_or_secondary);
 static void  state_set_particle_region(struct oh_state *state,
                                        struct S_particle *part, int region,
                                        int primary_or_secondary);
@@ -74,6 +74,10 @@ static int   state_particle_subdomain(struct oh_state *state,
                                       int primary_or_secondary);
 static int   state_map_injected_particle_to_subdomain(struct oh_state *state,
                                                       struct S_particle *part);
+static int   state_region_subdomain(struct oh_state *state, OH_nid_t region,
+                                    int primary_or_secondary);
+static int   state_primarize_particle(struct oh_state *state,
+                                      struct S_particle *part);
 static size_t particle_stride(void);
 static struct S_particle *state_particle_at(struct oh_state *state,
                                             struct S_particle *base,
@@ -901,14 +905,14 @@ oh2_remove_injected_particle_state(struct oh_state *state,
   }
   state_set_particle_region(state, part, -1, 0);
 }
-static int
+static OH_nid_t
 state_particle_region(struct oh_state *state, const struct S_particle *part,
                       int primary_or_secondary) {
   oh_particle_region_t region =
     state->particle_adapter->get_region(state->particle_adapter, part,
                                         primary_or_secondary);
 
-  return (int)region;
+  return (OH_nid_t)region;
 }
 static void
 state_set_particle_region(struct oh_state *state, struct S_particle *part,
@@ -930,28 +934,61 @@ state_particle_species(struct oh_state *state, const struct S_particle *part) {
 static int
 state_particle_subdomain(struct oh_state *state, const struct S_particle *part,
                          int primary_or_secondary) {
-  Decl_Grid_Info();
-
   if (state->particle_adapter->map_to_subdomain)
     return state->particle_adapter->map_to_subdomain(
       state->particle_adapter, (void*)part, primary_or_secondary);
-  return Subdomain_Id(state_particle_region(state, part, primary_or_secondary),
-                      primary_or_secondary);
+  return state_region_subdomain(
+    state, state_particle_region(state, part, primary_or_secondary),
+    primary_or_secondary);
 }
 static int
 state_map_injected_particle_to_subdomain(struct oh_state *state,
                                          struct S_particle *part) {
   int dst;
-  Decl_Grid_Info();
 
   if (state->particle_adapter->map_to_subdomain)
     return state->particle_adapter->map_to_subdomain(state->particle_adapter,
                                                      part, 0);
-  dst = Subdomain_Id(state_particle_region(state, part, 0), 0);
+  dst = state_region_subdomain(state, state_particle_region(state, part, 0),
+                               0);
 #ifdef OH_POS_AWARE
-  if (dst>=state->n_of_nodes)  Primarize_Id(part, dst);
+  if (dst>=state->n_of_nodes)  dst = state_primarize_particle(state, part);
 #endif
   return dst;
+}
+static int
+state_region_subdomain(struct oh_state *state, OH_nid_t region,
+                       int primary_or_secondary) {
+#ifdef OH_POS_AWARE
+  OH_nid_t subdomain;
+
+  if (region<0) return -1;
+  subdomain = region >> state->log_grid;
+  if (subdomain<OH_NEIGHBORS)
+    return state->abs_neighbors[primary_or_secondary][(int)subdomain];
+  return (int)(subdomain - OH_NEIGHBORS);
+#else
+  (void)state;
+  (void)primary_or_secondary;
+  return region;
+#endif
+}
+static int
+state_primarize_particle(struct oh_state *state, struct S_particle *part) {
+#ifdef OH_POS_AWARE
+  const OH_nid_t region =
+    (OH_nid_t)state->particle_adapter->get_region(
+      state->particle_adapter, part, 1) -
+    ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << state->log_grid);
+
+  state->particle_adapter->set_region(state->particle_adapter, part, region,
+                                      1);
+  return state_region_subdomain(state, region, 1);
+#else
+  (void)state;
+  (void)part;
+  return -1;
+#endif
 }
 static size_t
 particle_stride(void) {

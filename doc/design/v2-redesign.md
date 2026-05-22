@@ -134,6 +134,9 @@ The current code now has this first migration layer:
   variants, and injected-particle inject/remap/remove operations use `oh_state`
   for adapter callbacks, particle counters, injection counters, region ids,
   buffer limits, and buffer indexing.
+- Level-2 POS-aware packed region decoding and secondary-to-primary conversion
+  now live in `ohhelp2.c` state-aware helpers instead of public macros in
+  `include/ohhelp2.h`.
 - Obsolete Level-2 process-global particle helper wrappers were removed after
   movement and injection paths had migrated to the state-aware helper boundary.
 - Level-2 primary/secondary send-buffer movement now has state-backed entry

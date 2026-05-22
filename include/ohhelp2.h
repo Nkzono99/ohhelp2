@@ -36,23 +36,6 @@ EXTERN MPI_Status *Statuses;            /* [nOfNodes*nOfSpecies*2*2] */
 #ifdef OH_POS_AWARE
 EXTERN int gridMask, logGrid;
 EXTERN int AbsNeighbors[2][OH_NEIGHBORS];
-#define Decl_Grid_Info() \
-  OH_nid_t nidelement;  int subdomid;\
-  const int gridmask=gridMask, loggrid=logGrid
-#define Subdomain_Id(ID, PS) \
-  ((nidelement=(ID))<0 ? -1 :\
-      ((subdomid=nidelement>>loggrid)<OH_NEIGHBORS ?\
-          AbsNeighbors[PS][subdomid] : subdomid-OH_NEIGHBORS))
-#define Primarize_Id(P, SD) {\
-  const OH_nid_t nidelem =\
-    (OH_nid_t)ParticleAdapter.get_region(&ParticleAdapter, (P), 1) -\
-    ((OH_nid_t)(nOfNodes+OH_NEIGHBORS)<<loggrid);\
-  ParticleAdapter.set_region(&ParticleAdapter, (P), nidelem, 1);\
-  SD = Subdomain_Id(nidelem, 1);\
-}
-#else
-#define Decl_Grid_Info() int unusedvariable
-#define Subdomain_Id(ID, PS) (ID)
 #endif
 
 /* Prototypes for the functions called from simulator code */

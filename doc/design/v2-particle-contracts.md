@@ -113,6 +113,9 @@ When editing particle movement or mapping code, check for:
 - Public Level-2/4 headers must not encode `S_particle.nid` or
   `S_particle.spec` directly. Packed-id helper macros must read/write the
   region through the active `oh_particle_adapter`.
+- Public Level-2 headers must not publish POS-aware packed-id helper macros such
+  as `Subdomain_Id()` or `Primarize_Id()`; those semantics belong behind
+  state-aware implementation helpers.
 - Level 2 implementation code must not directly read or write `nid` or `spec`.
 - Level 3 implementation code must not directly read or write `nid` or `spec`;
   direct `x/y/z` access is limited to the default `S_particle` mapping adapter.

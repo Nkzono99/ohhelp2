@@ -573,6 +573,9 @@ their mirrored `oh_state` fields after allocation-time synchronization.
 Level-4p/4s now share `level4_bind_common_state()` for the common default-state
 mirrors, so newly migrated Level-4 tables have one binding point instead of
 duplicate assignments in both variants.
+Level-4p and Level-4s variant-specific mirrors are split into
+`level4p_bind_state()` and `level4s_bind_state()`, keeping default-state
+synchronization out of the large translation units.
 The Level-4 particle-grid allocation macros now take species counts and grid
 descriptor dimensions from `oh_state`, and transfer-bound setup tests the
 state-owned `level4_pbuf_index` mirror before allocating the backing global.

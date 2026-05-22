@@ -170,6 +170,8 @@ check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts
 check_present 'packed-grid id operations' doc/design/v2-particle-contracts.md
 check_present 'level4_secondary_region_offset' src/c/ohhelp4_particle.h
 check_present 'level4_bind_common_state' src/c/ohhelp4_state.h
+check_present 'level4p_bind_state' src/c/ohhelp4p_state.h
+check_present 'level4s_bind_state' src/c/ohhelp4s_state.h
 check_present 'default context layout' doc/design/v2-particle-contracts.md
 check_present 'primary_or_secondary' doc/design/v2-particle-contracts.md
 check_present 'specBase = 1' doc/design/v2-particle-contracts.md

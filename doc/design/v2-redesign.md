@@ -40,6 +40,9 @@ The current code now has this first migration layer:
   the default global mirror around that implementation.
 - Level-1 rebalance heap ordering now receives explicit particle/load key arrays
   from `oh_state` instead of reading the balancing mode from globals.
+- Level-1 transbound aggregation now has a state-backed internal path for local
+  particle histograms, global weighted-load totals, neighbor tables, and
+  send/receive count mirrors.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

@@ -33,6 +33,8 @@ static void  make_send_count_state(struct oh_state *state,
                                    struct S_commlist* slist, int slsize);
 static void  count_next_particles_state(struct oh_state *state,
                                         struct S_commlist* rlist, int rlsize);
+static int   transbound1_state(struct oh_state *state, int currmode,
+                               int stats, int level);
 struct S_heap_key {
   dint *particles;
   double *loads;
@@ -390,71 +392,114 @@ oh1_transbound(int currmode, int stats) {
 }
 int
 transbound1(int currmode, int stats, int level) {
-  int ret=MODE_NORM_SEC, nn=nOfNodes, ns=nOfSpecies, nnns=nn*ns, nnns2=2*nnns;
+  return transbound1_state(oh1_state(), currmode, stats, level);
+}
+static int
+transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
+  int ret=MODE_NORM_SEC;
+  int nn=state->n_of_nodes, ns=state->n_of_species;
+  int nnns=nn*ns, nnns2=2*nnns;
+  int *nofplocal=state->n_of_particles_local;
+  int *nofprimaries=state->n_of_primaries;
+  dint *totalp_global=state->total_particles_global;
+  double *total_load_global=state->total_load_global;
+  double *region_weights=state->region_weights;
+  int *neighbors=(int*)state->neighbors;
+  int *nofrecv=state->n_of_recv, *nofsend=state->n_of_send;
+  int *recvcounts=RecvCounts, *sendcounts=SendCounts;
+  int *totalp=state->total_particles, *totalp_next=state->total_particles_next;
   int i, j, k, s, p, tp, tpn, *nbor;
   dint nofp;
 
   Verbose(1,vprint("oh_transbound"));
   if ((stats=statsMode&&stats)) oh1_stats_time(STATS_TRANSBOUND, 0);
-  if (!TotalP)  set_total_particles();
+  if (!totalp) {
+    set_total_particles();
+    state = oh1_state();
+    totalp = state->total_particles;
+    totalp_next = state->total_particles_next;
+    nofplocal = state->n_of_particles_local;
+    nofprimaries = state->n_of_primaries;
+    totalp_global = state->total_particles_global;
+    total_load_global = state->total_load_global;
+    region_weights = state->region_weights;
+    neighbors = (int*)state->neighbors;
+    nofrecv = state->n_of_recv;
+    nofsend = state->n_of_send;
+  }
   currmode = Mode_PS(currmode);
-  if (currmode!=Mode_PS(currMode))
+  if (currmode!=Mode_PS(state->curr_mode))
     local_errstop("currmode given to oh_transbound() does not match with "
                   "that the library maintains");
 
   for (i=0; i<nn; i++) {
-    TotalPGlobal[i] = 0;
-    TotalLoadGlobal[i] = 0.0;
+    totalp_global[i] = 0;
+    total_load_global[i] = 0.0;
   }
   for (p=0,j=0,tp=0,tpn=0; p<=currmode; p++) {
     for (s=0; s<ns; s++) {
       for (i=0; i<nn; i++,j++) {
-        int np=NOfPLocal[j];
-        TotalPGlobal[i] += np;
-        TotalLoadGlobal[i] += oh_region_load(np, RegionWeights[i]);
+        int np=nofplocal[j];
+        totalp_global[i] += np;
+        total_load_global[i] += oh_region_load(np, region_weights[i]);
         tp += np;
       }
     }
-    for (i=0,nbor=Neighbors[p]; i<OH_NEIGHBORS; i++) {
+    for (i=0,nbor=neighbors+p*OH_NEIGHBORS; i<OH_NEIGHBORS; i++) {
       int n=nbor[i];
       if (n>=0)
-        for (s=0,k=(p==0)?n:n+nnns; s<ns; s++,k+=nn)  tpn+= NOfPLocal[k];
+        for (s=0,k=(p==0)?n:n+nnns; s<ns; s++,k+=nn)  tpn+= nofplocal[k];
     }
   }
-  TotalPGlobal[nn] = (tp==tpn && Mode_Is_Norm(currMode)) ? 0 : 1;
+  totalp_global[nn] = (tp==tpn && Mode_Is_Norm(state->curr_mode)) ? 0 : 1;
 
-  MPI_Alltoall(NOfPLocal, 1, T_Histogram, NOfPrimaries, 1, T_Histogram, MCW);
+  MPI_Alltoall(nofplocal, 1, T_Histogram, nofprimaries, 1, T_Histogram,
+               state->comm);
 #ifndef INTEL_MPI_BUG_FIXED
-  for (p=0,k=myRank; p<2; p++)  for (s=0; s<ns; s++,k+=nn)
-    NOfPrimaries[k] = NOfPLocal[k];
+  for (p=0,k=state->my_rank; p<2; p++)  for (s=0; s<ns; s++,k+=nn)
+    nofprimaries[k] = nofplocal[k];
 #endif
-  MPI_Allreduce(MPI_IN_PLACE, TotalPGlobal, nn+1, MPI_LONG_LONG_INT, MPI_SUM,
-                MCW);
-  MPI_Allreduce(MPI_IN_PLACE, TotalLoadGlobal, nn, MPI_DOUBLE, MPI_SUM, MCW);
-  if (TotalPGlobal[nn])  currmode = Mode_Set_Any(currmode);
+  MPI_Allreduce(MPI_IN_PLACE, totalp_global, nn+1, MPI_LONG_LONG_INT, MPI_SUM,
+                state->comm);
+  MPI_Allreduce(MPI_IN_PLACE, total_load_global, nn, MPI_DOUBLE, MPI_SUM,
+                state->comm);
+  if (totalp_global[nn])  currmode = Mode_Set_Any(currmode);
 
-  for (i=0,nofp=0,nOfLoad=0.0; i<nn; i++) {
-    nofp += TotalPGlobal[i];
-    nOfLoad += TotalLoadGlobal[i];
+  for (i=0,nofp=0,state->total_load=0.0; i<nn; i++) {
+    nofp += totalp_global[i];
+    state->total_load += total_load_global[i];
   }
-  nOfParticles = nofp;
-  nOfLocalPMax = nofp*(maxFraction+100)/100/nn;
-  nOfLocalLoadMax = oh_load_limit(nOfLoad, maxFraction, nn);
-  accMode = Mode_Is_Any(currmode) ? 1 : 0;
+  state->n_of_particles = nofp;
+  state->n_of_local_particles_max = nofp*(state->max_fraction+100)/100/nn;
+  state->n_of_local_load_max =
+    oh_load_limit(state->total_load, state->max_fraction, nn);
+  state->acc_mode = Mode_Is_Any(currmode) ? 1 : 0;
+  nOfLoad = state->total_load;
+  nOfParticles = state->n_of_particles;
+  nOfLocalPMax = state->n_of_local_particles_max;
+  nOfLocalLoadMax = state->n_of_local_load_max;
+  accMode = state->acc_mode;
 
   oh1_sync_default_state();
   if (level>1) return(currmode);
-  if (try_primary1(currmode, 1, stats))  ret = MODE_NORM_PRI;
-  else if (!Mode_PS(currmode) || !try_stable1(currmode, 1, stats)) {
-    rebalance1(currmode, 1, stats);  ret = MODE_REB_SEC;
+  state = oh1_state();
+  if (try_primary1_state(state, currmode, 1, stats))  ret = MODE_NORM_PRI;
+  else if (!Mode_PS(currmode) || !try_stable1_state(state, currmode, 1, stats)) {
+    rebalance1_state(state, currmode, 1, stats);  ret = MODE_REB_SEC;
   }
+  state = oh1_state();
+  nofplocal = state->n_of_particles_local;
+  nofrecv = state->n_of_recv;
+  nofsend = state->n_of_send;
+  totalp = state->total_particles;
+  totalp_next = state->total_particles_next;
   for (i=0; i<nnns2; i++) {
-    NOfPLocal[i] = 0;  RecvCounts[i] = NOfRecv[i];  SendCounts[i] = NOfSend[i];
+    nofplocal[i] = 0;  recvcounts[i] = nofrecv[i];  sendcounts[i] = nofsend[i];
   }
-  for (s=0; s<ns*2; s++) TotalP[s] = TotalPNext[s];
-  currMode = ret;
+  for (s=0; s<ns*2; s++) totalp[s] = totalp_next[s];
+  currMode = state->curr_mode = ret;
   oh1_sync_default_state();
-  return(currMode);
+  return(state->curr_mode);
 }
 int
 try_primary1(int currmode, int level, int stats) {

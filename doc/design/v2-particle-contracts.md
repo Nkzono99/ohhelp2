@@ -122,6 +122,9 @@ When editing particle movement or mapping code, check for:
 - Public Level-4 headers must not publish `EXTERN` mutable implementation
   globals or internal scheduling structs. Those declarations belong in
   `src/c/ohhelp4*_internal.h`.
+- Public Level-3 headers must not publish `EXTERN` mutable implementation
+  globals or internal field/subdomain structs. Those declarations belong in
+  `src/c/ohhelp3_internal.h`.
 - Level 2 implementation code must not directly read or write `nid` or `spec`.
 - Level 3 implementation code must not directly read or write `nid` or `spec`;
   direct `x/y/z` access is limited to the default `S_particle` mapping adapter.

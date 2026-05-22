@@ -163,6 +163,9 @@ The current code now has this first migration layer:
   are stored as opaque `int *`/struct pointers for now so `ohhelp1.h` does not
   need to include `ohhelp3.h`; later Level-3 helpers can cast them at the point
   of use while state ownership is moved behind the context.
+- Level-3 mutable implementation globals and field/subdomain helper structs are
+  now declared from `src/c/ohhelp3_internal.h` instead of the public
+  `include/ohhelp3.h`.
 - Level-3 particle-to-neighbor and particle-to-subdomain coordinate mapping now
   routes through state-backed internal helpers. The public C/Fortran-compatible
   wrappers still provide the old signatures, but the core mapping path reads

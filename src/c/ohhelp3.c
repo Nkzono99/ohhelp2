@@ -12,7 +12,7 @@
 #include "ohhelp2_internal.h"
 #undef  EXTERN
 #define EXTERN
-#include "ohhelp3.h"
+#include "ohhelp3_internal.h"
 #include "oh_context_internal.h"
 
 static void init_subdomain_actively(struct oh_state *state,

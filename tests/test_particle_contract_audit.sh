@@ -42,6 +42,7 @@ if [ "$level3_xyz_count" -ne 6 ]; then
   echo "$level3_xyz" >&2
 fi
 check_absent '->(nid|spec)\b' src/c/ohhelp3.c
+check_absent '^EXTERN ' include/ohhelp3.h
 
 # Level 4 still has packed-id semantics, but implementation code must reach
 # them through local helpers so the representation can later move behind the

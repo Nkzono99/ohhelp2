@@ -16,13 +16,10 @@
 #include "oh_particle_buffer.h"
 
 /* Prototypes for private functions. */
-static int   try_primary2(int currmode, int level, int stats);
 static int   try_primary2_state(struct oh_state *state, int currmode,
                                 int level, int stats);
-static int   try_stable2(int currmode, int level, int stats);
 static int   try_stable2_state(struct oh_state *state, int currmode,
                                int level, int stats);
-static void  rebalance2(int currmode, int level, int stats);
 static void  rebalance2_state(struct oh_state *state, int currmode, int level,
                               int stats);
 static void  init_particle_adapter(void);
@@ -33,7 +30,6 @@ static void  allocate_level2_work_buffers(int ns, int nn, int nnns,
 int          transbound2_state(struct oh_state *state, int currmode, int stats,
                                int level);
 static int   finish_transbound2_state(struct oh_state *state, int ret);
-static void  move_to_sendbuf_secondary(int secondary, int stats);
 static void  move_to_sendbuf_secondary_state(struct oh_state *state,
                                              int secondary, int stats);
 static void  move_to_sendbuf_uw(struct oh_state *state, int ps, int me,
@@ -256,10 +252,6 @@ finish_transbound2_state(struct oh_state *state, int ret) {
   return ret;
 }
 static int
-try_primary2(int currmode, int level, int stats) {
-  return try_primary2_state(oh1_state(), currmode, level, stats);
-}
-static int
 try_primary2_state(struct oh_state *state, int currmode, int level, int stats) {
 
   if (!try_primary1_state(state, currmode, level, stats))  return(FALSE);
@@ -339,10 +331,6 @@ exchange_primary_particles_state(struct oh_state *state, int currmode,
   }
 }
 static int
-try_stable2(int currmode, int level, int stats) {
-  return try_stable2_state(oh1_state(), currmode, level, stats);
-}
-static int
 try_stable2_state(struct oh_state *state, int currmode, int level, int stats) {
 
   if (!try_stable1_state(state, currmode, level, stats)) return(FALSE);
@@ -351,10 +339,6 @@ try_stable2_state(struct oh_state *state, int currmode, int level, int stats) {
                            state->nodes[state->my_rank].parentid,
                            currmode==MODE_NORM_SEC, currmode, stats);
   return(TRUE);
-}
-static void
-rebalance2(int currmode, int level, int stats) {
-  rebalance2_state(oh1_state(), currmode, level, stats);
 }
 static void
 rebalance2_state(struct oh_state *state, int currmode, int level, int stats) {
@@ -418,10 +402,6 @@ move_to_sendbuf_primary_state(struct oh_state *state, int secondary,
   if (state->n_of_injections)
     move_injected_from_sendbuf(state, state->injected_particles, me,
                                state->recv_buffer_bases);
-}
-static void
-move_to_sendbuf_secondary(int secondary, int stats) {
-  move_to_sendbuf_secondary_state(oh1_state(), secondary, stats);
 }
 static void
 move_to_sendbuf_secondary_state(struct oh_state *state, int secondary,

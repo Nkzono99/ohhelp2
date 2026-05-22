@@ -2061,7 +2061,8 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
                 if (nrecv) {
                     MPI_Irecv(rbuf, nrecv, state->particle_mpi_type, nid, t,
                               state->comm, state->requests + req++);
-                    rbuf += nrecv;
+                    rbuf = oh_particle_buffer_at(state->particle_adapter,
+                                                 rbuf, nrecv);
                 }
             }
         }
@@ -2076,8 +2077,10 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
                 const int nsend = sdnxt - sdisp;
                 nofs[nid] = 0;
                 if (nsend) {
-                    MPI_Isend(sbuf + sdisp, nsend, state->particle_mpi_type,
-                              nid, t, state->comm, state->requests + req++);
+                    MPI_Isend(oh_particle_buffer_at(state->particle_adapter,
+                                                    sbuf, sdisp),
+                              nsend, state->particle_mpi_type, nid, t,
+                              state->comm, state->requests + req++);
                 }
                 sdisp = sdnxt;
             }
@@ -2106,21 +2109,23 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
     for (i = vphead, vp = vplanes + vphead; i < vptail; i++, vp++) {
         const int nrecv = vp->nrecv;
         if (nrecv)
-            MPI_Irecv(state->particles + vp->rbuf, nrecv,
+            MPI_Irecv(level4_particle_at(state, vp->rbuf), nrecv,
                       state->particle_mpi_type, vp->nbor, vp->rtag,
                       state->comm, state->requests + req++);
     }
     for (i = vphead, vp = vplanes + vphead; i < vptail; i++, vp++) {
         const int nsend = vp->nsend;
         if (nsend)
-            MPI_Isend(boundary_send_buffer + vp->sbuf, nsend,
+            MPI_Isend(oh_particle_buffer_at(state->particle_adapter,
+                                            boundary_send_buffer, vp->sbuf),
+                      nsend,
                       state->particle_mpi_type, vp->nbor, vp->stag,
                       state->comm, state->requests + req++);
     }
     if (req == 0)  return;
     MPI_Waitall(req, state->requests, state->statuses);
 
-    p = state->particles + vplanes[vphead].rbuf;
+    p = level4_particle_at(state, vplanes[vphead].rbuf);
     for (ps = 0; ps <= psnew; ps++) {
         const int psor2 = ps ? trans + 1 : 0;
         const int zl = z_bound[ps][OH_LOWER];
@@ -2150,12 +2155,21 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
                         if (Is_Pillar_Voxel(dst)) {
                             struct S_particle* q = p;
                             int j = Pillar_Upper(dst) - 1;
-                            for (i = npgi[g]; i < tail; i++)
-                                boundary_send_buffer[j++] = *q++;
+                            for (i = npgi[g]; i < tail; i++) {
+                                level4_copy_particle_to_buffer(
+                                    state, boundary_send_buffer, j++, q);
+                                q = oh_particle_buffer_at(
+                                    state->particle_adapter, q, 1);
+                            }
                         }
                         for (i = npgi[g]; i < tail; i++) {
-                            state->send_buffer[i] = *p++;
-                            state->send_buffer[i].nid = -2;
+                            struct S_particle* sp =
+                                oh_particle_buffer_at(state->particle_adapter,
+                                                      state->send_buffer, i);
+                            level4_copy_particle(state, sp, p);
+                            sp->nid = -2;
+                            p = oh_particle_buffer_at(state->particle_adapter,
+                                                      p, 1);
                         }
                     }
                 }
@@ -2178,7 +2192,10 @@ static void xfer_boundary_particles_h(struct oh_state* state, const int psnew) {
             if (nbor != MPI_PROC_NULL) {
                 for (s = 0; s < ns; s++) {
                     if (nrecv[s])
-                        MPI_Irecv(state->send_buffer + rbuf[s], nrecv[s],
+                        MPI_Irecv(oh_particle_buffer_at(state->particle_adapter,
+                                                        state->send_buffer,
+                                                        rbuf[s]),
+                                  nrecv[s],
                                   state->particle_mpi_type, nbor, tag + s,
                                   state->comm, state->requests + req++);
                 }
@@ -2193,7 +2210,10 @@ static void xfer_boundary_particles_h(struct oh_state* state, const int psnew) {
             if (nbor != MPI_PROC_NULL) {
                 for (s = 0; s < ns; s++) {
                     if (nsend[s])
-                        MPI_Isend(state->send_buffer + sbuf[s], nsend[s],
+                        MPI_Isend(oh_particle_buffer_at(state->particle_adapter,
+                                                        state->send_buffer,
+                                                        sbuf[s]),
+                                  nsend[s],
                                   state->particle_mpi_type, nbor, tag + s,
                                   state->comm, state->requests + req++);
                 }
@@ -2212,7 +2232,8 @@ static void xfer_boundary_particles_h(struct oh_state* state, const int psnew) {
                     const int tail = rbuf[s] + nrecv[s];
                     int i;
                     for (i = rbuf[s]; i < tail; i++)
-                        state->send_buffer[i].nid = -2;
+                        oh_particle_buffer_at(state->particle_adapter,
+                                              state->send_buffer, i)->nid = -2;
                 }
             }
         }

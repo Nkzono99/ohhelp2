@@ -1819,7 +1819,8 @@ static void move_to_sendbuf_uw4s(struct oh_state* state, const int ps,
     const int* ctp = state->total_particles + nsor0;
     const int* ntp = state->total_particles_next + nsor0;
     struct S_interiorp* ip = state->level4_interior_parts + nsor0;
-    struct S_particle* p, ** rbb = state->recv_buffer_bases + nsor0;
+    struct S_particle* p;
+    void** rbb = state->recv_buffer_bases + nsor0;
     struct S_particle* sb = state->send_buffer;
     int s, c, d, cn, dn;
     Decl_Grid_Info();
@@ -1872,7 +1873,7 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
     const int* ntp = state->total_particles_next + nsor0;
     struct S_interiorp* ip = state->level4_interior_parts + nsor0;
     struct S_particle* sb = state->send_buffer, * p;
-    struct S_particle** rbb = state->recv_buffer_bases + nsor0;
+    void** rbb = state->recv_buffer_bases + nsor0;
     int s, c, d, cn, dn;
     Decl_Grid_Info();
 
@@ -2004,7 +2005,7 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
     const int ns = state->n_of_species;
     int ps, s, pidx = 0;
     struct S_particle* sb = state->send_buffer;
-    struct S_particle** rbb = state->recv_buffer_bases + 1;
+    void** rbb = state->recv_buffer_bases + 1;
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);

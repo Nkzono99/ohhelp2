@@ -36,14 +36,14 @@ static void  move_to_sendbuf_secondary_state(struct oh_state *state,
                                              int secondary, int stats);
 static void  move_to_sendbuf_uw(struct oh_state *state, int ps, int me,
                                 int *putmes, int cbase, int *ctp, int nbase,
-                                int *ntp, struct S_particle **rbb);
+                                int *ntp, void **rbb);
 static void  move_to_sendbuf_dw(struct oh_state *state, int ps, int me,
                                 int *putmes, int ctail, int *ctp, int ntail,
                                 int *ntp);
 static void  move_injected_to_sendbuf(struct oh_state *state);
 static void  move_injected_from_sendbuf(struct oh_state *state,
                                         int *injected, int mysd,
-                                        struct S_particle **rbb);
+                                        void **rbb);
 static void  receive_particles(struct oh_state *state,
                                struct S_commlist *rlist, int rlsize,
                                int *req);
@@ -75,7 +75,7 @@ static int   state_primarize_particle(struct oh_state *state,
                                       struct S_particle *part);
 static size_t particle_stride(void);
 static struct S_particle *state_particle_at(struct oh_state *state,
-                                            struct S_particle *base,
+                                            void *base,
                                             int index);
 static int   state_particle_buffer_index(struct oh_state *state,
                                          const struct S_particle *part);
@@ -277,7 +277,7 @@ exchange_primary_particles_state(struct oh_state *state, int currmode,
   MPI_Comm comm=state->comm;
   MPI_Datatype particle_type=state->particle_mpi_type;
   struct S_particle *sendbuf=state->send_buffer;
-  struct S_particle **recvbuf_bases=state->recv_buffer_bases;
+  void **recvbuf_bases=state->recv_buffer_bases;
   int *recvbuf_disps=state->recv_buffer_disps;
 
   if (stats) oh1_stats_time(STATS_TB_COMM, 0);
@@ -573,7 +573,7 @@ exchange_particles_state(struct oh_state *state, struct S_commlist *secrlist,
     int ps;
     int *rcount=state->n_of_recv;
     int *scount=state->n_of_send;
-    struct S_particle **rbb=state->recv_buffer_bases;
+    void **rbb=state->recv_buffer_bases;
     for (ps=0; ps<2; ps++,rbb+=ns) {            /* rbb=&RecvBufBases[p][0] */
       int *sbd0=state->send_buffer_disps, *sbd;
       for (s=0; s<ns; s++,rcount+=nn,scount+=nn,sbd0+=nn) {
@@ -609,7 +609,7 @@ exchange_particles_state(struct oh_state *state, struct S_commlist *secrlist,
 static void
 move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
                    int cbase, int *ctp, int nbase, int *ntp,
-                   struct S_particle **rbb) {
+                   void **rbb) {
   int i, in, j, jn, k, s;
   int ns=state->n_of_species, nn=state->n_of_nodes;
   int *sbd=state->send_buffer_disps;
@@ -742,7 +742,7 @@ move_injected_to_sendbuf(struct oh_state *state) {
 }
 static void
 move_injected_from_sendbuf(struct oh_state *state, int *injected, int mysd,
-                           struct S_particle **rbb) {
+                           void **rbb) {
   int nn=state->n_of_nodes, ns=state->n_of_species;
   int *sdisp=state->send_buffer_disps+mysd;
   int s, i;
@@ -1004,7 +1004,7 @@ particle_stride(void) {
   return oh_particle_buffer_stride(&ParticleAdapter);
 }
 static struct S_particle *
-state_particle_at(struct oh_state *state, struct S_particle *base, int index) {
+state_particle_at(struct oh_state *state, void *base, int index) {
   return oh_particle_buffer_at(state->particle_adapter, base, index);
 }
 static int

@@ -470,9 +470,9 @@ adapter storage rather than the final opaque-particle implementation.
 
 Level-2 buffer allocation and internal element addressing now use
 `oh_particle_adapter.stride`. Public C initialization accepts the particle
-buffer as `void **`, while the implementation still stores it in
-`struct S_particle`-typed internal slots during the staged migration. Internal
-pointer arithmetic no longer assumes `sizeof(struct S_particle)`. Adapter
+buffer as `void **`, and the context mirror stores particle buffers and
+receive-buffer cursors as opaque `void *` / `void **` fields. Internal pointer
+arithmetic no longer assumes `sizeof(struct S_particle)`. Adapter
 validation also requires the MPI datatype extent to match the stride, because
 `MPI_Alltoallv` displacements are expressed in datatype units.
 `oh_particle_adapter_make_byte_type()` now provides the standard helper for
@@ -489,7 +489,8 @@ The stride-aware storage helpers live in `src/c/oh_particle_buffer.h` so
 Level-2 movement code can share one implementation for element addressing,
 index validation, and byte-wise copies. Those helpers now take and return
 `void *`; the remaining `struct S_particle *` types are local staging aliases in
-movement code rather than part of the buffer helper contract.
+movement code rather than part of the buffer helper or context storage
+contract.
 
 Level-3 initialization now installs default `S_particle` coordinate mapping
 callbacks into the active default adapter after geometry setup. Custom adapters

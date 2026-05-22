@@ -50,6 +50,16 @@ check_absent 'struct oh_state\s*\{' include/ohhelp1.h
 check_absent '\bOhDefaultState\b' include/ohhelp1.h
 check_present 'struct oh_state\s*\{' src/c/oh_context_internal.h
 check_present '\bOhDefaultState\b' src/c/oh_context_internal.h
+check_present 'void \*particles;' src/c/oh_context_internal.h
+check_present 'void \*send_buffer;' src/c/oh_context_internal.h
+check_present 'void \*\*recv_buffer_bases;' src/c/oh_context_internal.h
+check_present 'void \*level4_boundary_send_buffer;' src/c/oh_context_internal.h
+check_absent 'struct S_particle \*particles;' src/c/oh_context_internal.h
+check_absent 'struct S_particle \*send_buffer;' src/c/oh_context_internal.h
+check_absent 'struct S_particle \*\*recv_buffer_bases;' \
+  src/c/oh_context_internal.h
+check_absent 'struct S_particle \*level4_boundary_send_buffer;' \
+  src/c/oh_context_internal.h
 check_absent 'struct S_(node|heap|commlist|commsched_context|comms|statscurr|statstime|statspart|statstotal|stats)\s*\{' include/ohhelp1.h
 check_absent '\b(init1|mem_alloc|mem_alloc_error|errstop|local_errstop|set_total_particles|transbound1|try_primary1|try_stable1|rebalance1|build_new_comm|vprint|dprint)\s*\(' include/ohhelp1.h
 check_present 'oh1_comm' include/ohhelp1.h

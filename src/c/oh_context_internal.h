@@ -53,9 +53,9 @@ struct oh_state {
   struct S_mycommc *my_comm_c;
   struct S_mycommf *my_comm_f;
   int n_of_local_particles_limit;
-  struct S_particle *particles;
-  struct S_particle *send_buffer;
-  struct S_particle **recv_buffer_bases;
+  void *particles;
+  void *send_buffer;
+  void **recv_buffer_bases;
   int *secondary_base;
   int *total_local_particles;
   int *send_buffer_disps;
@@ -115,7 +115,7 @@ struct oh_state {
   MPI_Datatype level4_histogram_half_type;
   struct S_interiorp *level4_interior_parts;
   int level4_grid_overflow_limit;
-  struct S_particle *level4_boundary_send_buffer;
+  void *level4_boundary_send_buffer;
   int *level4_first_neighbor;
   int *level4_grid_offset;
   void *level4_real_dst_neighbors;

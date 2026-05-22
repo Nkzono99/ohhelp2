@@ -415,5 +415,7 @@ for (int step = 0; step < nstep; step++) {
 - region weight の中核 helper と Level 1 の rebalance 経路は実装済みです。
 - Level 2/3/4 は `oh_state` 経由でこの情報を参照する移行中です。
 - public API はまだ default context 中心です。
-- Level 4 の particle adapter stride 対応は進行中で、全経路が完全に
-  opaque particle layout になったわけではありません。
+- 公開 C API と context 内の粒子バッファ保持は `void *` ベースです。
+  実装内部には既存アルゴリズムを保つための `struct S_particle *` ローカル
+  エイリアスがまだありますが、バッファの走査とコピーは adapter stride を
+  通します。

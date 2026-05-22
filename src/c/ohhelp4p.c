@@ -1769,7 +1769,7 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
                                     const int psnew, const int stats) {
     const int ns = state->n_of_species;
     int ps, s, pidx = 0;
-    struct S_particle** rbb = state->recv_buffer_bases + 1;
+    void** rbb = state->recv_buffer_bases + 1;
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);
@@ -1890,7 +1890,8 @@ static void move_to_sendbuf_uw4p(struct oh_state* state, const int ps,
     const int nsor0 = ps ? ns : 0;
     const int* ctp = state->total_particles + nsor0;
     const int* ntp = state->total_particles_next + nsor0;
-    struct S_particle* p, ** rbb = state->recv_buffer_bases + nsor0;
+    struct S_particle* p;
+    void** rbb = state->recv_buffer_bases + nsor0;
     struct S_particle* sb = state->send_buffer;
     int s, c, d, cn, dn;
     Decl_Grid_Info();
@@ -2071,7 +2072,8 @@ static void state_xfer_particles4p(struct oh_state* state, const int trans,
                 if (nrecv) {
                     MPI_Irecv(rbuf, nrecv, state->particle_mpi_type, nid, t,
                               state->comm, state->requests + req++);
-                    rbuf += nrecv;
+                    rbuf = oh_particle_buffer_at(state->particle_adapter,
+                                                 rbuf, nrecv);
                 }
             }
         }
@@ -2086,7 +2088,9 @@ static void state_xfer_particles4p(struct oh_state* state, const int trans,
                 const int nsend = sdnxt - sdisp;
                 nofs[nid] = 0;
                 if (nsend) {
-                    MPI_Isend(sbuf + sdisp, nsend, state->particle_mpi_type,
+                    MPI_Isend(oh_particle_buffer_at(state->particle_adapter,
+                                                    sbuf, sdisp),
+                              nsend, state->particle_mpi_type,
                               nid, t, state->comm, state->requests + req++);
                 }
                 sdisp = sdnxt;

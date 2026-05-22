@@ -62,7 +62,7 @@ oh1_sync_default_state(void) {
   OhDefaultState.n_of_local_particles_limit = nOfLocalPLimit;
   OhDefaultState.particles = Particles;
   OhDefaultState.send_buffer = SendBuf;
-  OhDefaultState.recv_buffer_bases = RecvBufBases;
+  OhDefaultState.recv_buffer_bases = (void**)RecvBufBases;
   OhDefaultState.secondary_base = secondaryBase;
   OhDefaultState.total_local_particles = totalLocalParticles;
   OhDefaultState.send_buffer_disps = SendBufDisps;

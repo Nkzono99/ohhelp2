@@ -58,14 +58,14 @@ level4_copy_particle(struct oh_state* state, struct S_particle* dst,
 }
 
 static inline void
-level4_push_particle(struct oh_state* state, struct S_particle** cursor,
+level4_push_particle(struct oh_state* state, void** cursor,
                      const struct S_particle* src) {
     level4_copy_particle(state, *cursor, src);
     *cursor = oh_particle_buffer_at(state->particle_adapter, *cursor, 1);
 }
 
 static inline void
-level4_copy_particle_to_buffer(struct oh_state* state, struct S_particle* base,
+level4_copy_particle_to_buffer(struct oh_state* state, void* base,
                                int index, const struct S_particle* src) {
     level4_copy_particle(state,
                          oh_particle_buffer_at(state->particle_adapter,
@@ -81,10 +81,10 @@ level4_init_particle_stride(void) {
 }
 
 static inline struct S_particle*
-level4_init_particle_at(struct S_particle* base, int index) {
+level4_init_particle_at(void* base, int index) {
     if (useCustomParticleAdapter)
         return oh_particle_buffer_at(&CustomParticleAdapter, base, index);
-    return base + index;
+    return ((struct S_particle*)base) + index;
 }
 
 static inline int

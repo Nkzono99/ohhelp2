@@ -139,6 +139,12 @@ void  build_new_comm_state(struct oh_state *state, int currmode, int level,
 void  oh1_broadcast_state(struct oh_state *state, void* pbuf, void* sbuf,
                           int pcount, int scount, MPI_Datatype ptype,
                           MPI_Datatype stype);
+void  oh1_all_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
+                           int pcount, int scount, MPI_Datatype ptype,
+                           MPI_Datatype stype, MPI_Op pop, MPI_Op sop);
+void  oh1_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
+                       int pcount, int scount, MPI_Datatype ptype,
+                       MPI_Datatype stype, MPI_Op pop, MPI_Op sop);
 void  vprint(char* format, ...);
 void  dprint(char* format, ...);
 

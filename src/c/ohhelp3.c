@@ -1205,16 +1205,17 @@ state_bcast_field(struct oh_state *state, void *pfld, void *sfld, int ftype) {
   int base=state->field_desc[ftype].bc.base;
   int *size=state->field_desc[ftype].bc.size;
 
-  oh1_broadcast((double*)pfld+base, (double*)sfld+base, size[0], size[1],
-                MPI_DOUBLE, MPI_DOUBLE);
+  oh1_broadcast_state(state, (double*)pfld+base, (double*)sfld+base,
+                      size[0], size[1], MPI_DOUBLE, MPI_DOUBLE);
 }
 static void
 state_reduce_field(struct oh_state *state, void *pfld, void *sfld, int ftype) {
   int base=state->field_desc[ftype].red.base;
   int *size=state->field_desc[ftype].red.size;
 
-  oh1_reduce((double*)pfld+base, (double*)sfld+base, size[0], size[1],
-             MPI_DOUBLE, MPI_DOUBLE, MPI_SUM, MPI_SUM);
+  oh1_reduce_state(state, (double*)pfld+base, (double*)sfld+base,
+                   size[0], size[1], MPI_DOUBLE, MPI_DOUBLE, MPI_SUM,
+                   MPI_SUM);
 }
 static void
 state_allreduce_field(struct oh_state *state, void *pfld, void *sfld,
@@ -1222,8 +1223,9 @@ state_allreduce_field(struct oh_state *state, void *pfld, void *sfld,
   int base=state->field_desc[ftype].red.base;
   int *size=state->field_desc[ftype].red.size;
 
-  oh1_all_reduce((double*)pfld+base, (double*)sfld+base, size[0], size[1],
-                 MPI_DOUBLE, MPI_DOUBLE, MPI_SUM, MPI_SUM);
+  oh1_all_reduce_state(state, (double*)pfld+base, (double*)sfld+base,
+                       size[0], size[1], MPI_DOUBLE, MPI_DOUBLE, MPI_SUM,
+                       MPI_SUM);
 }
 static void
 state_exchange_borders(struct oh_state *state, void *pfld, void *sfld,
@@ -1261,9 +1263,9 @@ state_exchange_borders(struct oh_state *state, void *pfld, void *sfld,
       for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
         struct S_borderexc *bxp=&border_exchange[ctype][0][d][lu];
         struct S_borderexc *bxs=&border_exchange[ctype][1][d][lu];
-        oh1_broadcast(pf+bxp->recv.buf, sf+bxs->recv.buf,
-                      bxp->recv.count, bxs->recv.count,
-                      bxp->recv.type, bxs->recv.type);
+        oh1_broadcast_state(state, pf+bxp->recv.buf, sf+bxs->recv.buf,
+                            bxp->recv.count, bxs->recv.count,
+                            bxp->recv.type, bxs->recv.type);
       }
     }
   }

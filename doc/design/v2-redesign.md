@@ -206,9 +206,11 @@ The current code now has this first migration layer:
   region ids, neighbor tables, grid geometry, subdomains, and boundary flags
   through `oh_state`.
 - Level-3 field broadcast/reduce/allreduce and border-exchange entry points now
-  delegate to state-backed helpers. They still call the existing Level-1
-  collective wrappers, but field descriptors, communicator, adjacency, current
-  mode, region ids, and border-exchange descriptors are read through `oh_state`.
+  delegate to state-backed helpers. Field descriptors, communicator, adjacency,
+  current mode, region ids, and border-exchange descriptors are read through
+  `oh_state`; field broadcast/reduce/allreduce and secondary border broadcast
+  call Level-1 state-backed collective helpers directly instead of returning
+  through the default-context collective wrappers.
 - Level-3 grid-size scaling now updates grid geometry, floating subdomain
   bounds, and irregular subdomain descriptors through a state-backed helper.
 - Level-3 transbound now keeps its Level-1/2 delegation wrapper but reads

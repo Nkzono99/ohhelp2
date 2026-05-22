@@ -67,13 +67,6 @@ static void  print_stats_state(struct oh_state *state,
                                struct S_statstotal *stotal, int cstep, int n);
 static void  stats_reduce_time(void* inarg, void* ioarg, int* len,
                                MPI_Datatype* type);
-static void  oh1_all_reduce_state(struct oh_state *state, void *pbuf,
-                                  void *sbuf, int pcount, int scount,
-                                  MPI_Datatype ptype, MPI_Datatype stype,
-                                  MPI_Op pop, MPI_Op sop);
-static void  oh1_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
-                              int pcount, int scount, MPI_Datatype ptype,
-                              MPI_Datatype stype, MPI_Op pop, MPI_Op sop);
 
 MPI_Comm
 oh1_comm(void) {
@@ -1447,7 +1440,7 @@ oh1_all_reduce(void *pbuf, void *sbuf, int pcount, int scount,
   oh1_all_reduce_state(oh1_state(), pbuf, sbuf, pcount, scount,
                        ptype, stype, pop, sop);
 }
-static void
+void
 oh1_all_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
                      int pcount, int scount,
                      MPI_Datatype ptype, MPI_Datatype stype,
@@ -1479,7 +1472,7 @@ oh1_reduce(void *pbuf, void *sbuf, int pcount, int scount,
   oh1_reduce_state(oh1_state(), pbuf, sbuf, pcount, scount,
                    ptype, stype, pop, sop);
 }
-static void
+void
 oh1_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
                  int pcount, int scount,
                  MPI_Datatype ptype, MPI_Datatype stype,

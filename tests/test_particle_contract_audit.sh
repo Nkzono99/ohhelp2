@@ -119,10 +119,13 @@ check_absent '\b(try_primary1|try_stable1|rebalance1|build_new_comm|oh1_broadcas
   src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\btransbound1\s*\(' src/c/ohhelp3.c src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\btransbound2\s*\(' src/c/ohhelp3.c
+check_absent '\boh1_(broadcast|reduce|all_reduce)\s*\(' src/c/ohhelp3.c
 check_present 'try_primary1_state' src/c/ohhelp1_internal.h
 check_present 'transbound1_state' src/c/ohhelp1_internal.h
 check_present 'transbound2_state' src/c/ohhelp2_internal.h
 check_present 'oh1_broadcast_state' src/c/ohhelp1_internal.h
+check_present 'oh1_reduce_state' src/c/ohhelp1_internal.h
+check_present 'oh1_all_reduce_state' src/c/ohhelp1_internal.h
 check_present 'exchange_particles_state' src/c/ohhelp2_internal.h
 
 # New direct accesses must not spread outside the known migration boundary.

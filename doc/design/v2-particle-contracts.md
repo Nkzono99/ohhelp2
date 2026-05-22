@@ -82,6 +82,9 @@ Injected particles:
 - After an injected particle has been counted/remapped, removal must call
   `oh_remove_injected_particle()`. Setting the region field to `-1` alone does
   not decrement injection counters.
+- `oh_remap_injected_particle()` is additive. It is for particles injected with
+  a negative region, or for injected particles whose previous count has already
+  been removed with `oh_remove_injected_particle()`.
 - `oh_remove_injected_particle()` validates that the pointer is inside the
   current injection buffer, decrements the relevant counters, then sets the
   region to `-1`.

@@ -116,6 +116,7 @@ currmode = oh_transbound(currmode, stats);
 粒子数が変化する場合:
 
 ```c
+set_destination_region(&new_particle, -1);
 struct my_particle *pinj = oh_inject_particle_get(&new_particle);
 
 set_destination_region(pinj, new_region);
@@ -126,6 +127,9 @@ oh_remove_injected_particle(pinj);
 `oh_remap_injected_particle()` / `oh_remove_injected_particle()` には、
 `oh_inject_particle_get()` が返す particle buffer 内ポインタを渡します。
 後続操作が不要なら `oh_inject_particle(&new_particle)` だけで注入できます。
+`oh_remap_injected_particle()` は、負の region で注入した粒子、または
+`oh_remove_injected_particle()` で一度 count を取り消した injected particle を、
+現在の region/species で再計上する API です。
 
 ## Level 3: 場データと空間 mapping も任せる
 

@@ -314,6 +314,10 @@ region field が同じ役割を持ちます。
   `oh_inject_particle_get()` を使って、OhHelp の particle buffer 内にコピーされた
   粒子ポインタを保持してください。`oh_remap_injected_particle()` と
   `oh_remove_injected_particle()` は、その buffer 内ポインタを受け取ります。
+- `oh_remap_injected_particle()` は、負の region で注入した粒子、または
+  `oh_remove_injected_particle()` で一度 count を取り消した injected particle を、
+  現在の region/species で再計上するための API です。正の region で count 済みの
+  粒子にそのまま呼ぶと二重計上になります。
 - `oh_remove_injected_particle()` は対象が injection buffer 内の粒子であることを
   検証し、count を減らした上で region を `-1` にします。
 

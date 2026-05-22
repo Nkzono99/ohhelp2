@@ -189,9 +189,10 @@ Level 2/3:
 
 ```c
 struct S_particle p = make_new_particle();
+set_particle_region(&p, -1);
 struct S_particle *pinj = oh_inject_particle_get(&p);
 
-/* injection 後に region を有効化または更新した場合 */
+/* injection 後に region を有効化する場合 */
 set_particle_region(pinj, new_region);
 oh_remap_injected_particle(pinj);
 
@@ -203,6 +204,10 @@ oh_remove_injected_particle(pinj);
 ではなく、OhHelp の particle buffer 内にある injected particle のポインタを
 受け取ります。後から操作しない単純な注入では `oh_inject_particle(&p)` だけでも
 構いません。
+`oh_remap_injected_particle()` は負の region で注入した粒子を後から有効化する
+ための API です。正の region で注入済みの粒子を別 region へ移す場合は、先に
+`oh_remove_injected_particle()` で既存 count を取り消してから region を更新し、
+`oh_remap_injected_particle()` を呼びます。
 
 Level 4p/4s:
 

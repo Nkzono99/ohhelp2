@@ -384,15 +384,11 @@ set_total_particles_state(struct oh_state *state) {
 }
 int
 oh1_transbound_(int *currmode, int *stats) {
-  return(transbound1(*currmode, *stats, 1));
+  return(transbound1_state(oh1_state(), *currmode, *stats, 1));
 }
 int
 oh1_transbound(int currmode, int stats) {
-  return(transbound1(currmode, stats, 1));
-}
-int
-transbound1(int currmode, int stats, int level) {
-  return transbound1_state(oh1_state(), currmode, stats, level);
+  return transbound1_state(oh1_state(), currmode, stats, 1);
 }
 int
 transbound1_state(struct oh_state *state, int currmode, int stats, int level) {

@@ -131,6 +131,8 @@ check_absent '\b(move_to_sendbuf_primary|exchange_primary_particles|set_sendbuf_
   src/c/ohhelp2.c src/c/ohhelp2_internal.h
 check_absent '\b(set_total_particles|try_primary1|try_stable1|rebalance1|build_new_comm)\s*\(' \
   src/c/ohhelp1.c src/c/ohhelp1_internal.h
+check_absent '\b(transbound1|transbound2)\s*\(' \
+  src/c/ohhelp1.c src/c/ohhelp1_internal.h src/c/ohhelp2.c src/c/ohhelp2_internal.h
 check_absent '\b(set_field_descriptors|clear_border_exchange)\s*\(' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\b(try_primary1|try_stable1|rebalance1|build_new_comm|oh1_broadcast|move_to_sendbuf_primary|exchange_primary_particles|set_sendbuf_disps|exchange_particles)\s*\(' \

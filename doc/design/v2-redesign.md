@@ -135,6 +135,9 @@ The current code now has this first migration layer:
 - Obsolete Level-1 default-context internal wrappers for total-count setup,
   primary/stable checks, rebalance, and communicator rebuilding were removed;
   internal callers use the `*_state()` entry points.
+- Obsolete internal `transbound1()` and `transbound2()` default-context
+  wrappers were removed; public transbound APIs now call the state-backed
+  implementations directly.
 - Level-1 schedule counters (`RLIndex`, `SLHeadTail`, `SecSLHeadTail`,
   `SecRLSize`) are now reachable through `oh_state` and used that way by the
   state-backed scheduling/count construction paths.

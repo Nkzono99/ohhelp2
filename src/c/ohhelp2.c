@@ -203,15 +203,11 @@ allocate_level2_work_buffers(int ns, int nn, int nnns, int maxlocalp) {
 }
 int
 oh2_transbound_(int *currmode, int *stats) {
-  return(transbound2(*currmode, *stats, 2));
+  return(transbound2_state(oh1_state(), *currmode, *stats, 2));
 }
 int
 oh2_transbound(int currmode, int stats) {
-  return(transbound2(currmode, stats, 2));
-}
-int
-transbound2(int currmode, int stats, int level) {
-  return transbound2_state(oh1_state(), currmode, stats, level);
+  return transbound2_state(oh1_state(), currmode, stats, 2);
 }
 int
 transbound2_state(struct oh_state *state, int currmode, int stats, int level) {

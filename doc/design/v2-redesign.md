@@ -65,6 +65,10 @@ The current code now has this first migration layer:
   `transbound1`, `try_primary1`, `mem_alloc`, and related helpers) now live in
   `src/c/ohhelp1_internal.h`; `include/ohhelp1.h` is limited to public C and
   Fortran-facing declarations.
+- Public C headers now have include guards, and the shared `S_mycommc`
+  definition is protected by a single `OHHELP_MYCOMMC_DEFINED` guard. This lets
+  users include `ohhelp1.h` and `ohhelp_c.h` together while the v2 public API is
+  being consolidated.
 - Level-2 and Level-4 transbound entry points now gate stats collection through
   `oh_state.stats_mode` instead of reading the global `statsMode` directly.
 - Level-4p initialization now sizes its particle/send-buffer storage with the

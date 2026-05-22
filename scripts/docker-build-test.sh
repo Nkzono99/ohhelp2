@@ -35,6 +35,8 @@ mpicc -Iinclude tests/test_ohhelp4p_header.c \
   -c -o build/docker/test_ohhelp4p_header.o
 mpicc -Iinclude tests/test_ohhelp4s_header.c \
   -c -o build/docker/test_ohhelp4s_header.o
+mpicc -Iinclude tests/test_public_header_reinclude.c \
+  -c -o build/docker/test_public_header_reinclude.o
 gcc -Iinclude tests/test_oh_load_balance.c src/c/oh_load_balance.c \
   -o build/docker/test_oh_load_balance
 build/docker/test_oh_load_balance

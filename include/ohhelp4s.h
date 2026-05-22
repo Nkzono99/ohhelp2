@@ -6,6 +6,9 @@
    commercial purpose providing that the copyright notice above remains
    unchanged.
 */
+#ifndef OHHELP4S_H
+#define OHHELP4S_H
+
 #define OH_PGRID_EXT    1
 #define OH_NBR_SELF     (OH_NEIGHBORS>>1)
 #define OH_NBR_BCC      (1+1*3+0*3*3)
@@ -60,3 +63,5 @@ int  oh4s_remap_particle_to_neighbor_(struct S_particle* part, const int* ps,
     const int* s);
 int  oh4s_remap_particle_to_subdomain_(struct S_particle* part, const int* ps,
     const int* s);
+
+#endif

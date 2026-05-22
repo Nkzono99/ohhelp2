@@ -6,6 +6,9 @@
    commercial purpose providing that the copyright notice above remains
    unchanged.
 */
+#ifndef OHHELP3_H
+#define OHHELP3_H
+
 #define OH_LOWER 0
 #define OH_UPPER 1
 
@@ -92,3 +95,5 @@ void oh13_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
                 int *ftypes, int *cfields, int *ctypes, int *fsizes,
                 int *stats, int *repiter, int *verbose);
 int  oh3_transbound_(int *currmode, int *stats);
+
+#endif

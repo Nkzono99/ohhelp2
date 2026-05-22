@@ -110,6 +110,8 @@ When editing particle movement or mapping code, check for:
 
 `tests/test_particle_contract_audit.sh` enforces the current boundary:
 
+- Public C headers must keep include guards, and shared public structs must not
+  be multiply defined when `ohhelp1.h` and `ohhelp_c.h` are included together.
 - Public Level-2/4 headers must not encode `S_particle.nid` or
   `S_particle.spec` directly. Packed-id helper macros must read/write the
   region through the active `oh_particle_adapter`.

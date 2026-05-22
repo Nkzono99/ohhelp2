@@ -26,6 +26,13 @@ check_present() {
   fi
 }
 
+check_present '#ifndef OHHELP_C_H' include/ohhelp_c.h
+check_present '#ifndef OHHELP1_H' include/ohhelp1.h
+check_present '#ifndef OHHELP2_H' include/ohhelp2.h
+check_present '#ifndef OHHELP3_H' include/ohhelp3.h
+check_present '#ifndef OHHELP4P_H' include/ohhelp4p.h
+check_present '#ifndef OHHELP4S_H' include/ohhelp4s.h
+
 # Level 2 must stay layout-agnostic in the implementation.  Region/species
 # semantics are provided by oh_particle_adapter.
 check_absent '^EXTERN ' include/ohhelp1.h

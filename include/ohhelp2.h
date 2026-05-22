@@ -6,6 +6,9 @@
    commercial purpose providing that the copyright notice above remains
    unchanged.
 */
+#ifndef OHHELP2_H
+#define OHHELP2_H
+
 #include "oh_part.h"
 #include "oh_particle_adapter.h"
 
@@ -40,3 +43,5 @@ void oh2_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
                int *maxlocalp, struct S_mycommf *mycomm, int *nbor,
                int *pcoord, int *stats, int *repiter, int *verbose);
 int  oh2_transbound_(int *currmode, int *stats);
+
+#endif

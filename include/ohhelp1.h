@@ -213,10 +213,13 @@ extern struct oh_state OhDefaultState;
 #define Mode_Is_Norm(M)  (M<2)
 #define Mode_Is_Any(M)   (M>=2)
 /* Structured variables for MPI communicator */
+#ifndef OHHELP_MYCOMMC_DEFINED
+#define OHHELP_MYCOMMC_DEFINED
 struct S_mycommc {
   MPI_Comm prime, sec;
   int rank, root, black;
 };
+#endif
 struct S_mycommf {
   int prime, sec;
   int rank, root, black;

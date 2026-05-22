@@ -6,13 +6,19 @@
    commercial purpose providing that the copyright notice above remains
    unchanged.
 */
+#ifndef OHHELP_C_H
+#define OHHELP_C_H
+
 #include <mpi.h>
 #include "oh_context.h"
 #include "oh_particle_adapter.h"
+#ifndef OHHELP_MYCOMMC_DEFINED
+#define OHHELP_MYCOMMC_DEFINED
 struct S_mycommc {
   MPI_Comm prime, sec;
   int rank, root, black;
 };
+#endif
 #include "oh_config.h"
 
 #define oh_neighbors(A1) \
@@ -239,5 +245,7 @@ int  oh4s_remap_particle_to_subdomain(struct S_particle *part, const int ps,
                                       const int s);
 #endif
 #endif
+#endif
+
 #endif
 #endif

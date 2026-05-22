@@ -420,8 +420,9 @@ The current code now has this first migration layer:
 - Level-4p/4s transition paths now call the Level-1/2 state-backed internal
   entry points for primary/stable/rebalance decisions, primary send-buffer
   staging, primary exchange, displacement setup, and secondary particle
-  exchange. The legacy wrappers remain for older internal callers, but Level-4
-  no longer re-enters the default context facade for these steps.
+  exchange. The obsolete Level-1/2 default-context wrappers for these internal
+  paths have been removed, so Level-4 no longer re-enters the default context
+  facade for these steps.
 - Level-1/2 transbound internals are now exposed as state-backed internal
   helpers. Level-3 and Level-4 transbound paths call those helpers directly
   instead of returning through the default-context wrappers.

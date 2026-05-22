@@ -524,10 +524,8 @@ duplicating it across both Level-4 implementations.
 The same internal helper now owns Level-4 packed-id operations for grid-position
 extraction, subdomain/id composition, primary/secondary id conversion,
 secondary-injected detection, and local grid-position adjustment; the Level-4p
-and Level-4s translation units keep only thin compatibility macros at call
-sites.
-Those compatibility macros are now shared from `src/c/ohhelp4_packed_compat.h`
-instead of duplicated in both Level-4 translation units.
+and Level-4s translation units call those helpers directly instead of keeping
+legacy packed-id compatibility macros at call sites.
 The public Level-4 headers no longer publish the old packed-id helper macros,
 so application code is not encouraged to depend on `gridmask` / `loggrid` or
 the process-global particle adapter.
@@ -552,12 +550,11 @@ particle structs no longer need to cast individual particle pointers when
 calling map, inject, remap, or remove functions.
 
 Level-4 now mirrors the POS-aware packed-grid id parameters (`gridMask` and
-`logGrid`) into `oh_state` as `grid_mask` and `log_grid`. The Level-4
-translation units override their local `Decl_Grid_Info()` expansion to read the
-state fields, while Level-2 keeps the legacy macro during the staged migration.
-Their local packed-id helper macros also read node counts and absolute
-neighbors through `oh_state`, removing the previous `nOfNodes` / `AbsNeighbors`
-shadow variables from the Level-4 particle movement and mapping paths.
+`logGrid`) into `oh_state` as `grid_mask` and `log_grid`. Level-4p/4s call the
+shared `level4_*` packed-id helpers directly; those helpers read grid-id
+parameters, node counts, and absolute neighbors through `oh_state`, removing the
+previous `Decl_Grid_Info()` and `nOfNodes` / `AbsNeighbors` shadow variables
+from the Level-4 particle movement and mapping paths.
 The Level-4 particle-to-subdomain mapping macros now read boundary conditions
 through the mirrored state pointer instead of shadowing the global
 `BoundaryCondition` array locally.

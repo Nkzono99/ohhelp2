@@ -1383,11 +1383,11 @@ remove_heap(struct S_heap* heap, int greater, int rem,
 }
 int
 oh1_accom_mode_() {
-  return(accMode);
+  return oh1_accom_mode();
 }
 int
 oh1_accom_mode() {
-  return(accMode);
+  return oh1_state()->acc_mode;
 }
 void
 oh1_all_reduce_(void *pbuf, void *sbuf, int *pcount, int *scount,

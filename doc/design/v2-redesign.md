@@ -85,6 +85,9 @@ The current code now has this first migration layer:
   guards.
 - Level-2 and Level-4 transbound entry points now gate stats collection through
   `oh_state.stats_mode` instead of reading the global `statsMode` directly.
+- The public Level-1 accommodation-mode query now reads `oh_state.acc_mode`
+  through the default context mirror instead of returning the global `accMode`
+  directly.
 - Level-4p initialization now sizes its particle/send-buffer storage with the
   active custom adapter stride when a custom particle layout is configured.
 - Level-4p grid sorting now copies particles into the send buffer through

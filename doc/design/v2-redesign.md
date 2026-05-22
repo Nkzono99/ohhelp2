@@ -58,6 +58,8 @@ The current code now has this first migration layer:
   `oh_state.stats_mode` instead of reading the global `statsMode` directly.
 - Level-4p initialization now sizes its particle/send-buffer storage with the
   active custom adapter stride when a custom particle layout is configured.
+- Level-4p grid sorting now copies particles into the send buffer through
+  adapter stride/copy helpers rather than raw `S_particle` assignment.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

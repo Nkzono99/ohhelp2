@@ -39,6 +39,10 @@ static void level4_copy_particle(struct oh_state* state,
 static void level4_push_particle(struct oh_state* state,
                                  struct S_particle** cursor,
                                  const struct S_particle* src);
+static void level4_copy_particle_to_buffer(struct oh_state* state,
+                                           struct S_particle* base,
+                                           int index,
+                                           const struct S_particle* src);
 static size_t level4_init_particle_stride(void);
 static struct S_particle* level4_init_particle_at(struct S_particle* base,
                                                   int index);
@@ -251,6 +255,15 @@ level4_push_particle(struct oh_state* state, struct S_particle** cursor,
                      const struct S_particle* src) {
     level4_copy_particle(state, *cursor, src);
     *cursor = oh_particle_buffer_at(state->particle_adapter, *cursor, 1);
+}
+
+static void
+level4_copy_particle_to_buffer(struct oh_state* state, struct S_particle* base,
+                               int index, const struct S_particle* src) {
+    level4_copy_particle(state,
+                         oh_particle_buffer_at(state->particle_adapter,
+                                               base, index),
+                         src);
 }
 
 static size_t
@@ -1766,10 +1779,12 @@ static void sort_particles(struct oh_state* state, dint*** npg,
                     npgt[The_Grid()] = npt;  npt += np;
                 }
             }
-            for (i = 0; i < tpn; i++, p++)
-                state->send_buffer[
-                    npgt[Grid_Position(level4_particle_region(state, p, ps))]++] =
-                    *p;
+            for (i = 0; i < tpn; i++) {
+                const int g = Grid_Position(level4_particle_region(state, p, ps));
+                level4_copy_particle_to_buffer(state, state->send_buffer,
+                                               npgt[g]++, p);
+                p = oh_particle_buffer_at(state->particle_adapter, p, 1);
+            }
         }
     }
 }

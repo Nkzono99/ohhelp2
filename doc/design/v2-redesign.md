@@ -60,6 +60,8 @@ The current code now has this first migration layer:
   active custom adapter stride when a custom particle layout is configured.
 - Level-4p grid sorting now copies particles into the send buffer through
   adapter stride/copy helpers rather than raw `S_particle` assignment.
+- Level-4p primary move-and-sort now uses adapter-aware particle indexing and
+  send-buffer copies for primary and injected particles.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

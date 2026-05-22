@@ -1794,13 +1794,13 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     const int nnns = nn * ns, me = state->my_rank;
     const int ninj = state->n_of_injections;
-    struct S_particle* rbb, * p, * sbuf;
-    int ps, s, t, i, nacc, mysd, * sbd;
+    struct S_particle* p;
+    int ps, s, t, i, nacc, mysd, send_base, rbb_index, * sbd;
     Decl_For_All_Grid();
     Decl_Grid_Info();
 
     if (stats) oh1_stats_time(STATS_TB_MOVE, 0);
-    for (s = 0, t = 0, nacc = 0, rbb = state->particles;
+    for (s = 0, t = 0, nacc = 0, rbb_index = 0;
          s < ns; s++, t += nn) {
         int n, tpn;
         int* npgo = state->level4_particle_grid_out[0][s];
@@ -1810,8 +1810,8 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
         for (n = 0, tpn = 0; n < nn; n++)  tpn += nprime[n] + nprime[n + nnns];
         state->total_particles_next[s] = tpn;
         state->total_particles_next[ns + s] = 0;
-        state->recv_buffer_bases[s] = rbb;
-        rbb += tpn - state->n_of_particles_local[t + me];
+        state->recv_buffer_bases[s] = level4_particle_at(state, rbb_index);
+        rbb_index += tpn - state->n_of_particles_local[t + me];
         state->n_of_particles_local[t + me] = 0;
         state->injected_particles[s] = state->injected_particles[ns + s] = 0;
         For_All_Grid(0, 0, 0, 0, 0, 0, 0) {
@@ -1819,8 +1819,8 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
             npgt[The_Grid()] = nacc;  nacc += np;
         }
     }
-    state->recv_buffer_bases[s] = rbb;
-    sbuf = state->send_buffer + nacc;
+    state->recv_buffer_bases[s] = level4_particle_at(state, rbb_index);
+    send_base = nacc;
     set_sendbuf_disps(psold, -1);
     for (ps = 0, t = 0, p = state->particles, mysd = me; ps <= psold;
          ps++, mysd = -1) {
@@ -1828,31 +1828,44 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
              s++, t++, sbd += nn) {
             dint* npgt = state->level4_particle_grid_total[0][s];
             const int itail = state->total_particles[t];
-            for (i = 0; i < itail; i++, p++) {
+            for (i = 0; i < itail; i++) {
                 const OH_nid_t nid = level4_particle_region(state, p, ps);
                 if (nid >= 0) {
                     const int sdid = Neighbor_Subdomain_Id(nid, ps);
                     if (sdid == mysd)
-                        state->send_buffer[npgt[Grid_Position(nid)]++] = *p;
-                    else             sbuf[sbd[sdid]++] = *p;
+                        level4_copy_particle_to_buffer(
+                            state, state->send_buffer,
+                            npgt[Grid_Position(nid)]++, p);
+                    else
+                        level4_copy_particle_to_buffer(
+                            state, state->send_buffer,
+                            send_base + sbd[sdid]++, p);
                 }
+                p = oh_particle_buffer_at(state->particle_adapter, p, 1);
             }
         }
     }
-    for (i = 0; i < ninj; i++, p++) {
+    for (i = 0; i < ninj; i++) {
         const OH_nid_t nid = level4_particle_region(state, p, 0);
         const int s = level4_particle_species(state, p);
         int sdid;
-        if (nid < 0) continue;
-        sdid = Subdomain_Id(nid, 0);
-        if (sdid == me)
-            state->send_buffer[
-                state->level4_particle_grid_total[0][s][Grid_Position(nid)]++] =
-                *p;
-        else {
-            if (sdid >= nn) Primarize_Id(p, sdid);
-            sbuf[state->send_buffer_disps[s * nn + sdid]++] = *p;
+        if (nid >= 0) {
+            sdid = Subdomain_Id(nid, 0);
+            if (sdid == me)
+                level4_copy_particle_to_buffer(
+                    state, state->send_buffer,
+                    state->level4_particle_grid_total[0][s]
+                                                   [Grid_Position(nid)]++,
+                    p);
+            else {
+                if (sdid >= nn) Primarize_Id(p, sdid);
+                level4_copy_particle_to_buffer(
+                    state, state->send_buffer,
+                    send_base + state->send_buffer_disps[s * nn + sdid]++,
+                    p);
+            }
         }
+        p = oh_particle_buffer_at(state->particle_adapter, p, 1);
     }
     set_sendbuf_disps(psold, -1);
 }

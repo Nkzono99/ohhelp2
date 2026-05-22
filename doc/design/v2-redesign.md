@@ -134,6 +134,8 @@ The current code now has this first migration layer:
   variants, and injected-particle inject/remap/remove operations use `oh_state`
   for adapter callbacks, particle counters, injection counters, region ids,
   buffer limits, and buffer indexing.
+- Obsolete Level-2 process-global particle helper wrappers were removed after
+  movement and injection paths had migrated to the state-aware helper boundary.
 - Level-2 primary/secondary send-buffer movement now has state-backed entry
   points that use context-owned particle histograms, total particle arrays,
   injection counters, node descriptors, and primary/secondary base counters.

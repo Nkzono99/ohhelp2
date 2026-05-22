@@ -61,42 +61,28 @@ static void  oh2_remap_injected_particle_state(struct oh_state *state,
                                                struct S_particle *part);
 static void  oh2_remove_injected_particle_state(struct oh_state *state,
                                                 struct S_particle *part);
-static int   particle_region(const struct S_particle *part,
-                             int primary_or_secondary);
 static int   state_particle_region(struct oh_state *state,
                                    const struct S_particle *part,
                                    int primary_or_secondary);
-static void  set_particle_region(struct S_particle *part, int region,
-                                 int primary_or_secondary);
 static void  state_set_particle_region(struct oh_state *state,
                                        struct S_particle *part, int region,
                                        int primary_or_secondary);
-static int   particle_species(const struct S_particle *part);
 static int   state_particle_species(struct oh_state *state,
                                     const struct S_particle *part);
-static int   particle_subdomain(const struct S_particle *part,
-                                int primary_or_secondary);
 static int   state_particle_subdomain(struct oh_state *state,
                                       const struct S_particle *part,
                                       int primary_or_secondary);
-static int   map_injected_particle_to_subdomain(struct S_particle *part);
 static int   state_map_injected_particle_to_subdomain(struct oh_state *state,
                                                       struct S_particle *part);
 static size_t particle_stride(void);
-static struct S_particle *particle_at(struct S_particle *base, int index);
 static struct S_particle *state_particle_at(struct oh_state *state,
                                             struct S_particle *base,
                                             int index);
-static int   particle_buffer_index(const struct S_particle *part);
 static int   state_particle_buffer_index(struct oh_state *state,
                                          const struct S_particle *part);
-static void  copy_particle(struct S_particle *dst,
-                           const struct S_particle *src);
 static void  state_copy_particle(struct oh_state *state,
                                  struct S_particle *dst,
                                  const struct S_particle *src);
-static void  copy_particles(struct S_particle *dst,
-                            const struct S_particle *src, int count);
 static void  state_copy_particles(struct oh_state *state,
                                   struct S_particle *dst,
                                   const struct S_particle *src, int count);
@@ -916,10 +902,6 @@ oh2_remove_injected_particle_state(struct oh_state *state,
   state_set_particle_region(state, part, -1, 0);
 }
 static int
-particle_region(const struct S_particle *part, int primary_or_secondary) {
-  return state_particle_region(oh1_state(), part, primary_or_secondary);
-}
-static int
 state_particle_region(struct oh_state *state, const struct S_particle *part,
                       int primary_or_secondary) {
   oh_particle_region_t region =
@@ -929,19 +911,10 @@ state_particle_region(struct oh_state *state, const struct S_particle *part,
   return (int)region;
 }
 static void
-set_particle_region(struct S_particle *part, int region,
-                    int primary_or_secondary) {
-  state_set_particle_region(oh1_state(), part, region, primary_or_secondary);
-}
-static void
 state_set_particle_region(struct oh_state *state, struct S_particle *part,
                           int region, int primary_or_secondary) {
   state->particle_adapter->set_region(state->particle_adapter, part, region,
                                       primary_or_secondary);
-}
-static int
-particle_species(const struct S_particle *part) {
-  return state_particle_species(oh1_state(), part);
 }
 static int
 state_particle_species(struct oh_state *state, const struct S_particle *part) {
@@ -955,10 +928,6 @@ state_particle_species(struct oh_state *state, const struct S_particle *part) {
 #endif
 }
 static int
-particle_subdomain(const struct S_particle *part, int primary_or_secondary) {
-  return state_particle_subdomain(oh1_state(), part, primary_or_secondary);
-}
-static int
 state_particle_subdomain(struct oh_state *state, const struct S_particle *part,
                          int primary_or_secondary) {
   Decl_Grid_Info();
@@ -968,10 +937,6 @@ state_particle_subdomain(struct oh_state *state, const struct S_particle *part,
       state->particle_adapter, (void*)part, primary_or_secondary);
   return Subdomain_Id(state_particle_region(state, part, primary_or_secondary),
                       primary_or_secondary);
-}
-static int
-map_injected_particle_to_subdomain(struct S_particle *part) {
-  return state_map_injected_particle_to_subdomain(oh1_state(), part);
 }
 static int
 state_map_injected_particle_to_subdomain(struct oh_state *state,
@@ -993,16 +958,8 @@ particle_stride(void) {
   return oh_particle_buffer_stride(&ParticleAdapter);
 }
 static struct S_particle *
-particle_at(struct S_particle *base, int index) {
-  return oh_particle_buffer_at(&ParticleAdapter, base, index);
-}
-static struct S_particle *
 state_particle_at(struct oh_state *state, struct S_particle *base, int index) {
   return oh_particle_buffer_at(state->particle_adapter, base, index);
-}
-static int
-particle_buffer_index(const struct S_particle *part) {
-  return state_particle_buffer_index(oh1_state(), part);
 }
 static int
 state_particle_buffer_index(struct oh_state *state,
@@ -1011,17 +968,9 @@ state_particle_buffer_index(struct oh_state *state,
                                   part);
 }
 static void
-copy_particle(struct S_particle *dst, const struct S_particle *src) {
-  oh_particle_buffer_copy(&ParticleAdapter, dst, src);
-}
-static void
 state_copy_particle(struct oh_state *state, struct S_particle *dst,
                     const struct S_particle *src) {
   oh_particle_buffer_copy(state->particle_adapter, dst, src);
-}
-static void
-copy_particles(struct S_particle *dst, const struct S_particle *src, int count) {
-  oh_particle_buffer_copy_n(&ParticleAdapter, dst, src, count);
 }
 static void
 state_copy_particles(struct oh_state *state, struct S_particle *dst,

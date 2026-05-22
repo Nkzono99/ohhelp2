@@ -19,6 +19,7 @@
 #undef  EXTERN
 #define EXTERN
 #include "ohhelp4s_internal.h"
+#include "ohhelp4_state.h"
 
 static struct oh_state* oh4s_state(void);
 static void init4s(int** sdid, const int nspec, const int maxfrac,
@@ -126,14 +127,7 @@ static void exchange_border_data_h(struct oh_state* state, void* buf,
 static struct oh_state*
 oh4s_state(void) {
     struct oh_state* state = oh1_state();
-    state->level4_grid_desc = GridDesc;
-    state->level4_pbuf_index = PbufIndex;
-    state->level4_particle_grid[0] = NOfPGrid[0];
-    state->level4_particle_grid[1] = NOfPGrid[1];
-    state->level4_particle_grid_total[0] = NOfPGridTotal[0];
-    state->level4_particle_grid_total[1] = NOfPGridTotal[1];
-    state->level4_particle_grid_out[0] = NOfPGridOut[0];
-    state->level4_particle_grid_out[1] = NOfPGridOut[1];
+    level4_bind_common_state(state);
     state->level4_particle_grid_index[0] = NOfPGridIndex[0];
     state->level4_particle_grid_index[1] = NOfPGridIndex[1];
     state->level4_particle_grid_out_shadow[0] = NOfPGridOutShadow[0];
@@ -151,20 +145,12 @@ oh4s_state(void) {
     state->level4_horizontal_planes = &HPlane[0][0];
     state->level4_vertical_planes = VPlane;
     state->level4_vertical_plane_head = VPlaneHead;
-    state->level4_alt_sec_recv_list = AltSecRList;
     state->level4_primary_comm_list = &PrimaryCommList[0][0];
-    state->level4_sec_rl_index = SecRLIndex;
     state->level4_alt_sec_rl_index = AltSecRLIndex;
     state->level4_primary_rl_index = PrimaryRLIndex;
-    state->level4_histogram_half_type = T_Hgramhalf;
     state->level4_interior_parts = InteriorParts;
     state->level4_grid_overflow_limit = 0;
     state->level4_boundary_send_buffer = BoundarySendBuf;
-    state->level4_first_neighbor = FirstNeighbor;
-    state->level4_grid_offset = &GridOffset[0][0];
-    state->level4_real_dst_neighbors = RealDstNeighbors;
-    state->level4_real_src_neighbors = RealSrcNeighbors;
-    state->level4_boundary_condition = &BoundaryCondition[0][0];
     state->level4_z_bound = &ZBound[0][0];
     state->level4_z_bound_shadow = ZBoundShadow ? &ZBoundShadow[0][0] : NULL;
     return state;

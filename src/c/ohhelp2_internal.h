@@ -35,6 +35,10 @@ void init2(int **sdid, int nspec, int maxfrac, int **nphgram,
            int **nbor, int *pcoord, int stats, int repiter, int verbose);
 int  transbound2_state(struct oh_state *state, int currmode, int stats,
                        int level);
+void oh2_set_particle_mpi_type_state(struct oh_state *state,
+                                     MPI_Datatype type);
+void oh2_set_particle_adapter_state(struct oh_state *state,
+                                    const oh_particle_adapter *adapter);
 void exchange_primary_particles_state(struct oh_state *state, int currmode,
                                       int stats);
 void move_to_sendbuf_primary_state(struct oh_state *state, int secondary,

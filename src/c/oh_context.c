@@ -138,17 +138,19 @@ oh_context_set_region_weights(struct oh_state *context, const double *weights) {
 void
 oh_context_set_particle_adapter(struct oh_state *context,
                                 const oh_particle_adapter *adapter) {
+  if (!context) context = oh1_state();
   if (context && context!=&OhDefaultState)
     local_errstop("only the default oh_context is implemented yet");
-  oh2_set_particle_adapter(adapter);
+  oh2_set_particle_adapter_state(context, adapter);
   oh1_sync_default_state();
 }
 
 void
 oh_context_set_particle_mpi_type(struct oh_state *context, MPI_Datatype type) {
+  if (!context) context = oh1_state();
   if (context && context!=&OhDefaultState)
     local_errstop("only the default oh_context is implemented yet");
-  oh2_set_particle_mpi_type(type);
+  oh2_set_particle_mpi_type_state(context, type);
   oh1_sync_default_state();
 }
 

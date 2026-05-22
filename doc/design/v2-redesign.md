@@ -207,6 +207,10 @@ The current code now has this first migration layer:
 - `oh_context_set_particle_mpi_type()` and `oh_context_set_particle_adapter()`
   expose the Level-2 particle movement hooks through the context facade. They
   still target the default context only, matching the current migration stage.
+- The Level-2 particle MPI type and particle adapter setters now share
+  state-backed internal entry points. Public compatibility calls and the context
+  facade both update the default-context mirror through that path, leaving the
+  remaining global writes localized until non-default contexts are implemented.
 - Level-3 geometry, field, boundary, and border-exchange globals are now
   mirrored into `oh_state`. Fields that depend on Level-3-only array constants
   are stored as opaque `int *`/struct pointers for now so `ohhelp1.h` does not

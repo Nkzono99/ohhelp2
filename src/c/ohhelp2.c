@@ -110,28 +110,52 @@ oh2_set_particle_mpi_type_(int *type) {
 }
 void
 oh2_set_particle_mpi_type(MPI_Datatype type) {
+  oh2_set_particle_mpi_type_state(&OhDefaultState, type);
+}
+void
+oh2_set_particle_mpi_type_state(struct oh_state *state, MPI_Datatype type) {
+  if (!state) state = &OhDefaultState;
+  if (state != &OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
   if (type == MPI_DATATYPE_NULL) {
-    useCustomTParticle = 0;
-    CustomTParticle = MPI_DATATYPE_NULL;
-    return;
+    state->use_custom_particle_mpi_type = 0;
+    state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
+  } else {
+    state->custom_particle_mpi_type = type;
+    state->use_custom_particle_mpi_type = 1;
   }
-  CustomTParticle = type;
-  useCustomTParticle = 1;
+  CustomTParticle = state->custom_particle_mpi_type;
+  useCustomTParticle = state->use_custom_particle_mpi_type;
 }
 void
 oh2_set_particle_adapter(const oh_particle_adapter *adapter) {
+  oh2_set_particle_adapter_state(&OhDefaultState, adapter);
+}
+void
+oh2_set_particle_adapter_state(struct oh_state *state,
+                               const oh_particle_adapter *adapter) {
+  if (!state) state = &OhDefaultState;
+  if (state != &OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
   if (!adapter) {
-    useCustomParticleAdapter = 0;
-    useCustomTParticle = 0;
-    CustomTParticle = MPI_DATATYPE_NULL;
+    state->use_custom_particle_adapter = 0;
+    state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
+    state->use_custom_particle_mpi_type = 0;
+    useCustomParticleAdapter = state->use_custom_particle_adapter;
+    CustomTParticle = state->custom_particle_mpi_type;
+    useCustomTParticle = state->use_custom_particle_mpi_type;
     return;
   }
   if (!oh_particle_adapter_validate(adapter))
     local_errstop("invalid oh_particle_adapter");
   CustomParticleAdapter = *adapter;
-  useCustomParticleAdapter = 1;
-  CustomTParticle = adapter->mpi_type;
-  useCustomTParticle = 1;
+  state->custom_particle_adapter = &CustomParticleAdapter;
+  state->use_custom_particle_adapter = 1;
+  state->custom_particle_mpi_type = adapter->mpi_type;
+  state->use_custom_particle_mpi_type = 1;
+  useCustomParticleAdapter = state->use_custom_particle_adapter;
+  CustomTParticle = state->custom_particle_mpi_type;
+  useCustomTParticle = state->use_custom_particle_mpi_type;
 }
 void
 oh2_init(int **sdid, int nspec, int maxfrac, int **nphgram,

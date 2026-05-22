@@ -77,8 +77,16 @@ check_present 'state_update_injected_particle_count\(\)' \
   doc/design/v2-particle-contracts.md
 check_present 'type == MPI_DATATYPE_NULL' src/c/ohhelp2.c
 check_present 'oh_context_set_particle_mpi_type' include/oh_context.h
-check_present 'useCustomParticleAdapter = 0;' src/c/ohhelp2.c
-check_present 'CustomTParticle = MPI_DATATYPE_NULL;' src/c/ohhelp2.c
+check_present 'state->use_custom_particle_adapter = 0;' src/c/ohhelp2.c
+check_present 'state->custom_particle_mpi_type = MPI_DATATYPE_NULL;' \
+  src/c/ohhelp2.c
+check_present 'oh2_set_particle_adapter_state' src/c/ohhelp2_internal.h
+check_present 'oh2_set_particle_mpi_type_state' src/c/ohhelp2_internal.h
+check_present 'oh2_set_particle_adapter_state\(context, adapter\)' \
+  src/c/oh_context.c
+check_present 'oh2_set_particle_mpi_type_state\(context, type\)' \
+  src/c/oh_context.c
+check_present 'state-backed internal entry points' doc/design/v2-redesign.md
 check_absent '\b(Decl_Grid_Info|Subdomain_Id|Primarize_Id)\b' include/ohhelp2.h
 check_absent '\b(nidelement|subdomid|gridmask|loggrid)\b' include/ohhelp2.h
 check_absent '\b(init2|transbound2|exchange_primary_particles|move_to_sendbuf_primary|set_sendbuf_disps|exchange_particles)\s*\(' include/ohhelp2.h

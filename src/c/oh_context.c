@@ -101,6 +101,12 @@ oh1_sync_default_state(void) {
   OhDefaultState.boundary_comm_fields = BoundaryCommFields;
   OhDefaultState.boundary_comm_types = (int*)BoundaryCommTypes;
   OhDefaultState.border_exchange = (struct S_borderexc*)BorderExc;
+  OhDefaultState.stats = &Stats;
+  OhDefaultState.stats_mode = statsMode;
+  OhDefaultState.report_iteration = reportIteration;
+  OhDefaultState.stats_time_type = &T_StatsTime;
+  OhDefaultState.stats_time_op = &Op_StatsTime;
+  OhDefaultState.stats_part_op = &Op_StatsPart;
 }
 
 struct oh_state*

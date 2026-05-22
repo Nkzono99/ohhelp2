@@ -66,6 +66,7 @@ struct S_vplane;
 struct S_hotspot;
 struct S_hotspotbase;
 struct S_interiorp;
+struct S_stats;
 typedef struct oh_particle_adapter oh_particle_adapter;
 
 struct oh_state {
@@ -185,6 +186,12 @@ struct oh_state {
   int *level4_boundary_condition;
   int *level4_z_bound;
   int *level4_z_bound_shadow;
+  struct S_stats *stats;
+  int stats_mode;
+  int report_iteration;
+  MPI_Datatype *stats_time_type;
+  MPI_Op *stats_time_op;
+  MPI_Op *stats_part_op;
 };
 extern struct oh_state OhDefaultState;
 

@@ -50,15 +50,22 @@ static void  remove_heap(struct S_heap* heap, int greater, int rem,
 static int   heap_key_greater(const struct S_heap_key *key, int left,
                               int right);
 static void  clear_stats(struct S_statstotal *stotal);
+static void  oh1_init_stats_state(struct oh_state *state, int key, int ps);
+static void  oh1_stats_time_state(struct oh_state *state, int key, int ps);
 static void  stats_primary_comm_state(struct oh_state *state, int currmode);
 static void  stats_secondary_comm_state(struct oh_state *state, int currmode,
                                         int reb);
 static void  stats_comm_state(struct oh_state *state, int* nrecv, int* nsend,
                               dint* scp, int ns);
-static void  update_stats(struct S_statstotal *stotal, int step, int currmode);
+static void  oh1_show_stats_state(struct oh_state *state, int step,
+                                  int currmode);
+static void  update_stats_state(struct oh_state *state,
+                                struct S_statstotal *stotal,
+                                int step, int currmode);
 static void  stats_reduce_part(void* inarg, void* ioarg, int* len,
                                MPI_Datatype* type);
-static void  print_stats(struct S_statstotal *stotal, int cstep, int n);
+static void  print_stats_state(struct oh_state *state,
+                               struct S_statstotal *stotal, int cstep, int n);
 static void  stats_reduce_time(void* inarg, void* ioarg, int* len,
                                MPI_Datatype* type);
 static int   try_primary1_state(struct oh_state *state, int currmode,
@@ -432,7 +439,8 @@ transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
   dint nofp;
 
   Verbose(1,vprint("oh_transbound"));
-  if ((stats=statsMode&&stats)) oh1_stats_time(STATS_TRANSBOUND, 0);
+  if ((stats=state->stats_mode&&stats))
+    oh1_stats_time_state(state, STATS_TRANSBOUND, 0);
   if (!totalp) {
     set_total_particles_state(state);
     TotalP = state->total_particles;
@@ -1501,22 +1509,30 @@ oh1_reduce_state(struct oh_state *state, void *pbuf, void *sbuf,
 }
 void
 oh1_init_stats_(int *key, int *ps) {
-  if (statsMode) oh1_init_stats(*key, *ps);
+  struct oh_state *state = oh1_state();
+
+  if (state->stats_mode) oh1_init_stats_state(state, *key, *ps);
 }
 void
 oh1_init_stats(int key, int ps) {
+  oh1_init_stats_state(oh1_state(), key, ps);
+}
+static void
+oh1_init_stats_state(struct oh_state *state, int key, int ps) {
+  struct S_stats *stats=state->stats;
   int i;
 
-  if (!statsMode)  return;
-  clear_stats(&Stats.subtotal);
-  clear_stats(&Stats.total);
-  Stats.curr.time.key = (key<<1) + ps;
-  Stats.curr.time.value = MPI_Wtime();
-  for (i=0; i<(STATS_TIMINGS<<1)+1; i++) Stats.curr.time.ev[i] = 0;
-  MPI_Type_contiguous(sizeof(struct S_statstime), MPI_BYTE, &T_StatsTime);
-  MPI_Type_commit(&T_StatsTime);
-  MPI_Op_create(stats_reduce_time, 1, &Op_StatsTime);
-  MPI_Op_create(stats_reduce_part, 1, &Op_StatsPart);
+  if (!state->stats_mode)  return;
+  clear_stats(&stats->subtotal);
+  clear_stats(&stats->total);
+  stats->curr.time.key = (key<<1) + ps;
+  stats->curr.time.value = MPI_Wtime();
+  for (i=0; i<(STATS_TIMINGS<<1)+1; i++) stats->curr.time.ev[i] = 0;
+  MPI_Type_contiguous(sizeof(struct S_statstime), MPI_BYTE,
+                      state->stats_time_type);
+  MPI_Type_commit(state->stats_time_type);
+  MPI_Op_create(stats_reduce_time, 1, state->stats_time_op);
+  MPI_Op_create(stats_reduce_part, 1, state->stats_part_op);
 }
 static void
 clear_stats(struct S_statstotal *stotal) {
@@ -1539,36 +1555,46 @@ clear_stats(struct S_statstotal *stotal) {
 }
 void
 oh1_stats_time_(int *key, int *ps) {
-  if (statsMode)  oh1_stats_time(*key, *ps);
+  struct oh_state *state = oh1_state();
+
+  if (state->stats_mode) oh1_stats_time_state(state, *key, *ps);
 }
 void
 oh1_stats_time(int key, int ps) {
+  oh1_stats_time_state(oh1_state(), key, ps);
+}
+static void
+oh1_stats_time_state(struct oh_state *state, int key, int ps) {
+  struct S_stats *stats=state->stats;
   double t;
-  int k=Stats.curr.time.key;
+  int k=stats->curr.time.key;
 
-  if (!statsMode)  return;
+  if (!state->stats_mode)  return;
   t = MPI_Wtime();
-  Stats.curr.time.val[k] = t - Stats.curr.time.value;
-  Stats.curr.time.ev[k] = 1;
-  Stats.curr.time.value = t;
-  Stats.curr.time.key = (key<<1) + ps;
+  stats->curr.time.val[k] = t - stats->curr.time.value;
+  stats->curr.time.ev[k] = 1;
+  stats->curr.time.value = t;
+  stats->curr.time.key = (key<<1) + ps;
 }
 static void
 stats_primary_comm_state(struct oh_state *state, int currmode) {
+  struct S_stats *stats=state->stats;
+
   stats_comm_state(state, state->n_of_primaries, state->n_of_particles_local,
-                   Stats.curr.part, state->n_of_species*2);
-  Stats.curr.part[STATS_PART_PRIMARY] =
+                   stats->curr.part, state->n_of_species*2);
+  stats->curr.part[STATS_PART_PRIMARY] =
     (currmode==MODE_ANY_PRI) ? 3 : Mode_PS(currmode)+1;
 }
 static void
 stats_secondary_comm_state(struct oh_state *state, int currmode, int reb) {
   int ns=state->n_of_species, nnns=state->n_of_nodes*ns;
+  struct S_stats *stats=state->stats;
 
   stats_comm_state(state, state->n_of_recv, state->n_of_send,
-                   Stats.curr.part, ns);
+                   stats->curr.part, ns);
   stats_comm_state(state, state->n_of_recv+nnns, state->n_of_send+nnns,
-                   Stats.curr.part+STATS_PART_MOVE_SEC_MIN, ns);
-  Stats.curr.part[STATS_PART_SECONDARY] =
+                   stats->curr.part+STATS_PART_MOVE_SEC_MIN, ns);
+  stats->curr.part[STATS_PART_SECONDARY] =
     Mode_PS(currmode) ? (reb ? 3 : 2) : 1;
 }
 static void
@@ -1602,58 +1628,68 @@ stats_comm_state(struct oh_state *state, int* nrecv, int* nsend, dint* scp,
 }
 void
 oh1_show_stats_(int *step, int *currmode) {
-  if (statsMode)  oh1_show_stats(*step, *currmode);
+  struct oh_state *state = oh1_state();
+
+  if (state->stats_mode) oh1_show_stats_state(state, *step, *currmode);
 }
 void
 oh1_show_stats(int step, int currmode) {
+  oh1_show_stats_state(oh1_state(), step, currmode);
+}
+static void
+oh1_show_stats_state(struct oh_state *state, int step, int currmode) {
+  struct S_stats *stats=state->stats;
 
-  if (!statsMode)  return;
-  oh1_stats_time(STATS_TIMINGS,0);
-  MPI_Barrier(MCW);
-  if (statsMode==2) {
-    update_stats(&Stats.subtotal, step, currmode);
-    if (step%reportIteration == 0) {
-      print_stats(&Stats.subtotal, step, reportIteration);
-      clear_stats(&Stats.subtotal);
+  if (!state->stats_mode)  return;
+  oh1_stats_time_state(state, STATS_TIMINGS, 0);
+  MPI_Barrier(state->comm);
+  if (state->stats_mode==2) {
+    update_stats_state(state, &stats->subtotal, step, currmode);
+    if (step%state->report_iteration == 0) {
+      print_stats_state(state, &stats->subtotal, step,
+                        state->report_iteration);
+      clear_stats(&stats->subtotal);
     }
   }
-  update_stats(&Stats.total, step, currmode);
-  MPI_Barrier(MCW);
+  update_stats_state(state, &stats->total, step, currmode);
+  MPI_Barrier(state->comm);
 }
 #define Round(NUM,DEN) (DEN ? (NUM+(DEN>>1))/DEN : 0)
 
 static void
-update_stats(struct S_statstotal *stotal, int step, int currmode) {
-  int i, j, k, ev, nn=nOfNodes;
-  int evclr = stotal==&Stats.total, reduce = statsMode==1 || !evclr;
+update_stats_state(struct oh_state *state, struct S_statstotal *stotal,
+                   int step, int currmode) {
+  struct S_stats *stats=state->stats;
+  int i, j, k, ev, nn=state->n_of_nodes;
+  int evclr = stotal==&stats->total, reduce = state->stats_mode==1 || !evclr;
   struct S_statstime *st = stotal->time;
   struct S_statspart *sp = stotal->part;
   int pm=Mode_PS(currmode)-1;
   int transkey=pm?STATS_PART_PRIMARY:STATS_PART_SECONDARY;
-  dint trans=Stats.curr.part[transkey];
+  dint trans=stats->curr.part[transkey];
 
   for (i=0; i<STATS_TIMINGS<<1; i++) {
-    if ((ev=Stats.curr.time.ev[i])) {
-      double t = Stats.curr.time.val[i];
+    if ((ev=stats->curr.time.ev[i])) {
+      double t = stats->curr.time.val[i];
       st[i].ev++;
       if (t<st[i].min) st[i].min = t;
       if (t>st[i].max) st[i].max = t;
       st[i].total += t;
-      if (evclr) Stats.curr.time.ev[i] = 0;
+      if (evclr) stats->curr.time.ev[i] = 0;
     }
   }
   if (step<=0) return;
-  if (myRank!=0) {
+  if (state->my_rank!=0) {
     if (reduce)
-      MPI_Reduce(st, NULL, STATS_PART_PRIMARY, MPI_LONG_LONG_INT, Op_StatsPart,
-                 0, MCW);
+      MPI_Reduce(st, NULL, STATS_PART_PRIMARY, MPI_LONG_LONG_INT,
+                 *state->stats_part_op, 0, state->comm);
     return;
   }
   if (reduce)
     MPI_Reduce(MPI_IN_PLACE, st, STATS_PART_PRIMARY, MPI_LONG_LONG_INT,
-               Op_StatsPart, 0, MCW);
+               *state->stats_part_op, 0, state->comm);
   for (i=0,j=0; i<(pm?1:2); i++,j+=STATS_PART_MOVE_SEC_MIN) {
-    dint *scp=Stats.curr.part+j;
+    dint *scp=stats->curr.part+j;
     struct S_statspart *spps=sp+j;
     if (reduce) {
       scp[STATS_PART_MOVE_PRI_AVE] = Round(scp[STATS_PART_PG_PRI_AVE],
@@ -1692,19 +1728,22 @@ stats_reduce_part(void* inarg, void* ioarg, int* len, MPI_Datatype* type) {
   }
 }
 static void
-print_stats(struct S_statstotal *stotal, int step, int nstep) {
+print_stats_state(struct oh_state *state, struct S_statstotal *stotal,
+                  int step, int nstep) {
   int i;
+  struct S_stats *stats=state->stats;
   struct S_statstime *st = stotal->time;
   struct S_statspart *sp = stotal->part;
 
-  if (myRank!=0) {
-    MPI_Reduce(st, NULL, STATS_TIMINGS<<1, T_StatsTime, Op_StatsTime, 0, MCW);
+  if (state->my_rank!=0) {
+    MPI_Reduce(st, NULL, STATS_TIMINGS<<1, *state->stats_time_type,
+               *state->stats_time_op, 0, state->comm);
     return;
   }
-  MPI_Reduce(MPI_IN_PLACE, st, STATS_TIMINGS<<1, T_StatsTime, Op_StatsTime,
-             0, MCW);
+  MPI_Reduce(MPI_IN_PLACE, st, STATS_TIMINGS<<1, *state->stats_time_type,
+             *state->stats_time_op, 0, state->comm);
   printf("\n");
-  if (stotal==&Stats.subtotal)
+  if (stotal==&stats->subtotal)
     printf("# Subtotal Statistics for %d..%d\n",  step-nstep+1, step);
   else
     printf("# Total Statistics\n");
@@ -1751,11 +1790,17 @@ stats_reduce_time(void* inarg, void* ioarg, int* len, MPI_Datatype* type) {
 }
 void
 oh1_print_stats_(int *nstep) {
-  if (statsMode)  print_stats(&Stats.total, 0, *nstep);
+  struct oh_state *state = oh1_state();
+
+  if (state->stats_mode) print_stats_state(state, &state->stats->total, 0,
+                                           *nstep);
 }
 void
 oh1_print_stats(int nstep) {
-  if (statsMode)  print_stats(&Stats.total, 0, nstep);
+  struct oh_state *state = oh1_state();
+
+  if (state->stats_mode) print_stats_state(state, &state->stats->total, 0,
+                                           nstep);
 }
 void
 oh1_verbose_(char *message) {

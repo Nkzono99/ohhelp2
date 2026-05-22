@@ -51,6 +51,9 @@ The current code now has this first migration layer:
   through `oh_state` instead of the process-global `NOfSend`/`NOfRecv`.
 - Level-1 communication-count setup now keeps the secondary receive-list cursor
   in `oh_state` and mirrors `SecRList` only for the default global context.
+- Level-1 stats initialization, timing updates, communication counters,
+  aggregation, and printing now resolve `Stats`, stats MPI handles, rank, node
+  count, and communicator through `oh_state`.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

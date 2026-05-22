@@ -16,6 +16,7 @@
 #include "oh_context_internal.h"
 #include "oh_particle_buffer.h"
 #include "ohhelp4_particle.h"
+#include "ohhelp4_packed_compat.h"
 #undef  EXTERN
 #define EXTERN
 #include "ohhelp4s_internal.h"
@@ -169,34 +170,6 @@ oh4s_state(void) {
     state->level4_z_bound_shadow = ZBoundShadow ? &ZBoundShadow[0][0] : NULL;
     return state;
 }
-
-#ifdef OH_POS_AWARE
-#undef Decl_Grid_Info
-#undef Grid_Position
-#undef Combine_Subdom_Pos
-#undef Subdomain_Id
-#undef Primarize_Id
-#undef Primarize_Id_Only
-#undef Secondarize_Id
-#undef Secondary_Injected
-#undef Neighbor_Subdomain_Id
-#define Decl_Grid_Info()
-#define Grid_Position(ID) level4_grid_position(state, ID)
-#define Combine_Subdom_Pos(ID, G) \
-  level4_combine_subdomain_position(state, ID, G)
-#define Subdomain_Id(ID, PS) \
-  level4_subdomain_id(state, ID, PS)
-#define Primarize_Id(P, SD) \
-  do { SD = level4_primarize_particle(state, P); } while (0)
-#define Primarize_Id_Only(P) \
-  level4_primarize_particle_only(state, P)
-#define Secondarize_Id(P) \
-  level4_secondarize_particle(state, P)
-#define Secondary_Injected(ID) \
-  level4_secondary_injected(state, ID)
-#define Neighbor_Subdomain_Id(ID, PS) \
-  level4_neighbor_subdomain_id(state, ID, PS)
-#endif
 
 #define Level4_Boundary_Condition(DIM, SIDE) \
   (((int (*)[2])state->level4_boundary_condition)[DIM][SIDE])

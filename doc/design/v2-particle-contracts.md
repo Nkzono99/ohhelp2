@@ -200,6 +200,9 @@ When editing particle movement or mapping code, check for:
   `src/c/ohhelp4_particle.h`; Level-4p/4s call sites may keep compatibility
   macros, but the bit layout arithmetic should not be duplicated in those
   translation units.
+- The remaining Level-4 compatibility macros live in
+  `src/c/ohhelp4_packed_compat.h`, not in the Level-4p/4s translation units.
+  This keeps the legacy macro boundary visible and removable.
 - The secondary-injected packed-id offset is centralized in
   `level4_secondary_region_offset()` so primarize, secondarize, and injected
   detection share one definition.

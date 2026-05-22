@@ -526,6 +526,8 @@ extraction, subdomain/id composition, primary/secondary id conversion,
 secondary-injected detection, and local grid-position adjustment; the Level-4p
 and Level-4s translation units keep only thin compatibility macros at call
 sites.
+Those compatibility macros are now shared from `src/c/ohhelp4_packed_compat.h`
+instead of duplicated in both Level-4 translation units.
 The public Level-4 headers no longer publish the old packed-id helper macros,
 so application code is not encouraged to depend on `gridmask` / `loggrid` or
 the process-global particle adapter.

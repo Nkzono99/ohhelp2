@@ -110,6 +110,9 @@ check_absent '\b(nidelement|subdomid|gridmask)\b' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\b(Grid_Position|Combine_Subdom_Pos|Primarize_Id_Only|Secondarize_Id|Secondary_Injected|Neighbor_Subdomain_Id)\b' \
   include/ohhelp4p.h include/ohhelp4s.h
+check_absent '^#(undef|define) (Grid_Position|Combine_Subdom_Pos|Subdomain_Id|Primarize_Id|Primarize_Id_Only|Secondarize_Id|Secondary_Injected|Neighbor_Subdomain_Id)' \
+  src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_present 'OHHELP4_PACKED_COMPAT_H' src/c/ohhelp4_packed_compat.h
 check_absent '\b(ParticleAdapter|gridmask|loggrid)\b' \
   include/ohhelp4p.h include/ohhelp4s.h
 check_absent '^EXTERN ' include/ohhelp4p.h include/ohhelp4s.h
@@ -159,6 +162,7 @@ check_present 'nid == -2' doc/design/v2-particle-contracts.md
 check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts.md
 check_present 'packed-grid id operations' doc/design/v2-particle-contracts.md
 check_present 'level4_secondary_region_offset' src/c/ohhelp4_particle.h
+check_present 'ohhelp4_packed_compat.h' doc/design/v2-particle-contracts.md
 check_present 'default context layout' doc/design/v2-particle-contracts.md
 check_present 'primary_or_secondary' doc/design/v2-particle-contracts.md
 check_present 'specBase = 1' doc/design/v2-particle-contracts.md

@@ -201,10 +201,11 @@ OH_DEFINE_PARTICLE_ADAPTER_SINGLE_SPECIES_ACCESSORS(my_particle,
 
 `OH_DEFINE_PARTICLE_ADAPTER_REGION_MAPPING()` は、利用側が particle push 中に
 `region` field を destination region へ更新する設計向けの最小実装です。
-Level 3 では `oh_set_particle_position_fields()` を使うと、OhHelp が持つ
-subdomain geometry から標準の `map_to_neighbor` / `map_to_subdomain` を
-設定できます。この mapping は既存 `S_particle` の Level 3 mapping と同じく、
-周期境界を跨ぐ場合に粒子座標 field を wrap します。
+`oh_particle_adapter_use_position_fields()` は position offset だけを設定します。
+Level 3 では `oh_set_particle_position_fields()` を使うと、その offset 設定に加えて
+OhHelp が持つ subdomain geometry から標準の `map_to_neighbor` /
+`map_to_subdomain` を設定できます。この mapping は既存 `S_particle` の Level 3
+mapping と同じく、周期境界を跨ぐ場合に粒子座標 field を wrap します。
 
 ```c
 oh_set_particle_position_fields(&adapter,

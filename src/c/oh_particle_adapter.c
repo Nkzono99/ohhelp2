@@ -134,6 +134,16 @@ oh_particle_adapter_const_position(const oh_particle_adapter *adapter,
 }
 
 void
+oh_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
+                                        size_t x_offset, size_t y_offset,
+                                        size_t z_offset) {
+  if (!adapter) return;
+  adapter->position_offset[0] = x_offset;
+  adapter->position_offset[1] = y_offset;
+  adapter->position_offset[2] = z_offset;
+}
+
+void
 oh_particle_adapter_use_int_fields(oh_particle_adapter *adapter,
                                    size_t region_offset,
                                    size_t species_offset) {

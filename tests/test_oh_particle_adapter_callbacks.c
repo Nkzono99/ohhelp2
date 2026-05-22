@@ -32,9 +32,10 @@ main(void) {
   oh_particle_adapter_use_int_fields(&adapter,
                                      offsetof(struct my_particle, region),
                                      offsetof(struct my_particle, species));
-  adapter.position_offset[0] = offsetof(struct my_particle, x);
-  adapter.position_offset[1] = offsetof(struct my_particle, y);
-  adapter.position_offset[2] = offsetof(struct my_particle, z);
+  oh_particle_adapter_use_position_fields(&adapter,
+                                          offsetof(struct my_particle, x),
+                                          offsetof(struct my_particle, y),
+                                          offsetof(struct my_particle, z));
   assert(adapter.get_region(&adapter, &particle, 0) == 5);
   assert(adapter.get_species(&adapter, &particle) == 2);
   assert(oh_particle_adapter_position(&adapter, &particle, 0) == &particle.x);

@@ -38,9 +38,10 @@ Level 3 has two mapping modes:
 
 - Default `S_particle`: after `oh3_init()`, OhHelp installs mapping callbacks
   that read `x`, `y`, and `z` from `S_particle`.
-- Custom particle layout: call
-  `oh3_particle_adapter_use_position_fields(adapter, x_offset, y_offset,
-  z_offset)` before `oh_set_particle_adapter()`.
+- Custom particle layout: call `oh_particle_adapter_use_position_fields()` to
+  set offsets only, or `oh3_particle_adapter_use_position_fields()` /
+  `oh_set_particle_position_fields()` before `oh_set_particle_adapter()` to
+  also install Level-3 geometry mapping callbacks.
 
 The Level-3 position-field mapping reuses OhHelp's own subdomain geometry. Its
 neighbor mapping intentionally mutates position fields when periodic wrapping is

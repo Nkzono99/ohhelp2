@@ -215,17 +215,8 @@ oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
                                          size_t x_offset, size_t y_offset,
                                          size_t z_offset) {
   if (!adapter) return;
-  adapter->position_offset[OH_DIM_X] = x_offset;
-#if OH_DIMENSION>=2
-  adapter->position_offset[OH_DIM_Y] = y_offset;
-#else
-  (void)y_offset;
-#endif
-#if OH_DIMENSION>=3
-  adapter->position_offset[OH_DIM_Z] = z_offset;
-#else
-  (void)z_offset;
-#endif
+  oh_particle_adapter_use_position_fields(adapter, x_offset, y_offset,
+                                          z_offset);
   adapter->map_to_neighbor = offset_level3_map_particle_to_neighbor;
   adapter->map_to_subdomain = offset_level3_map_particle_to_subdomain;
 }

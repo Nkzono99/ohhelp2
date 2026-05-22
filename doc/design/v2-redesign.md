@@ -390,9 +390,10 @@ index validation, and byte-wise copies.
 
 Level-3 initialization now installs default `S_particle` coordinate mapping
 callbacks into the active default adapter after geometry setup. Custom adapters
-can either provide their own `map_to_neighbor` / `map_to_subdomain` callbacks or
-call `oh3_particle_adapter_use_position_fields()` to reuse the Level-3 geometry
-mapper with application-owned particle layouts.
+can either provide their own `map_to_neighbor` / `map_to_subdomain` callbacks,
+call `oh_particle_adapter_use_position_fields()` for offset-only access, or call
+`oh3_particle_adapter_use_position_fields()` / `oh_set_particle_position_fields()`
+to reuse the Level-3 geometry mapper with application-owned particle layouts.
 
 Level-4 now includes local adapter-stride helpers for particle buffer
 addressing, index validation, and copies. The public Level-4 injection and

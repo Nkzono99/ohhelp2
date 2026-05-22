@@ -452,6 +452,9 @@ extraction, subdomain/id composition, primary/secondary id conversion,
 secondary-injected detection, and local grid-position adjustment; the Level-4p
 and Level-4s translation units keep only thin compatibility macros at call
 sites.
+The public Level-4 headers no longer publish the old packed-id helper macros,
+so application code is not encouraged to depend on `gridmask` / `loggrid` or
+the process-global particle adapter.
 Level-4s particle storage allocation now uses the active adapter stride for the
 main particle/send-buffer pair and boundary-send staging buffer.
 Level-4s boundary-send staging now also copies into the boundary buffer through

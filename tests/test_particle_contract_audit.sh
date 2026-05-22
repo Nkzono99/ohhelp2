@@ -56,6 +56,10 @@ check_absent '\b(Particles|SendBuf)\s*(\[|\+)' \
 check_absent '\bsb\s*\[[^]]+\]\s*=' src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent '\b(nidelement|subdomid|gridmask)\b' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_absent '\b(Grid_Position|Combine_Subdom_Pos|Primarize_Id_Only|Secondarize_Id|Secondary_Injected|Neighbor_Subdomain_Id)\b' \
+  include/ohhelp4p.h include/ohhelp4s.h
+check_absent '\b(ParticleAdapter|gridmask|loggrid)\b' \
+  include/ohhelp4p.h include/ohhelp4s.h
 
 # New direct accesses must not spread outside the known migration boundary.
 legacy_accesses=$(

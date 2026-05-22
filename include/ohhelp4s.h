@@ -11,23 +11,6 @@
 #define OH_NBR_BCC      (1+1*3+0*3*3)
 #define OH_NBR_TCC      (1+1*3+2*3*3)
 
-#define Grid_Position(ID)         ((ID)&gridmask)
-#define Combine_Subdom_Pos(ID, G) (((OH_nid_t)(ID)<<loggrid) + (G))
-#define Primarize_Id_Only(P) \
-  ParticleAdapter.set_region(\
-    &ParticleAdapter, (P),\
-    ParticleAdapter.get_region(&ParticleAdapter, (P), 1) -\
-    ((OH_nid_t)(nOfNodes+OH_NEIGHBORS)<<loggrid), 1)
-#define Secondarize_Id(P) \
-  ParticleAdapter.set_region(\
-    &ParticleAdapter, (P),\
-    ParticleAdapter.get_region(&ParticleAdapter, (P), 1) +\
-    ((OH_nid_t)(nOfNodes+OH_NEIGHBORS)<<loggrid), 1)
-#define Secondary_Injected(ID) \
-  ((ID>>loggrid)>=nOfNodes+OH_NEIGHBORS)
-#define Neighbor_Subdomain_Id(ID, PS) \
-  AbsNeighbors[PS][(ID)>>loggrid]
-
 EXTERN int* PbufIndex;                                  /* [2*ns+1] */
 EXTERN dint** NOfPGrid[2], ** NOfPGridTotal[2];          /* [2][ns][z][y][x] */
 EXTERN int** NOfPGridOut[2], ** NOfPGridOutShadow[2];    /* [2][ns][z][y][x] */

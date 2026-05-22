@@ -30,7 +30,6 @@ static int  comp_xyz(const void* aa, const void* bb);
 static void init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid,
                         int (*ct)[2][OH_CTYPE_N], int nb,
                         int sd[OH_DIMENSION][2], int **fsizes);
-static void set_border_exchange(int e, int ps, MPI_Datatype type);
 static void state_set_border_exchange(struct oh_state *state, int e, int ps,
                                       MPI_Datatype type);
 static void set_border_comm(int esize, int f, int *xyz, int *wdh,
@@ -76,10 +75,10 @@ static void state_allreduce_field(struct oh_state *state, void *pfld,
 static void state_exchange_borders(struct oh_state *state, void *pfld,
                                    void *sfld, int ctype, int bcast);
 static void state_grid_size(struct oh_state *state, double size[OH_DIMENSION]);
-static void state_clear_border_exchange(struct oh_state *state);
-static void state_set_field_descriptors(struct oh_state *state,
-                                        int (*ft)[OH_FTYPE_N],
-                                        int sd[OH_DIMENSION][2], int ps);
+void state_clear_border_exchange(struct oh_state *state);
+void state_set_field_descriptors(struct oh_state *state,
+                                 int (*ft)[OH_FTYPE_N],
+                                 int sd[OH_DIMENSION][2], int ps);
 
 void
 oh3_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -579,10 +578,6 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
   state_clear_border_exchange(state);
 }
 void
-set_field_descriptors(int (*ft)[OH_FTYPE_N], int sd[OH_DIMENSION][2], int ps) {
-  state_set_field_descriptors(oh1_state(), ft, sd, ps);
-}
-static void
 state_set_field_descriptors(struct oh_state *state, int (*ft)[OH_FTYPE_N],
                             int sd[OH_DIMENSION][2], int ps) {
 
@@ -605,10 +600,6 @@ state_set_field_descriptors(struct oh_state *state, int (*ft)[OH_FTYPE_N],
                  size[OH_DIM_Z]+ru) -
       fd[f].red.base + es;
   }
-}
-static void
-set_border_exchange(int e, int ps, MPI_Datatype type) {
-  state_set_border_exchange(oh1_state(), e, ps, type);
 }
 static void
 state_set_border_exchange(struct oh_state *state, int e, int ps,
@@ -792,10 +783,6 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
   }
 }
 void
-clear_border_exchange() {
-  state_clear_border_exchange(oh1_state());
-}
-static void
 state_clear_border_exchange(struct oh_state *state) {
   int ne=state->n_of_exchanges, e, d, lu;
   struct S_borderexc (*bx)[2][OH_DIMENSION][2] =
@@ -868,8 +855,8 @@ transbound3(struct oh_state *state, int currmode, int stats, int level) {
   newp = state->region_id[1];
   if (oldp!=newp) {
     if (oldp>=0)  state_clear_border_exchange(state);
-    if (newp>=0)  set_field_descriptors(field_types, state->subdomains[newp],
-                                        1);
+    if (newp>=0)  state_set_field_descriptors(state, field_types,
+                                              state->subdomains[newp], 1);
   }
   return(currmode);
 }

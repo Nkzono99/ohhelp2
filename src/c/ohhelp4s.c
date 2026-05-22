@@ -1245,10 +1245,11 @@ static void update_descriptors(struct oh_state* state, const int oldp,
     int n;
 
     if (oldp != newp) {
-        if (oldp >= 0)  clear_border_exchange();
+        if (oldp >= 0)  state_clear_border_exchange(state);
         if (newp >= 0) {
-            set_field_descriptors((int (*)[OH_FTYPE_N])state->field_types,
-                                  state->subdomains[newp], 1);
+            state_set_field_descriptors(
+                state, (int (*)[OH_FTYPE_N])state->field_types,
+                state->subdomains[newp], 1);
             adjust_field_descriptor(state, 1);
         }
     }

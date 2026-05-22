@@ -79,9 +79,10 @@ void init3(int **sdid, int nspec, int maxfrac, int **nphgram, int **totalp,
            int *bcond, int **bounds, int *ftypes, int *cfields, int cfid,
            int *ctypes, int **fsizes, int stats, int repiter, int verbose,
            int skip2);
-void set_field_descriptors(int (*ft)[OH_FTYPE_N], int sd[OH_DIMENSION][2],
-                           int ps);
-void clear_border_exchange();
+void state_set_field_descriptors(struct oh_state *state,
+                                 int (*ft)[OH_FTYPE_N],
+                                 int sd[OH_DIMENSION][2], int ps);
+void state_clear_border_exchange(struct oh_state *state);
 int  map_irregular_subdomain(double x, double y, double z);
 
 #endif

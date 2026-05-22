@@ -226,10 +226,10 @@ The current code now has this first migration layer:
   descriptors through `oh_state`, including the transbound path that invalidates
   stale secondary datatypes after the secondary region changes.
 - Level-3 field descriptor sizing and border datatype construction now have
-  state-backed internal helpers. The legacy `set_field_descriptors()` and
-  `set_border_exchange()` entry points remain as wrappers, while the core
-  descriptor, boundary-communication, subdomain, and field-size reads flow
-  through `oh_state`.
+  state-backed internal helpers. Level-3 and Level-4 descriptor refresh paths
+  call the state-backed descriptor helpers directly, and descriptor,
+  boundary-communication, subdomain, and field-size reads flow through
+  `oh_state`.
 - Level-3 field initialization now synchronizes the default context before
   descriptor sizing and border datatype creation, then calls the state-backed
   descriptor/exchange helpers directly instead of routing through the legacy

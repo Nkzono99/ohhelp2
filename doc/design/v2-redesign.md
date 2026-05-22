@@ -371,16 +371,16 @@ The current code now has this first migration layer:
   `oh_state` at entry and use context mirrors for species counts, particle
   buffers, local counts, injection counts, region IDs, current mode, and
   Level-4 per-grid counts while preserving the existing public symbols.
-- Level-4p/4s particle mapping now also binds grid descriptors, grid metadata,
+- Level-4p/4s particle mapping now reads grid descriptors, grid metadata,
   subdomain tables, boundary tables, and boundary-condition tables from
-  `oh_state` inside the mapping functions before invoking the legacy mapping
-  macros.
+  `oh_state` in the mapping macros and helper bodies.
 - Level-4p/4s public injection/removal entry points now read species through the
   active particle adapter and set negative removal markers through the adapter's
-  region setter; packed `nid` reads remain a Level-4 migration target.
+  region setter; packed region reads and writes are routed through the Level-4
+  particle helper layer instead of direct `S_particle.nid` access.
 - Level-4p/4s absolute-neighbor tables are mirrored through `oh_state`; neighbor
-  refresh, map-to-neighbor, and particle sort/remove paths bind the legacy
-  macros to the context-owned table before resolving packed particle IDs.
+  refresh, map-to-neighbor, and particle sort/remove paths resolve packed
+  particle IDs through context-owned helper state.
 - Level-4p/4s grid-offset lookups for neighboring grid positions now read the
   offset table through `oh_state`, including move/sort/remove paths that still
   use the legacy packed particle IDs.

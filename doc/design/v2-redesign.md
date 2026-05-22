@@ -278,6 +278,9 @@ The current code now has this first migration layer:
   subdomain tables, boundary tables, and boundary-condition tables from
   `oh_state` inside the mapping functions before invoking the legacy mapping
   macros.
+- Level-4p/4s public injection/removal entry points now read species through the
+  active particle adapter and set negative removal markers through the adapter's
+  region setter; packed `nid` reads remain a Level-4 migration target.
 - Level-4p/4s absolute-neighbor tables are mirrored through `oh_state`; neighbor
   refresh, map-to-neighbor, and particle sort/remove paths bind the legacy
   macros to the context-owned table before resolving packed particle IDs.

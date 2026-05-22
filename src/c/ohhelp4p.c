@@ -21,6 +21,12 @@ static int  level4_particle_index(struct oh_state* state,
                                   const struct S_particle* part);
 static int  level4_particle_is_injected(struct oh_state* state,
                                         const struct S_particle* part);
+static int  level4_particle_species(struct oh_state* state,
+                                    const struct S_particle* part);
+static void level4_set_particle_region(struct oh_state* state,
+                                       struct S_particle* part,
+                                       int region,
+                                       int primary_or_secondary);
 static void level4_copy_particle(struct oh_state* state,
                                  struct S_particle* dst,
                                  const struct S_particle* src);
@@ -196,6 +202,20 @@ static int
 level4_particle_is_injected(struct oh_state* state,
                             const struct S_particle* part) {
     return level4_particle_index(state, part) >= state->total_parts;
+}
+
+static int
+level4_particle_species(struct oh_state* state, const struct S_particle* part) {
+    return Particle_Spec(
+        state->particle_adapter->get_species(state->particle_adapter, part) -
+        state->spec_base);
+}
+
+static void
+level4_set_particle_region(struct oh_state* state, struct S_particle* part,
+                           int region, int primary_or_secondary) {
+    state->particle_adapter->set_region(state->particle_adapter, part, region,
+                                        primary_or_secondary);
 }
 
 static void
@@ -2309,11 +2329,11 @@ int oh4p_inject_particle(const struct S_particle* part, const int ps) {
     const int ns = state->n_of_species;
     int inj = state->total_parts + state->n_of_injections++;
     struct S_particle* p = level4_particle_at(state, inj);
-    int s = Particle_Spec(part->spec - state->spec_base);
+    int s = level4_particle_species(state, part);
     int sd;
 
 #ifndef OH_HAS_SPEC
-    if (ns != 1)
+    if (!state->use_custom_particle_adapter && ns != 1)
         local_errstop("particles cannot be injected when S_particle does not "
                       "have 'spec' element and you have two or more species");
 #endif
@@ -2349,7 +2369,7 @@ void oh4p_remove_mapped_particle(struct S_particle* part, const int ps, const in
         psreal = 1;  Primarize_Id(part, sd);  nid = part->nid;
     }
     mysd = state->region_id[psreal];
-    part->nid = -1;
+    level4_set_particle_region(state, part, -1, psreal);
     t = psreal ? ns + s : s;
     state->n_of_particles_local[t * nn + sd]--;
     if (inj && sd == mysd)  state->injected_particles[t]--;

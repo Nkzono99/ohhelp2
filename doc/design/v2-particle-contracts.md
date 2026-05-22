@@ -86,6 +86,11 @@ The v2 target is to move these behind adapter/state helpers. Until that work is
 complete, Level 4 custom particle layouts are only partially supported even
 though stride-aware storage and copy paths are being migrated.
 
+The public Level-4 injection/removal entry points now use the active particle
+adapter for species reads and for writing the negative removal marker. Packed
+Level-4 region reads still depend on the legacy `nid` representation until the
+packed-id contract is redesigned.
+
 ## Migration Checklist
 
 When editing particle movement or mapping code, check for:

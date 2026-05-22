@@ -454,7 +454,7 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
 
     MPI_Type_vector(nspec, 1, nn, MPI_INT, &T_Hgramhalf);
     MPI_Type_commit(&T_Hgramhalf);
-    for (n = 0; n < nnns2; n++)  NOfSend[n] = 0;
+    for (n = 0; n < nnns2; n++)  state->n_of_send[n] = 0;
 
     {
         struct oh_state* state = oh4s_state();

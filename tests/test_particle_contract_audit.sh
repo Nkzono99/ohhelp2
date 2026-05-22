@@ -124,6 +124,7 @@ check_absent '\btransbound2\s*\(' src/c/ohhelp3.c
 check_absent '\boh1_(broadcast|reduce|all_reduce)\s*\(' src/c/ohhelp3.c
 check_absent '\b(RecvCounts|SendCounts)\b' src/c/ohhelp2.c src/c/ohhelp3.c \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_absent '\b(NOfSend|NOfRecv)\b' src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_present 'try_primary1_state' src/c/ohhelp1_internal.h
 check_present 'transbound1_state' src/c/ohhelp1_internal.h
 check_present 'transbound2_state' src/c/ohhelp2_internal.h

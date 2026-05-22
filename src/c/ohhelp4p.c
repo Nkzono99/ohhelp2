@@ -450,7 +450,7 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
         HSReceiver = state->level4_hotspot_recv_from_parent + nspec;
     MPI_Type_vector(nspec, 1, nn, MPI_INT, &T_Hgramhalf);
     MPI_Type_commit(&T_Hgramhalf);
-    for (n = 0; n < nnns2; n++)  NOfSend[n] = 0;
+    for (n = 0; n < nnns2; n++)  state->n_of_send[n] = 0;
 
     {
         int* first_neighbor;

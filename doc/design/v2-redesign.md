@@ -47,6 +47,10 @@ The current code now has this first migration layer:
   path for `TotalP` / `TotalPNext` and primary/total particle counters.
 - Level-1 primary/secondary communication statistics now read rank, node count,
   and communication histograms through `oh_state`.
+- Level-1 primary-mode acceptance now writes send/receive count histograms
+  through `oh_state` instead of the process-global `NOfSend`/`NOfRecv`.
+- Level-1 communication-count setup now keeps the secondary receive-list cursor
+  in `oh_state` and mirrors `SecRList` only for the default global context.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

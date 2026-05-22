@@ -741,19 +741,19 @@ static void rebalance4s(const int currmode, const int level, const int stats) {
     newp = amode ? state->nodes[me].parentid : state->nodes_next[me].parentid;
     if (ninj && amode && oldp != newp) {
         int* sinj = state->injected_particles + ns;
-        const int sbase = state->spec_base;
         int i;
         struct S_particle* p;
         Decl_Grid_Info();
         for (s = 0; s < ns; s++)  sinj[s] = 0;
         if (newp >= 0) {
-            for (i = 0, p = state->particles + state->total_parts;
-                 i < ninj; i++, p++) {
+            for (i = 0, p = level4_particle_at(state, state->total_parts);
+                 i < ninj;
+                 i++, p = oh_particle_buffer_at(state->particle_adapter, p, 1)) {
                 const OH_nid_t nid = p->nid;
                 int sdid;
                 if (Secondary_Injected(nid)) {
                     Primarize_Id(p, sdid);  Secondarize_Id(p);
-                    if (sdid == newp)  sinj[Particle_Spec(p->spec - sbase)]++;
+                    if (sdid == newp)  sinj[level4_particle_species(state, p)]++;
                 }
             }
         }
@@ -1782,7 +1782,7 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
                                const int nsend, const int stats) {
     struct oh_state* state = oh4s_state();
     const int me = state->my_rank, ns = state->n_of_species;
-    const int nn = state->n_of_nodes, sbase = state->spec_base;
+    const int nn = state->n_of_nodes;
     const int ninj = state->n_of_injections;
     const int nplim = state->n_of_local_particles_limit;
     struct S_realneighbor (*real_src)[2] =
@@ -1809,8 +1809,10 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
         } else
             for (s = 0; s < ns; s++, t++)  interior_parts[t].size = 0;
     }
-    for (i = 0, p = state->particles + state->total_parts; i < ninj; i++, p++) {
-        const int s = Particle_Spec(p->spec - sbase);
+    for (i = 0, p = level4_particle_at(state, state->total_parts);
+         i < ninj;
+         i++, p = oh_particle_buffer_at(state->particle_adapter, p, 1)) {
+        const int s = level4_particle_species(state, p);
         const OH_nid_t nid = p->nid;
         const int ps = Secondary_Injected(nid) ? 1 : 0;
         dint* npg = state->level4_particle_grid[ps][s];
@@ -1843,7 +1845,7 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
                                   nsend + i);
         level4_push_particle(state,
                              state->recv_buffer_bases +
-                             Particle_Spec(p->spec - sbase),
+                             level4_particle_species(state, p),
                              p);
     }
     for (i = ninjs; i < nplim; i++) {
@@ -1851,7 +1853,7 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
                                   i);
         level4_push_particle(state,
                              state->recv_buffer_bases +
-                             Particle_Spec(p->spec - sbase) + ns,
+                             level4_particle_species(state, p) + ns,
                              p);
     }
 
@@ -1965,7 +1967,7 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
                           const int oldp, const int* nacc, const int stats) {
     struct oh_state* state = oh4s_state();
     const int me = state->my_rank, ns = state->n_of_species;
-    const int nn = state->n_of_nodes, sbase = state->spec_base;
+    const int nn = state->n_of_nodes;
     const int mysubdom[2] = { me, oldp }, ninj = state->n_of_injections;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
@@ -2002,7 +2004,7 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
         }
     }
     for (i = 0; i < ninj; i++, p++) {
-        const int s = Particle_Spec(p->spec - sbase);
+        const int s = level4_particle_species(state, p);
         const OH_nid_t nid = p->nid;
         const int ps = Secondary_Injected(nid) ? 1 : 0;
         const int mysd = mysubdom[ps];

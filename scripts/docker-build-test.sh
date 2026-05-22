@@ -6,6 +6,7 @@ mkdir -p build/docker
 mpicc -Iinclude -c src/c/oh_load_balance.c -o build/docker/oh_load_balance.o
 mpicc -Iinclude -c src/c/oh_particle_adapter.c -o build/docker/oh_particle_adapter.o
 mpicc -Iinclude -c src/c/oh_context.c -o build/docker/oh_context.o
+mpicc -Iinclude -c src/c/oh_fortran_v2.c -o build/docker/oh_fortran_v2.o
 mpicc -Iinclude -c src/c/ohhelp1.c -o build/docker/ohhelp1.o
 mpicc -Iinclude -c src/c/ohhelp2.c -o build/docker/ohhelp2.o
 mpicc -Iinclude -c src/c/ohhelp3.c -o build/docker/ohhelp3.o
@@ -26,6 +27,14 @@ gfortran -cpp -Iinclude -Jbuild/docker -c src/fortran/oh_mod4p.F90 \
   -o build/docker/oh_mod4p.o
 gfortran -cpp -Iinclude -Jbuild/docker -c src/fortran/oh_mod4s.F90 \
   -o build/docker/oh_mod4s.o
+gfortran -cpp -Iinclude -Jbuild/docker -c src/fortran/oh_v2.F90 \
+  -o build/docker/oh_v2.o
+gfortran -cpp -w -ffree-line-length-none -Iinclude -Ibuild/docker \
+  -Jbuild/docker -c sample/sample.F90 \
+  -o build/docker/sample_f.o
+gfortran -cpp -Iinclude -Ibuild/docker -Jbuild/docker \
+  -c tests/test_oh_v2_fortran.F90 \
+  -o build/docker/test_oh_v2_fortran.o
 
 mpicc -Iinclude tests/test_oh_context_header.c \
   -c -o build/docker/test_oh_context_header.o
@@ -33,6 +42,12 @@ mpicc -Iinclude tests/test_ohhelp_c_header.c \
   -c -o build/docker/test_ohhelp_c_header.o
 mpicc -Iinclude tests/test_ohhelp2_header.c \
   -c -o build/docker/test_ohhelp2_header.o
+mpicc -Iinclude -DOH_DIMENSION=1 tests/test_ohhelp3_header.c \
+  -c -o build/docker/test_ohhelp3_header_1d.o
+mpicc -Iinclude -DOH_DIMENSION=2 tests/test_ohhelp3_header.c \
+  -c -o build/docker/test_ohhelp3_header_2d.o
+mpicc -Iinclude -DOH_DIMENSION=3 tests/test_ohhelp3_header.c \
+  -c -o build/docker/test_ohhelp3_header_3d.o
 mpicc -Iinclude tests/test_ohhelp4p_header.c \
   -c -o build/docker/test_ohhelp4p_header.o
 mpicc -Iinclude tests/test_ohhelp4s_header.c \
@@ -41,6 +56,8 @@ mpicc -Iinclude tests/test_public_header_reinclude.c \
   -c -o build/docker/test_public_header_reinclude.o
 mpicc -Iinclude tests/test_ohhelp_f_reinclude.c \
   -c -o build/docker/test_ohhelp_f_reinclude.o
+mpicc -Iinclude sample/level3_custom_particle.c \
+  -c -o build/docker/level3_custom_particle.o
 gcc -Iinclude tests/test_oh_load_balance.c src/c/oh_load_balance.c \
   -o build/docker/test_oh_load_balance
 build/docker/test_oh_load_balance

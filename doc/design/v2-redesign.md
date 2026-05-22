@@ -7,6 +7,18 @@
 - Let applications define their own particle layout.
 - Balance by estimated computational load, not just particle count.
 
+## Release Scope
+
+v2.0 targets Level 1-3 as the supported API surface. The release should make
+the Level-1 scheduler/communicator path, Level-2 particle movement path, and
+Level-3 geometry, particle mapping, and field-border exchange path usable with
+the v2 particle adapter and weighted-load APIs.
+
+Level 4p/4s remain in-tree and should continue to compile, but they are not
+part of the v2.0 completion criteria. Their packed-grid id semantics,
+per-grid particle management, and full custom-particle-layout support are
+deferred to v2.x.
+
 ## State Ownership
 
 The v1 code exposed most state through `EXTERN` declarations in the public
@@ -211,6 +223,12 @@ The current code now has this first migration layer:
   state-backed internal entry points. Public compatibility calls and the context
   facade both update the default-context mirror through that path, leaving the
   remaining global writes localized until non-default contexts are implemented.
+- The default-context facade now also exposes Level-1/2/3 operation wrappers:
+  `oh_context_transbound1()`, `oh_context_transbound2()`,
+  `oh_context_transbound3()`, Level-1 collective wrappers, Level-2 injected
+  particle accounting wrappers, and Level-3 mapping/field/border exchange
+  wrappers. These still accept only the default context, but they make the
+  Level 1-3 state-backed boundary explicit for v2.0 callers.
 - Level-3 geometry, field, boundary, and border-exchange globals are now
   mirrored into `oh_state`. Fields that depend on Level-3-only array constants
   are stored as opaque `int *`/struct pointers for now so `ohhelp1.h` does not

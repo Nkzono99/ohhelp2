@@ -9,6 +9,8 @@
 #ifndef OHHELP3_H
 #define OHHELP3_H
 
+#include "ohhelp2.h"
+
 #define OH_LOWER 0
 #define OH_UPPER 1
 

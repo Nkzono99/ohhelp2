@@ -22,6 +22,40 @@ void oh_context_set_particle_mpi_type(oh_context *context, MPI_Datatype type);
 void oh_context_set_particle_adapter(oh_context *context,
                                      const oh_particle_adapter *adapter);
 
+int oh_context_transbound1(oh_context *context, int currmode, int stats);
+int oh_context_transbound2(oh_context *context, int currmode, int stats);
+int oh_context_transbound3(oh_context *context, int currmode, int stats);
+
+void oh_context_broadcast(oh_context *context, void *pbuf, void *sbuf,
+                          int pcount, int scount, MPI_Datatype ptype,
+                          MPI_Datatype stype);
+void oh_context_all_reduce(oh_context *context, void *pbuf, void *sbuf,
+                           int pcount, int scount, MPI_Datatype ptype,
+                           MPI_Datatype stype, MPI_Op pop, MPI_Op sop);
+void oh_context_reduce(oh_context *context, void *pbuf, void *sbuf,
+                       int pcount, int scount, MPI_Datatype ptype,
+                       MPI_Datatype stype, MPI_Op pop, MPI_Op sop);
+
+void oh_context_set_total_particles(oh_context *context);
+void oh_context_inject_particle(oh_context *context, void *part);
+void *oh_context_inject_particle_get(oh_context *context, void *part);
+void oh_context_remap_injected_particle(oh_context *context, void *part);
+void oh_context_remove_injected_particle(oh_context *context, void *part);
+
+void oh_context_grid_size(oh_context *context, double *size);
+int oh_context_map_particle_to_neighbor(oh_context *context, double *x,
+                                        double *y, double *z, int ps);
+int oh_context_map_particle_to_subdomain(oh_context *context, double x,
+                                         double y, double z);
+void oh_context_bcast_field(oh_context *context, void *pfld, void *sfld,
+                            int ftype);
+void oh_context_reduce_field(oh_context *context, void *pfld, void *sfld,
+                             int ftype);
+void oh_context_allreduce_field(oh_context *context, void *pfld, void *sfld,
+                                int ftype);
+void oh_context_exchange_borders(oh_context *context, void *pfld, void *sfld,
+                                 int ctype, int bcast);
+
 #ifdef __cplusplus
 }
 #endif

@@ -9,6 +9,7 @@
 #ifndef OHHELP2_H
 #define OHHELP2_H
 
+#include "ohhelp1.h"
 #include "oh_part.h"
 #include "oh_particle_adapter.h"
 

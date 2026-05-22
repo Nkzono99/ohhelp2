@@ -51,12 +51,12 @@ static void  receive_particles(struct oh_state *state,
 static void  send_particles(struct oh_state *state,
                             struct S_commlist *slist, int slsize,
                             int myregion, int parentregion, int *req);
-static void *oh2_inject_particle_state(struct oh_state *state,
+void        *oh2_inject_particle_state(struct oh_state *state,
                                        struct S_particle *part);
-static void  oh2_remap_injected_particle_state(struct oh_state *state,
+void         oh2_remap_injected_particle_state(struct oh_state *state,
+                                              struct S_particle *part);
+void         oh2_remove_injected_particle_state(struct oh_state *state,
                                                struct S_particle *part);
-static void  oh2_remove_injected_particle_state(struct oh_state *state,
-                                                struct S_particle *part);
 static void  state_update_injected_particle_count(struct oh_state *state,
                                                   struct S_particle *part,
                                                   int delta);
@@ -833,7 +833,7 @@ void *
 oh2_inject_particle_get(void *part) {
   return oh2_inject_particle_state(oh1_state(), (struct S_particle*)part);
 }
-static void *
+void *
 oh2_inject_particle_state(struct oh_state *state, struct S_particle *part) {
   int inj = state->total_parts + state->n_of_injections++;
   struct S_particle *copy;
@@ -859,7 +859,7 @@ void
 oh2_remap_injected_particle(void *part) {
   oh2_remap_injected_particle_state(oh1_state(), (struct S_particle*)part);
 }
-static void
+void
 oh2_remap_injected_particle_state(struct oh_state *state,
                                   struct S_particle *part) {
   const int pidx = state_particle_buffer_index(state, part);
@@ -885,7 +885,7 @@ void
 oh2_remove_injected_particle(void *part) {
   oh2_remove_injected_particle_state(oh1_state(), (struct S_particle*)part);
 }
-static void
+void
 oh2_remove_injected_particle_state(struct oh_state *state,
                                    struct S_particle *part) {
   const int pidx = state_particle_buffer_index(state, part);

@@ -6,7 +6,9 @@ v2 では、従来の固定 `S_particle` / `oh_particle` 前提から離れ、�
 ## Particle adapter
 
 C API では `oh_particle_adapter` を使って、OhHelp が粒子をどう扱うかを
-指定できます。
+指定できます。Fortran では `ohhelp_v2` module の
+`type(oh_particle_adapter_handle)` を使い、C 側の adapter を opaque handle として
+操作します。
 
 ```c
 typedef struct oh_particle_adapter {
@@ -246,6 +248,12 @@ OH_DEFINE_PARTICLE_ADAPTER_SINGLE_SPECIES_ACCESSORS(my_particle,
                                                     region)
 ```
 
+Fortran では `oh_particle_adapter_set_callbacks()` に `c_funloc()` で取得した
+`bind(C)` callback を渡すことで同じ callback contract を使えます。offset で
+表現できる粒子 layout なら callback は不要で、`oh_particle_field_offset()` と
+`oh_particle_adapter_use_int_fields()` /
+`oh_particle_adapter_use_integer_fields()` を使います。
+
 ## Level 3 mapping callback の標準形
 
 Level 3 では、利用側が `my_map_to_neighbor` や `my_map_to_subdomain` を
@@ -334,8 +342,11 @@ region field が同じ役割を持ちます。
   `oh_inject_particle_get()` を使って、OhHelp の particle buffer 内にコピーされた
   粒子ポインタを保持してください。`oh_remap_injected_particle()` と
   `oh_remove_injected_particle()` は、その buffer 内ポインタを受け取ります。
-  Fortran には pointer-return helper はなく、`pbuf` の injection 領域にある
-  要素そのものを remap/remove API に渡します。
+Fortran には pointer-return helper はなく、`pbuf` の injection 領域にある
+要素そのものを remap/remove API に渡します。
+`ohhelp_v2` の context API では `oh_context_inject_particle_get()` が
+`type(c_ptr)` を返すため、custom particle layout でも C と同じ injected-copy
+pointer を保持できます。
 - `oh_remap_injected_particle()` は、負の region で注入した粒子、または
   `oh_remove_injected_particle()` で一度 count を取り消した injected particle を、
   現在の region/species で再計上するための API です。正の region で count 済みの
@@ -491,8 +502,11 @@ for (int step = 0; step < nstep; step++) {
 ## 現在の実装上の制約
 
 - region weight の中核 helper と Level 1 の rebalance 経路は実装済みです。
-- Level 2/3/4 は `oh_state` 経由でこの情報を参照する移行中です。
-- public API はまだ default context 中心です。
+- Level 2/3 は default context facade と state-backed internal path を通して
+  region weight、particle adapter、field exchange を参照します。
+- public API はまだ default context 中心です。複数 context の独立運用は
+  v2.x の対象です。
+- Level 4p/4s は v2.x 対応対象で、v2.0 の supported scope には含めません。
 - 公開 C API と context 内の粒子バッファ保持は `void *` ベースです。
   実装内部には既存アルゴリズムを保つための `struct S_particle *` ローカル
   エイリアスがまだありますが、バッファの走査とコピーは adapter stride を

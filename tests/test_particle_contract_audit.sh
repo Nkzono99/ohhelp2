@@ -29,15 +29,21 @@ check_present() {
 check_present '#ifndef OHHELP_C_H' include/ohhelp_c.h
 check_present '#ifndef OH_CONFIG_H' include/oh_config.h
 check_present '#ifndef OHHELP_F_H' include/ohhelp_f.h
+check_present '#ifndef OH_FORTRAN_V2_H' include/oh_fortran_v2.h
 check_present '#ifndef OHHELP1_H' include/ohhelp1.h
 check_present '#ifndef OHHELP2_H' include/ohhelp2.h
 check_present '#ifndef OHHELP3_H' include/ohhelp3.h
 check_present '#ifndef OHHELP4P_H' include/ohhelp4p.h
 check_present '#ifndef OHHELP4S_H' include/ohhelp4s.h
+check_present '^name = "ohhelp2"' fpm.toml
+check_present '^# ohhelp2' README.md
+check_present 'ohhelp_v2' README.md
 check_present '#include "ohhelp1.h"' include/ohhelp_c.h
 check_present '#include "ohhelp2.h"' include/ohhelp_c.h
 check_present '#include "ohhelp3.h"' include/ohhelp_c.h
 check_absent '^(void|int)\s+oh[0-9]' include/ohhelp_c.h
+check_present '#include "ohhelp1.h"' include/ohhelp2.h
+check_present '#include "ohhelp2.h"' include/ohhelp3.h
 
 # Level 2 must stay layout-agnostic in the implementation.  Region/species
 # semantics are provided by oh_particle_adapter.
@@ -77,6 +83,12 @@ check_present 'state_update_injected_particle_count\(\)' \
   doc/design/v2-particle-contracts.md
 check_present 'type == MPI_DATATYPE_NULL' src/c/ohhelp2.c
 check_present 'oh_context_set_particle_mpi_type' include/oh_context.h
+check_present 'oh_context_transbound1' include/oh_context.h
+check_present 'oh_context_transbound2' include/oh_context.h
+check_present 'oh_context_transbound3' include/oh_context.h
+check_present 'oh_context_map_particle_to_neighbor' include/oh_context.h
+check_present 'oh_context_map_particle_to_subdomain' include/oh_context.h
+check_present 'oh_context_exchange_borders' include/oh_context.h
 check_present 'state->use_custom_particle_adapter = 0;' src/c/ohhelp2.c
 check_present 'state->custom_particle_mpi_type = MPI_DATATYPE_NULL;' \
   src/c/ohhelp2.c
@@ -97,7 +109,9 @@ check_present 'void \*oh2_inject_particle_get\(void \*part\)' include/ohhelp2.h
 check_present 'oh_inject_particle_get\(A1\)' include/ohhelp_c.h
 check_absent 'oh_inject_particle_get' include/ohhelp_f.h
 check_present 'oh_set_region_weights\(A1\)' include/ohhelp_c.h
-check_present 'oh_set_region_weights\(A1\)' include/ohhelp_f.h
+check_present '#define oh_set_region_weights[[:space:]]+oh1_set_region_weights' \
+  include/ohhelp_f.h
+check_present '#define oh_init[[:space:]]+oh3_init' include/ohhelp_f.h
 check_present 'oh1_set_region_weights' src/fortran/oh_mod1.F90
 check_present 'real\*8,intent\(in\) :: weights\(\*\)' src/fortran/oh_mod1.F90
 check_present 'oh_context_set_region_weights' include/oh_context.h
@@ -106,7 +120,50 @@ check_present 'oh_inject_particle_get' tests/test_ohhelp2_header.c
 check_present 'oh_inject_particle_get' tests/test_ohhelp_c_header.c
 check_present 'oh_set_region_weights' tests/test_ohhelp2_header.c
 check_present 'oh_set_region_weights' tests/test_ohhelp_c_header.c
+check_present 'oh_set_particle_position_fields' tests/test_ohhelp3_header.c
+check_present 'oh_exchange_borders' tests/test_ohhelp3_header.c
+check_present 'OH_DIMENSION=1 tests/test_ohhelp3_header\.c' \
+  scripts/docker-build-test.sh
+check_present 'OH_DIMENSION=2 tests/test_ohhelp3_header\.c' \
+  scripts/docker-build-test.sh
+check_present 'OH_DIMENSION=3 tests/test_ohhelp3_header\.c' \
+  scripts/docker-build-test.sh
+check_present 'level3_custom_particle\.c' scripts/docker-build-test.sh
+check_present 'sample/sample\.F90' scripts/docker-build-test.sh
+check_present 'src/c/oh_fortran_v2\.c' scripts/docker-build-test.sh
+check_present 'src/fortran/oh_v2\.F90' scripts/docker-build-test.sh
+check_present 'tests/test_oh_v2_fortran\.F90' scripts/docker-build-test.sh
+check_present 'ffree-line-length-none' scripts/docker-build-test.sh
+check_present 'EPSILON=1\.0d0,MU=1\.0d0' sample/sample.F90
+check_present 'particle adapter handles' README.md
+check_present 'Fortran からも Level 1-3 は利用対象' doc/usage/README.md
+check_present 'ohhelp_v2` module' doc/usage/README.md
+check_present 'Fortran では `ohhelp_v2` module' \
+  doc/usage/api-by-level.md
+check_present 'Fortran の Level 3 利用例は `sample/sample.F90`' \
+  doc/usage/api-by-level.md
+check_present 'oh_particle_adapter_use_level3_position_fields' \
+  doc/usage/api-by-level.md
+check_present 'oh_particle_adapter_set_callbacks' \
+  doc/usage/v2-particle-and-weight.md
+check_present 'oh_context_inject_particle_get\(\)` が' \
+  doc/usage/v2-particle-and-weight.md
+check_present 'module ohhelp_v2' src/fortran/oh_v2.F90
+check_present 'type :: oh_context_handle' src/fortran/oh_v2.F90
+check_present 'type :: oh_particle_adapter_handle' src/fortran/oh_v2.F90
+check_present 'oh_particle_adapter_set_callbacks' src/fortran/oh_v2.F90
+check_present 'oh_fortran_context_set_particle_adapter' src/c/oh_fortran_v2.c
+check_present 'oh_fortran_particle_adapter_use_level3_position_fields' \
+  src/c/oh_fortran_v2.c
+check_present 'oh_fortran_particle_field_offset' src/c/oh_fortran_v2.c
+check_present 'oh_set_particle_position_fields' sample/level3_custom_particle.c
+check_present 'oh_particle_adapter_use_integer_fields' \
+  sample/level3_custom_particle.c
 check_present 'oh_context_set_region_weights' tests/test_oh_context_header.c
+check_present 'oh_context_transbound3' tests/test_oh_context_header.c
+check_present 'oh_context_inject_particle_get' tests/test_oh_context_header.c
+check_present 'oh_context_map_particle_to_neighbor' tests/test_oh_context_header.c
+check_present 'oh_context_exchange_borders' tests/test_oh_context_header.c
 check_present 'oh_particle_adapter_use_integer_fields' include/oh_particle_adapter.h
 check_present 'oh_particle_adapter_use_single_species_integer_region' \
   include/oh_particle_adapter.h
@@ -194,6 +251,11 @@ check_absent '=\s*(Boundaries|SubDomains|Grid)\s*;' \
 check_present 'try_primary1_state' src/c/ohhelp1_internal.h
 check_present 'transbound1_state' src/c/ohhelp1_internal.h
 check_present 'transbound2_state' src/c/ohhelp2_internal.h
+check_present 'oh2_inject_particle_state' src/c/ohhelp2_internal.h
+check_present 'oh3_transbound_state' src/c/ohhelp3_internal.h
+check_present 'oh3_map_particle_to_neighbor_state' src/c/ohhelp3_internal.h
+check_present 'oh3_map_particle_to_subdomain_state' src/c/ohhelp3_internal.h
+check_present 'oh3_exchange_borders_state' src/c/ohhelp3_internal.h
 check_present 'oh1_broadcast_state' src/c/ohhelp1_internal.h
 check_present 'oh1_reduce_state' src/c/ohhelp1_internal.h
 check_present 'oh1_all_reduce_state' src/c/ohhelp1_internal.h

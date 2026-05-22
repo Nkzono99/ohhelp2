@@ -15,6 +15,7 @@ module sample
   integer,parameter     :: FEB=1,FCD=2
   integer,parameter     :: EX=1,EY=2,EZ=3,BX=4,BY=5,BZ=6
   integer,parameter     :: JX=1,JY=2,JZ=3
+  real*8,parameter      :: EPSILON=1.0d0,MU=1.0d0
 
   integer               :: sdid(2)
   integer,allocatable   :: nphgram(:,:,:)

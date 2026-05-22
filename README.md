@@ -1,5 +1,7 @@
-# ohhelp-for-fpm
-OhHelp Library Package: Version 1.1.1 + α for Fortran Package Manager.
+# ohhelp2
+
+OhHelp v2 is an independent v2 line of the OhHelp dynamic load balancing
+library for MPI particle-in-cell simulations.
 
 ## About OhHelp Library Package
 
@@ -7,12 +9,22 @@ OhHelp library is a dynamic load balancing and scalability library that supports
 Each process handles the particle calculations within the partitioned area while taking on some of the particles handled by other processes so that the overall load is balanced.
 Developed by Nakashima et al. [^nakashima_2019] and used mainly in the field of plasma particle simulation, it has been shown to be effective for models such as plasma-satellite interaction and magnetospheric plasma, where the number of particles is time-varying and non-uniform.
 
-The site that provided OhHelp is no longer available, so we are redistributing it and fixing bugs under the license provided by original OhHelp library.
+This repository is no longer a compatibility-preserving fork of the v1 package.
+The v2 line intentionally changes APIs and implementation boundaries where that
+is useful for cleaner context handling, external particle layouts, and weighted
+load balancing.
+
+v2.0 targets supported use of Level 1-3. Level 4p/4s source files are kept under
+compile coverage, but the supported v2 API for Level 4 is deferred to v2.x.
+
+Fortran users can use the Level 1-3 modules with the default `type(oh_particle)`
+layout. The `ohhelp_v2` module also exposes the v2 context facade and opaque
+particle adapter handles for custom Fortran particle layouts.
 
 ## Install
 ``` toml
 [dependencies]
-ohhelpf = { git = "https://github.com/Nkzono99/ohhelp-for-fpm" }
+ohhelp2 = { git = "https://github.com/Nkzono99/ohhelp2" }
 ```
 
 ## Usage documentation

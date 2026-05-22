@@ -156,6 +156,148 @@ oh_context_set_particle_mpi_type(struct oh_state *context, MPI_Datatype type) {
   oh1_sync_default_state();
 }
 
+int
+oh_context_transbound1(struct oh_state *context, int currmode, int stats) {
+  int ret;
+  context = default_context_or_stop(context);
+  ret = transbound1_state(context, currmode, stats, 1);
+  oh1_sync_default_state();
+  return ret;
+}
+
+int
+oh_context_transbound2(struct oh_state *context, int currmode, int stats) {
+  int ret;
+  context = default_context_or_stop(context);
+  ret = transbound2_state(context, currmode, stats, 2);
+  oh1_sync_default_state();
+  return ret;
+}
+
+int
+oh_context_transbound3(struct oh_state *context, int currmode, int stats) {
+  int ret;
+  context = default_context_or_stop(context);
+  ret = oh3_transbound_state(context, currmode, stats);
+  oh1_sync_default_state();
+  return ret;
+}
+
+void
+oh_context_broadcast(struct oh_state *context, void *pbuf, void *sbuf,
+                     int pcount, int scount, MPI_Datatype ptype,
+                     MPI_Datatype stype) {
+  context = default_context_or_stop(context);
+  oh1_broadcast_state(context, pbuf, sbuf, pcount, scount, ptype, stype);
+}
+
+void
+oh_context_all_reduce(struct oh_state *context, void *pbuf, void *sbuf,
+                      int pcount, int scount, MPI_Datatype ptype,
+                      MPI_Datatype stype, MPI_Op pop, MPI_Op sop) {
+  context = default_context_or_stop(context);
+  oh1_all_reduce_state(context, pbuf, sbuf, pcount, scount, ptype, stype,
+                       pop, sop);
+}
+
+void
+oh_context_reduce(struct oh_state *context, void *pbuf, void *sbuf,
+                  int pcount, int scount, MPI_Datatype ptype,
+                  MPI_Datatype stype, MPI_Op pop, MPI_Op sop) {
+  context = default_context_or_stop(context);
+  oh1_reduce_state(context, pbuf, sbuf, pcount, scount, ptype, stype,
+                   pop, sop);
+}
+
+void
+oh_context_set_total_particles(struct oh_state *context) {
+  context = default_context_or_stop(context);
+  set_total_particles_state(context);
+  TotalP = context->total_particles;
+  primaryParts = context->primary_parts;
+  totalParts = context->total_parts;
+  oh1_sync_default_state();
+}
+
+void
+oh_context_inject_particle(struct oh_state *context, void *part) {
+  context = default_context_or_stop(context);
+  (void)oh2_inject_particle_state(context, (struct S_particle*)part);
+  oh1_sync_default_state();
+}
+
+void *
+oh_context_inject_particle_get(struct oh_state *context, void *part) {
+  void *copy;
+  context = default_context_or_stop(context);
+  copy = oh2_inject_particle_state(context, (struct S_particle*)part);
+  oh1_sync_default_state();
+  return copy;
+}
+
+void
+oh_context_remap_injected_particle(struct oh_state *context, void *part) {
+  context = default_context_or_stop(context);
+  oh2_remap_injected_particle_state(context, (struct S_particle*)part);
+  oh1_sync_default_state();
+}
+
+void
+oh_context_remove_injected_particle(struct oh_state *context, void *part) {
+  context = default_context_or_stop(context);
+  oh2_remove_injected_particle_state(context, (struct S_particle*)part);
+  oh1_sync_default_state();
+}
+
+void
+oh_context_grid_size(struct oh_state *context, double *size) {
+  context = default_context_or_stop(context);
+  oh3_grid_size_state(context, size);
+  oh1_sync_default_state();
+}
+
+int
+oh_context_map_particle_to_neighbor(struct oh_state *context, double *x,
+                                    double *y, double *z, int ps) {
+  context = default_context_or_stop(context);
+  return oh3_map_particle_to_neighbor_state(context, x, y, z, ps);
+}
+
+int
+oh_context_map_particle_to_subdomain(struct oh_state *context, double x,
+                                     double y, double z) {
+  context = default_context_or_stop(context);
+  return oh3_map_particle_to_subdomain_state(context, x, y, z);
+}
+
+void
+oh_context_bcast_field(struct oh_state *context, void *pfld, void *sfld,
+                       int ftype) {
+  context = default_context_or_stop(context);
+  oh3_bcast_field_state(context, pfld, sfld, ftype);
+}
+
+void
+oh_context_reduce_field(struct oh_state *context, void *pfld, void *sfld,
+                        int ftype) {
+  context = default_context_or_stop(context);
+  oh3_reduce_field_state(context, pfld, sfld, ftype);
+}
+
+void
+oh_context_allreduce_field(struct oh_state *context, void *pfld, void *sfld,
+                           int ftype) {
+  context = default_context_or_stop(context);
+  oh3_allreduce_field_state(context, pfld, sfld, ftype);
+}
+
+void
+oh_context_exchange_borders(struct oh_state *context, void *pfld, void *sfld,
+                            int ctype, int bcast) {
+  context = default_context_or_stop(context);
+  oh3_exchange_borders_state(context, pfld, sfld, ctype, bcast);
+}
+
 void
 oh1_state_(struct oh_state **state) {
   *state = oh1_state();

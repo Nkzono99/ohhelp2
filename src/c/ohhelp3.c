@@ -813,7 +813,11 @@ oh3_grid_size_(double size[OH_DIMENSION]) {
 }
 void
 oh3_grid_size(double size[OH_DIMENSION]) {
-  state_grid_size(oh1_state(), size);
+  oh3_grid_size_state(oh1_state(), size);
+}
+void
+oh3_grid_size_state(struct oh_state *state, double size[OH_DIMENSION]) {
+  state_grid_size(state, size);
 }
 static void
 state_grid_size(struct oh_state *state, double size[OH_DIMENSION]) {
@@ -841,11 +845,15 @@ state_grid_size(struct oh_state *state, double size[OH_DIMENSION]) {
 }
 int
 oh3_transbound_(int *currmode, int *stats) {
-  return(transbound3(oh1_state(), *currmode, *stats, 3));
+  return oh3_transbound_state(oh1_state(), *currmode, *stats);
 }
 int
 oh3_transbound(int currmode, int stats) {
-  return(transbound3(oh1_state(), currmode, stats, 3));
+  return oh3_transbound_state(oh1_state(), currmode, stats);
+}
+int
+oh3_transbound_state(struct oh_state *state, int currmode, int stats) {
+  return transbound3(state, currmode, stats, 3);
 }
 static int
 transbound3(struct oh_state *state, int currmode, int stats, int level) {
@@ -894,7 +902,7 @@ oh3_map_particle_to_neighbor_(double *x, int *ps) {
 }
 int
 oh3_map_particle_to_neighbor(double *x, int ps) {
-  return state_map_particle_to_neighbor(oh1_state(), x, NULL, NULL, ps);
+  return oh3_map_particle_to_neighbor_state(oh1_state(), x, NULL, NULL, ps);
 }
 #elif OH_DIMENSION==2
 int
@@ -907,7 +915,7 @@ oh3_map_particle_to_neighbor_(double *x, double *y, int *ps) {
 }
 int
 oh3_map_particle_to_neighbor(double *x, double *y, int ps) {
-  return state_map_particle_to_neighbor(oh1_state(), x, y, NULL, ps);
+  return oh3_map_particle_to_neighbor_state(oh1_state(), x, y, NULL, ps);
 }
 #else
 int
@@ -920,9 +928,14 @@ oh3_map_particle_to_neighbor_(double *x, double *y, double *z, int *ps) {
 }
 int
 oh3_map_particle_to_neighbor(double *x, double *y, double *z, int ps) {
-  return state_map_particle_to_neighbor(oh1_state(), x, y, z, ps);
+  return oh3_map_particle_to_neighbor_state(oh1_state(), x, y, z, ps);
 }
 #endif
+int
+oh3_map_particle_to_neighbor_state(struct oh_state *state, double *x,
+                                   double *y, double *z, int ps) {
+  return state_map_particle_to_neighbor(state, x, y, z, ps);
+}
 static int
 state_map_particle_to_neighbor(struct oh_state *state, double *x, double *y,
                                double *z, int ps) {
@@ -964,7 +977,7 @@ oh3_map_particle_to_subdomain_(double *x) {
 }
 int
 oh3_map_particle_to_subdomain(double x) {
-  return state_map_particle_to_subdomain(oh1_state(), x, 0.0, 0.0);
+  return oh3_map_particle_to_subdomain_state(oh1_state(), x, 0.0, 0.0);
 }
 #elif OH_DIMENSION==2
 int
@@ -977,7 +990,7 @@ oh3_map_particle_to_subdomain_(double *x, double *y) {
 }
 int
 oh3_map_particle_to_subdomain(double x, double y) {
-  return state_map_particle_to_subdomain(oh1_state(), x, y, 0.0);
+  return oh3_map_particle_to_subdomain_state(oh1_state(), x, y, 0.0);
 }
 #else
 int
@@ -990,9 +1003,14 @@ oh3_map_particle_to_subdomain_(double *x, double *y, double *z) {
 }
 int
 oh3_map_particle_to_subdomain(double x, double y, double z) {
-  return state_map_particle_to_subdomain(oh1_state(), x, y, z);
+  return oh3_map_particle_to_subdomain_state(oh1_state(), x, y, z);
 }
 #endif
+int
+oh3_map_particle_to_subdomain_state(struct oh_state *state, double x,
+                                    double y, double z) {
+  return state_map_particle_to_subdomain(state, x, y, z);
+}
 static int
 state_map_particle_to_subdomain(struct oh_state *state, double x, double y,
                                 double z) {
@@ -1160,35 +1178,55 @@ state_map_irregular_range(struct oh_state *state, double p, int dim, int from,
 }
 void
 oh3_bcast_field_(void *pfld, void *sfld, int *ftype) {
-  state_bcast_field(oh1_state(), pfld, sfld, *ftype-1);
+  oh3_bcast_field_state(oh1_state(), pfld, sfld, *ftype-1);
 }
 void
 oh3_bcast_field(void *pfld, void *sfld, int ftype) {
-  state_bcast_field(oh1_state(), pfld, sfld, ftype);
+  oh3_bcast_field_state(oh1_state(), pfld, sfld, ftype);
+}
+void
+oh3_bcast_field_state(struct oh_state *state, void *pfld, void *sfld,
+                      int ftype) {
+  state_bcast_field(state, pfld, sfld, ftype);
 }
 void
 oh3_reduce_field_(void *pfld, void *sfld, int *ftype) {
-  state_reduce_field(oh1_state(), pfld, sfld, *ftype-1);
+  oh3_reduce_field_state(oh1_state(), pfld, sfld, *ftype-1);
 }
 void
 oh3_reduce_field(void *pfld, void *sfld, int ftype) {
-  state_reduce_field(oh1_state(), pfld, sfld, ftype);
+  oh3_reduce_field_state(oh1_state(), pfld, sfld, ftype);
+}
+void
+oh3_reduce_field_state(struct oh_state *state, void *pfld, void *sfld,
+                       int ftype) {
+  state_reduce_field(state, pfld, sfld, ftype);
 }
 void
 oh3_allreduce_field_(void *pfld, void *sfld, int *ftype) {
-  state_allreduce_field(oh1_state(), pfld, sfld, *ftype-1);
+  oh3_allreduce_field_state(oh1_state(), pfld, sfld, *ftype-1);
 }
 void
 oh3_allreduce_field(void *pfld, void *sfld, int ftype) {
-  state_allreduce_field(oh1_state(), pfld, sfld, ftype);
+  oh3_allreduce_field_state(oh1_state(), pfld, sfld, ftype);
+}
+void
+oh3_allreduce_field_state(struct oh_state *state, void *pfld, void *sfld,
+                          int ftype) {
+  state_allreduce_field(state, pfld, sfld, ftype);
 }
 void
 oh3_exchange_borders_(void *pfld, void *sfld, int *ctype, int *bcast) {
-  state_exchange_borders(oh1_state(), pfld, sfld, *ctype-1, *bcast);
+  oh3_exchange_borders_state(oh1_state(), pfld, sfld, *ctype-1, *bcast);
 }
 void
 oh3_exchange_borders(void *pfld, void *sfld, int ctype, int bcast) {
-  state_exchange_borders(oh1_state(), pfld, sfld, ctype, bcast);
+  oh3_exchange_borders_state(oh1_state(), pfld, sfld, ctype, bcast);
+}
+void
+oh3_exchange_borders_state(struct oh_state *state, void *pfld, void *sfld,
+                           int ctype, int bcast) {
+  state_exchange_borders(state, pfld, sfld, ctype, bcast);
 }
 static void
 state_bcast_field(struct oh_state *state, void *pfld, void *sfld, int ftype) {

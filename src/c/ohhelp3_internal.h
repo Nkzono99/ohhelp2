@@ -83,6 +83,20 @@ void state_set_field_descriptors(struct oh_state *state,
                                  int (*ft)[OH_FTYPE_N],
                                  int sd[OH_DIMENSION][2], int ps);
 void state_clear_border_exchange(struct oh_state *state);
+void oh3_grid_size_state(struct oh_state *state, double size[OH_DIMENSION]);
+int  oh3_transbound_state(struct oh_state *state, int currmode, int stats);
+int  oh3_map_particle_to_neighbor_state(struct oh_state *state, double *x,
+                                        double *y, double *z, int ps);
+int  oh3_map_particle_to_subdomain_state(struct oh_state *state, double x,
+                                         double y, double z);
+void oh3_bcast_field_state(struct oh_state *state, void *pfld, void *sfld,
+                           int ftype);
+void oh3_reduce_field_state(struct oh_state *state, void *pfld, void *sfld,
+                            int ftype);
+void oh3_allreduce_field_state(struct oh_state *state, void *pfld,
+                               void *sfld, int ftype);
+void oh3_exchange_borders_state(struct oh_state *state, void *pfld,
+                                void *sfld, int ctype, int bcast);
 int  map_irregular_subdomain(double x, double y, double z);
 
 #endif

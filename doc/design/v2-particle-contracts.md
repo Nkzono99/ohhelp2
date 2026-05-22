@@ -123,6 +123,9 @@ When editing particle movement or mapping code, check for:
   default communicator storage. During migration those declarations belong in
   `src/c/ohhelp1_internal.h`; public code should use API calls rather than
   linking against `nOfNodes`, `myRank`, `fam_comm`, or similar mirrors.
+- Public Level-1 headers must not publish implementation struct layouts for the
+  node tree, communication lists, rebalance heaps, communicator containers, or
+  stats accumulators; those layouts belong in `src/c/ohhelp1_internal.h`.
 - Public Level-4 headers must not publish `EXTERN` mutable implementation
   globals or internal scheduling structs. Those declarations belong in
   `src/c/ohhelp4*_internal.h`.

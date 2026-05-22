@@ -57,6 +57,10 @@ The current code now has this first migration layer:
   `src/c/ohhelp1_internal.h` instead of the public `include/ohhelp1.h`.
   The public `MCW` shorthand resolves through `oh1_comm()` so `fam_comm` is no
   longer a public header definition.
+- Level-1 node-tree, communication-list, heap, communicator-container, and
+  statistics struct definitions now also live in `src/c/ohhelp1_internal.h`.
+  The public header keeps forward declarations for context mirrors and public
+  prototypes without exposing those implementation layouts.
 - Level-2 and Level-4 transbound entry points now gate stats collection through
   `oh_state.stats_mode` instead of reading the global `statsMode` directly.
 - Level-4p initialization now sizes its particle/send-buffer storage with the

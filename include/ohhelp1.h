@@ -212,33 +212,7 @@ extern struct oh_state OhDefaultState;
 #define Mode_Set_Any(M)  (M|2)
 #define Mode_Is_Norm(M)  (M<2)
 #define Mode_Is_Any(M)   (M>=2)
-/* Computation node descriptors */
-struct S_node {
-  struct {int prime, sec;} stay;
-  struct {dint prime, sec;} get;
-  struct {int prime, sec, black, rank;} comm;
-  struct S_node *parent, *sibling, *child;
-  int id, parentid;
-};
-
-/* Heap structure for load rebalancing */
-struct S_heap {
-  int n, *node, *index;
-};
-
-/* Structured variables for particle transfer */
-struct S_commlist {
-  int sid, rid, region, count, tag;     /* tag = spec + nOfSpecies*sec */
-};
-struct S_commsched_context {
-  int neighbor, sender, spec, comidx, dones, donen;
-};
-
 /* Structured variables for MPI communicator */
-struct S_comms {
-  int n;
-  MPI_Comm *body;       /* [nOfNodes] */
-};
 struct S_mycommc {
   MPI_Comm prime, sec;
   int rank, root, black;
@@ -291,29 +265,6 @@ static char *StatsPartStrings[STATS_PARTS] = {
   "transition to sec",
 };
 #endif
-
-struct S_statscurr {
-  struct {
-    double value, val[2*STATS_TIMINGS+2];
-    int key, ev[2*STATS_TIMINGS+2];
-  } time;
-  dint part[STATS_PARTS];
-};
-struct S_statstime {
-  double min, max, total;
-  int ev;
-};
-struct S_statspart {
-  dint min, max, total;
-};
-struct S_statstotal {
-  struct S_statstime time[2*STATS_TIMINGS];
-  struct S_statspart part[STATS_PARTS];
-};
-struct S_stats {
-  struct S_statscurr curr;
-  struct S_statstotal subtotal, total;
-};
 
 /* Prototypes for the functions called from simulator code */
 void oh1_neighbors(int **nbor);

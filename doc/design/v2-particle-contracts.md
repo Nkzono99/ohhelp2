@@ -88,6 +88,10 @@ Injected particles:
 - `InjectedParticles` is an internal counter array with primary/secondary and
   species dimensions. Mapping/removal code must update it when an injected
   particle becomes local, becomes secondary-local, or is explicitly removed.
+- There is no current `original` particle field or hidden original-particle
+  flag in `S_particle` or the active C implementation. The injected-vs-normal
+  distinction is derived from the particle buffer index and the injection
+  counters above.
 
 ## Level 4 Contracts Still Requiring Migration
 

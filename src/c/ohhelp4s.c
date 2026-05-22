@@ -24,6 +24,10 @@ static int  level4_particle_is_injected(struct oh_state* state,
 static void level4_copy_particle(struct oh_state* state,
                                  struct S_particle* dst,
                                  const struct S_particle* src);
+static void level4_copy_particle_to_buffer(struct oh_state* state,
+                                           struct S_particle* base,
+                                           int index,
+                                           const struct S_particle* src);
 static void init4s(int** sdid, const int nspec, const int maxfrac,
                    const dint npmax, const int minmargin, const int maxdensity,
                    int** totalp, int** pbase, int* maxlocalp, int* cbufsize,
@@ -195,6 +199,15 @@ static void
 level4_copy_particle(struct oh_state* state, struct S_particle* dst,
                      const struct S_particle* src) {
     oh_particle_buffer_copy(state->particle_adapter, dst, src);
+}
+
+static void
+level4_copy_particle_to_buffer(struct oh_state* state, struct S_particle* base,
+                               int index, const struct S_particle* src) {
+    level4_copy_particle(state,
+                         oh_particle_buffer_at(state->particle_adapter,
+                                               base, index),
+                         src);
 }
 
 #ifdef OH_POS_AWARE
@@ -1720,11 +1733,15 @@ static void make_brecv_sched(struct oh_state* state, const int psor2,
     ACT;\
     const dint bsbidx = -dst;\
     if (!Is_Pillar_Voxel(bsbidx)) {\
-      state->level4_boundary_send_buffer[bsbidx-1] = *P;  npg[g] = dst - 1;\
+      level4_copy_particle_to_buffer(state, state->level4_boundary_send_buffer,\
+                                     bsbidx - 1, P);\
+      npg[g] = dst - 1;\
     }\
     else {\
-      state->level4_boundary_send_buffer[Pillar_Lower(bsbidx)-1] =\
-        state->level4_boundary_send_buffer[Pillar_Upper(bsbidx)-1] = *P;\
+      level4_copy_particle_to_buffer(state, state->level4_boundary_send_buffer,\
+                                     Pillar_Lower(bsbidx) - 1, P);\
+      level4_copy_particle_to_buffer(state, state->level4_boundary_send_buffer,\
+                                     Pillar_Upper(bsbidx) - 1, P);\
       npg[g] = dst - (Add_Pillar_Voxel(1) + 1);\
     }\
   }\
@@ -1868,11 +1885,15 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
   if (dst<0) {\
     const dint bsbidx = -dst;\
     if (!Is_Pillar_Voxel(bsbidx)) {\
-      state->level4_boundary_send_buffer[bsbidx-1] = *P;  npg[g] = dst - 1;\
+      level4_copy_particle_to_buffer(state, state->level4_boundary_send_buffer,\
+                                     bsbidx - 1, P);\
+      npg[g] = dst - 1;\
     }\
     else {\
-      state->level4_boundary_send_buffer[Pillar_Lower(bsbidx)-1] =\
-        state->level4_boundary_send_buffer[Pillar_Upper(bsbidx)-1] = *P;\
+      level4_copy_particle_to_buffer(state, state->level4_boundary_send_buffer,\
+                                     Pillar_Lower(bsbidx) - 1, P);\
+      level4_copy_particle_to_buffer(state, state->level4_boundary_send_buffer,\
+                                     Pillar_Upper(bsbidx) - 1, P);\
       npg[g] = dst - (Add_Pillar_Voxel(1) + 1);\
     }\
   }\

@@ -100,6 +100,8 @@ When editing particle movement or mapping code, check for:
 
 - raw `part->nid`, `part->spec`, `part->x/y/z` access,
 - raw `state->particles[index]` or `state->send_buffer[index]` indexing,
+- raw `state->particles + index`, `state->send_buffer + index`,
+  `Particles[index]`, `SendBuf[index]`, or `sb[index] = ...` movement paths,
 - direct `struct S_particle` assignment instead of adapter copy helpers,
 - assumptions that `sizeof(struct S_particle)` is the particle stride,
 - counter updates that depend on `region >= 0`,
@@ -121,6 +123,10 @@ When editing particle movement or mapping code, check for:
   coordinates. Position access must pass through adapter offsets.
 - Level 4 particle-buffer allocation must use adapter stride, not
   `sizeof(struct S_particle)`, when custom adapters can be active.
+- Level 4 particle/send-buffer indexing and compaction must use
+  `level4_particle_at()`, `oh_particle_buffer_at()`,
+  `oh_particle_buffer_index()`, or `level4_copy_particle_to_buffer()` instead
+  of typed array indexing or pointer arithmetic.
 - Shared position offset arithmetic belongs in
   `oh_particle_adapter_position()` or
   `oh_particle_adapter_const_position()`, not in level-specific code.

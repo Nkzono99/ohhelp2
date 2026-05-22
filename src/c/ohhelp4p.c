@@ -838,7 +838,9 @@ static void exchange_particles4p(const int currmode, const int level, int reb,
     } else {
         move_and_sort_secondary(psold, psnew, trans, oldp, nacc, stats);
         state_xfer_particles4p(state, trans, psnew,
-                               state->send_buffer + nacc[0] + nacc[1]);
+                               oh_particle_buffer_at(state->particle_adapter,
+                                                     state->send_buffer,
+                                                     nacc[0] + nacc[1]));
         sort_received_particles(state, 1, psnew, stats);
     }
 }

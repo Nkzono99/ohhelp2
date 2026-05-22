@@ -104,3 +104,16 @@ When editing particle movement or mapping code, check for:
 - counter updates that depend on `region >= 0`,
 - injected-particle paths that need explicit removal accounting,
 - Level-4 packed id manipulation that has not yet moved behind adapter helpers.
+
+`tests/test_particle_contract_audit.sh` enforces the current boundary:
+
+- Level 2 implementation code must not directly read or write `nid` or `spec`.
+- Level 3 implementation code must not directly read or write `nid` or `spec`;
+  direct `x/y/z` access is limited to the default `S_particle` mapping adapter.
+- New direct particle-field access must not spread outside the known migration
+  files: `oh_particle_adapter.c`, `ohhelp3.c`, `ohhelp4p.c`, `ohhelp4s.c`, and
+  the legacy POS-aware headers.
+
+This test is intentionally not a declaration that Level 4 is finished. It keeps
+the remaining hidden contracts visible while preventing new v2 code from
+depending on them accidentally.

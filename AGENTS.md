@@ -40,3 +40,7 @@ binary layout, or behavior is not a constraint unless a task explicitly says so.
   weight-based, or a temporary compatibility shim.
 - If a change touches MPI communication or particle layout, verify at least
   compile-level coverage and add a focused sample or test when practical.
+- Treat `tests/test_particle_contract_audit.sh` as the guardrail for hidden
+  particle-layout contracts. If a new direct `nid`/`spec`/coordinate access is
+  intentional, update `doc/design/v2-particle-contracts.md` in the same change
+  and keep the access inside the documented migration boundary.

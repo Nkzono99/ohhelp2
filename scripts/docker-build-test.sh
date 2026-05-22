@@ -51,3 +51,5 @@ build/docker/test_oh_particle_adapter_callbacks
 mpicc -Iinclude -Isrc/c tests/test_oh_particle_buffer.c \
   src/c/oh_particle_adapter.c -o build/docker/test_oh_particle_buffer
 mpirun -n 1 build/docker/test_oh_particle_buffer
+
+bash tests/test_particle_contract_audit.sh

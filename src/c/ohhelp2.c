@@ -10,7 +10,7 @@
 #include "ohhelp1.h"
 #undef  EXTERN
 #define EXTERN
-#include "ohhelp2.h"
+#include "ohhelp2_internal.h"
 #include "oh_context_internal.h"
 #include "oh_particle_buffer.h"
 

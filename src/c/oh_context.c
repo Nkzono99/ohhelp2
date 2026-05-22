@@ -3,6 +3,7 @@
 */
 #include "ohhelp1.h"
 #include "ohhelp2.h"
+#include "ohhelp2_internal.h"
 #include "ohhelp3.h"
 #include "oh_context_internal.h"
 #include "oh_context.h"

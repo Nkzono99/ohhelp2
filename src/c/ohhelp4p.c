@@ -9,6 +9,7 @@
 #define EXTERN extern
 #include "ohhelp1.h"
 #include "ohhelp2.h"
+#include "ohhelp2_internal.h"
 #include "ohhelp3.h"
 #include "oh_particle_buffer.h"
 #include "ohhelp4_particle.h"

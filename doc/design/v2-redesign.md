@@ -137,6 +137,10 @@ The current code now has this first migration layer:
 - Level-2 POS-aware packed region decoding and secondary-to-primary conversion
   now live in `ohhelp2.c` state-aware helpers instead of public macros in
   `include/ohhelp2.h`.
+- Level-2 mutable implementation globals are declared from
+  `src/c/ohhelp2_internal.h` instead of the public `include/ohhelp2.h`; this
+  keeps the v2 public header focused on API declarations while the context
+  migration continues.
 - Obsolete Level-2 process-global particle helper wrappers were removed after
   movement and injection paths had migrated to the state-aware helper boundary.
 - Level-2 primary/secondary send-buffer movement now has state-backed entry

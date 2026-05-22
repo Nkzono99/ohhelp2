@@ -31,6 +31,7 @@ check_present() {
 check_absent '->(nid|spec)\b' src/c/ohhelp2.c
 check_absent '\b(Decl_Grid_Info|Subdomain_Id|Primarize_Id)\b' include/ohhelp2.h
 check_absent '\b(nidelement|subdomid|gridmask|loggrid)\b' include/ohhelp2.h
+check_absent '^EXTERN ' include/ohhelp2.h
 
 # Level 3 may touch S_particle.x/y/z only inside the default S_particle mapping
 # adapter.  Custom layouts must use offset-based or callback adapters.

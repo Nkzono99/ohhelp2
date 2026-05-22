@@ -116,6 +116,9 @@ When editing particle movement or mapping code, check for:
 - Public Level-2 headers must not publish POS-aware packed-id helper macros such
   as `Subdomain_Id()` or `Primarize_Id()`; those semantics belong behind
   state-aware implementation helpers.
+- Public Level-2 headers must not publish `EXTERN` mutable implementation
+  globals. During migration those declarations belong in internal headers under
+  `src/c/`.
 - Level 2 implementation code must not directly read or write `nid` or `spec`.
 - Level 3 implementation code must not directly read or write `nid` or `spec`;
   direct `x/y/z` access is limited to the default `S_particle` mapping adapter.

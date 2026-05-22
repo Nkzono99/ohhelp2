@@ -43,7 +43,7 @@ static int  transbound3(struct oh_state *state, int currmode, int stats,
 static int  map_irregular(double p0, double p1, double p2, int dim, int from,
                           int n);
 static int  map_irregular_range(double p, int dim, int from, int to);
-static void install_default_level3_particle_maps(void);
+static void install_default_level3_particle_maps(struct oh_state *state);
 static oh_particle_region_t default_level3_map_particle_to_neighbor(
   const oh_particle_adapter *adapter, void *particle,
   int primary_or_secondary);
@@ -159,6 +159,7 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
           mycommc, mycommf, nbor, pcoord, stats, repiter, verbose);
   excludeLevel2 = skip2;
   state = oh1_state();
+  state->exclude_level2 = excludeLevel2;
   nn = state->n_of_nodes;
 
   if (!sd) {
@@ -203,14 +204,16 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
   }
   oh1_sync_default_state();
   init_fields(ft, cfields, cfid, ct, nbound, sd[state->my_rank], fsizes);
-  install_default_level3_particle_maps();
+  install_default_level3_particle_maps(state);
   oh1_sync_default_state();
 }
 static void
-install_default_level3_particle_maps(void) {
-  if (excludeLevel2 || useCustomParticleAdapter) return;
-  ParticleAdapter.map_to_neighbor = default_level3_map_particle_to_neighbor;
-  ParticleAdapter.map_to_subdomain = default_level3_map_particle_to_subdomain;
+install_default_level3_particle_maps(struct oh_state *state) {
+  if (state->exclude_level2 || state->use_custom_particle_adapter) return;
+  state->particle_adapter->map_to_neighbor =
+    default_level3_map_particle_to_neighbor;
+  state->particle_adapter->map_to_subdomain =
+    default_level3_map_particle_to_subdomain;
 }
 void
 oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,

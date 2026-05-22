@@ -89,6 +89,8 @@ check_absent '->(nid|spec)\b' src/c/ohhelp3.c
 check_absent '^EXTERN ' include/ohhelp3.h
 check_absent '\b(init3|set_field_descriptors|clear_border_exchange|map_irregular_subdomain)\s*\(' include/ohhelp3.h
 check_present 'void \*\*pbuf' include/ohhelp3.h
+check_absent '\bParticleAdapter\.map_to_(neighbor|subdomain)\b' \
+  src/c/ohhelp3.c
 
 # Level 4 still has packed-id semantics, but implementation code must reach
 # them through local helpers so the representation can later move behind the

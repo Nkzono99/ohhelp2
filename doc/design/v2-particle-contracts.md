@@ -119,6 +119,9 @@ When editing particle movement or mapping code, check for:
 - Public Level-2 headers must not publish `EXTERN` mutable implementation
   globals. During migration those declarations belong in internal headers under
   `src/c/`.
+- Public Level-2 headers must not publish implementation helper prototypes
+  used only by higher library levels; those declarations belong in
+  `src/c/ohhelp2_internal.h`.
 - Public Level-1 headers must not publish mutable implementation globals or the
   default communicator storage. During migration those declarations belong in
   `src/c/ohhelp1_internal.h`; public code should use API calls rather than

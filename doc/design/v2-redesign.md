@@ -152,6 +152,10 @@ The current code now has this first migration layer:
   `src/c/ohhelp2_internal.h` instead of the public `include/ohhelp2.h`; this
   keeps the v2 public header focused on API declarations while the context
   migration continues.
+- Level-2 implementation-entry prototypes used by Level-3/4 (`init2`,
+  `transbound2`, particle exchange, and send-buffer helpers) now live in
+  `src/c/ohhelp2_internal.h`; `include/ohhelp2.h` exposes only the simulator
+  API and Fortran-compatible entry points.
 - Obsolete Level-2 process-global particle helper wrappers were removed after
   movement and injection paths had migrated to the state-aware helper boundary.
 - Level-2 primary/secondary send-buffer movement now has state-backed entry

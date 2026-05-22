@@ -226,6 +226,51 @@ OH_DEFINE_PARTICLE_ADAPTER_SINGLE_SPECIES_ACCESSORS(my_particle,
                                                     region)
 ```
 
+## Level 3 mapping callback の標準形
+
+Level 3 では、利用側が `my_map_to_neighbor` や `my_map_to_subdomain` を
+手書きしなくてもよい標準実装を提供しています。
+
+- 既存 `S_particle` を使う場合: `oh3_init()` の中で、`S_particle.x/y/z` を読む
+  default mapping callback が自動的に adapter へ入ります。
+- custom particle layout を使う場合: `oh_set_particle_position_fields()` を
+  `oh_set_particle_adapter()` より前に呼ぶと、指定した座標 offset を使う
+  `map_to_neighbor` / `map_to_subdomain` が adapter に設定されます。
+
+```c
+oh_particle_adapter adapter;
+MPI_Datatype my_particle_mpi_type;
+
+oh_particle_adapter_make_byte_type(sizeof(struct my_particle),
+                                   &my_particle_mpi_type);
+
+adapter = oh_default_particle_adapter(my_particle_mpi_type);
+adapter.stride = sizeof(struct my_particle);
+oh_particle_adapter_use_int_fields(&adapter,
+                                   offsetof(struct my_particle, region),
+                                   offsetof(struct my_particle, species));
+oh_set_particle_position_fields(&adapter,
+                                offsetof(struct my_particle, x),
+                                offsetof(struct my_particle, y),
+                                offsetof(struct my_particle, z));
+oh_set_particle_adapter(&adapter);
+oh_init(...);
+```
+
+粒子 push 中に利用側で destination region を明示的に更新する場合も、この
+callback をそのまま使えます。
+
+```c
+int dst = (int)adapter.map_to_neighbor(&adapter, &p, primary_or_secondary);
+
+if (dst >= 0) {
+    adapter.set_region(&adapter, &p, dst, primary_or_secondary);
+}
+```
+
+`map_to_neighbor` は周期境界を跨ぐ場合に座標 field を wrap することがあります。
+これは既存 `oh3_map_particle_to_neighbor()` と同じ挙動です。
+
 `OH_DEFINE_PARTICLE_ADAPTER_REGION_MAPPING()` は、利用側が particle push 中に
 `region` field を destination region へ更新する設計向けの最小実装です。
 `oh_particle_adapter_use_position_fields()` は position offset だけを設定します。

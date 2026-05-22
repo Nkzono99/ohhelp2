@@ -159,12 +159,17 @@ pbuf = raw_pbuf;
 
 ```c
 if (particle_left_subdomain(&p, sdoms[sdid[ps]])) {
-    int dst = oh_map_particle_to_neighbor(&p.x, &p.y, &p.z, ps);
+    int dst = (int)adapter.map_to_neighbor(&adapter, &p, ps);
     adapter.set_region(&adapter, &p, dst, ps);
     nphgram[species][self]--;
     nphgram[species][dst]++;
 }
 ```
+
+`oh_set_particle_position_fields()` を使った adapter では、`map_to_neighbor` と
+`map_to_subdomain` は OhHelp が持つ Level 3 の subdomain geometry を使う
+標準実装になります。既存 `S_particle` を使う場合は `oh_init()` 内で同等の
+default mapping が自動設定されます。
 
 場データ同期:
 

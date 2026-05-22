@@ -376,6 +376,8 @@ mapped-particle validation paths use those helpers instead of raw
 `struct S_particle` pointer arithmetic and assignments.
 Level-4s particle storage allocation now uses the active adapter stride for the
 main particle/send-buffer pair and boundary-send staging buffer.
+Level-4p also uses adapter-aware addressing when temporarily offsetting the
+primary send buffer for direct primary exchange.
 
 Level-4 now mirrors the POS-aware packed-grid id parameters (`gridMask` and
 `logGrid`) into `oh_state` as `grid_mask` and `log_grid`. The Level-4

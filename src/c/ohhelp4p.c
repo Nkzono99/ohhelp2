@@ -635,7 +635,9 @@ static int try_primary4p(const int currmode, const int level, const int stats) {
         } else {
             struct S_particle* sbuf = state->send_buffer;
             move_and_sort_primary(state, npg, (oldp >= 0 ? 1 : 0), stats);
-            SendBuf = state->send_buffer + state->total_particles_global[me];
+            SendBuf = oh_particle_buffer_at(state->particle_adapter,
+                                            state->send_buffer,
+                                            state->total_particles_global[me]);
             exchange_primary_particles(currmode, stats);
             SendBuf = sbuf;
             sort_received_particles(oh4p_state(), 0, 0, stats);

@@ -24,7 +24,10 @@ typedef struct oh_particle_adapter {
 
 ```c
 oh_particle_adapter adapter;
-MPI_Datatype my_particle_mpi_type = make_my_particle_mpi_type();
+MPI_Datatype my_particle_mpi_type;
+
+oh_particle_adapter_make_byte_type(sizeof(struct my_particle),
+                                   &my_particle_mpi_type);
 
 adapter.stride = sizeof(struct my_particle);
 adapter.mpi_type = my_particle_mpi_type;
@@ -45,29 +48,23 @@ OhHelp は MPI count/displacement をこの datatype の単位で扱うため、
 extent は必ず `adapter.stride` と一致させます。
 
 粒子が pointer を含まない plain data で、padding ごと送ってよい場合は、
-`MPI_BYTE` の contiguous type を作り、念のため `MPI_Type_create_resized()` で
-extent を `sizeof(struct my_particle)` に固定するのが最も単純です。
+`oh_particle_adapter_make_byte_type()` を使うのが標準です。この helper は
+`MPI_BYTE` の contiguous type を作り、`MPI_Type_create_resized()` で extent を
+指定した stride に固定し、commit 済みの datatype を返します。
 
 ```c
-static MPI_Datatype
-make_my_particle_mpi_type(void) {
-    MPI_Datatype raw_type;
-    MPI_Datatype particle_type;
+MPI_Datatype my_particle_mpi_type;
 
-    MPI_Type_contiguous((int)sizeof(struct my_particle),
-                        MPI_BYTE, &raw_type);
-    MPI_Type_create_resized(raw_type, 0,
-                            (MPI_Aint)sizeof(struct my_particle),
-                            &particle_type);
-    MPI_Type_commit(&particle_type);
-    MPI_Type_free(&raw_type);
-    return particle_type;
+if (oh_particle_adapter_make_byte_type(sizeof(struct my_particle),
+                                       &my_particle_mpi_type) != MPI_SUCCESS) {
+    abort();
 }
 ```
 
-送る field を明示したい場合は、`MPI_Get_address()` と
+送る field を明示したい場合は、利用側で `MPI_Get_address()` と
 `MPI_Type_create_struct()` を使います。この場合も最後に resized type を作り、
-extent を `sizeof(struct my_particle)` に合わせます。
+extent を `sizeof(struct my_particle)` に合わせます。pointer や process-local
+handle を含む粒子では、こちらの方式で通信対象 field を明示してください。
 
 ```c
 static MPI_Datatype
@@ -124,7 +121,10 @@ OH_DEFINE_PARTICLE_ADAPTER_REGION_MAPPING(my_particle, struct my_particle,
                                           region)
 
 oh_particle_adapter adapter;
-MPI_Datatype my_particle_mpi_type = make_my_particle_mpi_type();
+MPI_Datatype my_particle_mpi_type;
+
+oh_particle_adapter_make_byte_type(sizeof(struct my_particle),
+                                   &my_particle_mpi_type);
 
 adapter.stride = sizeof(struct my_particle);
 adapter.mpi_type = my_particle_mpi_type;

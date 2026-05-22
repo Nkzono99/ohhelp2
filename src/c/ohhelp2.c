@@ -167,8 +167,9 @@ init_particle_adapter(void) {
     T_Particle = CustomTParticle;
     ParticleAdapter = oh_default_particle_adapter(T_Particle);
   } else {
-    MPI_Type_contiguous(sizeof(struct S_particle), MPI_BYTE, &T_Particle);
-    MPI_Type_commit(&T_Particle);
+    if (oh_particle_adapter_make_byte_type(sizeof(struct S_particle),
+                                           &T_Particle) != MPI_SUCCESS)
+      local_errstop("failed to create default particle MPI datatype");
     ParticleAdapter = oh_default_particle_adapter(T_Particle);
   }
   if (!oh_particle_adapter_validate(&ParticleAdapter))

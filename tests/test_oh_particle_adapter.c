@@ -13,8 +13,10 @@ main(int argc, char **argv) {
   struct S_particle particle;
 
   MPI_Init(&argc, &argv);
-  MPI_Type_contiguous(sizeof(struct S_particle), MPI_BYTE, &particle_type);
-  MPI_Type_commit(&particle_type);
+  assert(oh_particle_adapter_make_byte_type(0, &particle_type) != MPI_SUCCESS);
+  assert(particle_type == MPI_DATATYPE_NULL);
+  assert(oh_particle_adapter_make_byte_type(sizeof(struct S_particle),
+                                            &particle_type) == MPI_SUCCESS);
 
   adapter = oh_default_particle_adapter(particle_type);
   assert(oh_particle_adapter_validate(&adapter));
@@ -27,8 +29,8 @@ main(int argc, char **argv) {
   adapter.set_region(&particle, 5, 0);
   assert(particle.nid == 5);
 
-  MPI_Type_contiguous(sizeof(struct S_particle)+8, MPI_BYTE, &padded_type);
-  MPI_Type_commit(&padded_type);
+  assert(oh_particle_adapter_make_byte_type(sizeof(struct S_particle)+8,
+                                            &padded_type) == MPI_SUCCESS);
   adapter.mpi_type = padded_type;
   assert(!oh_particle_adapter_validate(&adapter));
   adapter.stride = sizeof(struct S_particle)+8;

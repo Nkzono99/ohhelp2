@@ -68,6 +68,7 @@ typedef struct oh_particle_adapter {
   }
 
 int oh_particle_adapter_validate(const oh_particle_adapter *adapter);
+int oh_particle_adapter_make_byte_type(size_t stride, MPI_Datatype *type);
 oh_particle_adapter oh_default_particle_adapter(MPI_Datatype mpi_type);
 
 #ifdef __cplusplus

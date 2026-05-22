@@ -359,6 +359,9 @@ Level-2 buffer allocation and internal element addressing now use
 `sizeof(struct S_particle)`. Adapter validation also requires the MPI datatype
 extent to match the stride, because `MPI_Alltoallv` displacements are expressed
 in datatype units.
+`oh_particle_adapter_make_byte_type()` now provides the standard helper for
+building a commit-ready byte MPI datatype whose extent matches the adapter
+stride, and the default `S_particle` datatype uses that same helper.
 
 The stride-aware storage helpers live in `src/c/oh_particle_buffer.h` so
 Level-2 movement code can share one implementation for element addressing,

@@ -1,6 +1,8 @@
 /* File: oh_particle_adapter.c
    v2 particle layout adapter draft.
 */
+#include <limits.h>
+
 #include "oh_particle_adapter.h"
 #include "oh_part.h"
 
@@ -48,6 +50,34 @@ oh_particle_adapter_validate(const oh_particle_adapter *adapter) {
   if (!adapter->get_region || !adapter->set_region) return 0;
   if (!adapter->get_species) return 0;
   return 1;
+}
+
+int
+oh_particle_adapter_make_byte_type(size_t stride, MPI_Datatype *type) {
+  MPI_Datatype raw_type = MPI_DATATYPE_NULL;
+  MPI_Datatype particle_type = MPI_DATATYPE_NULL;
+  int err;
+
+  if (!type) return MPI_ERR_ARG;
+  *type = MPI_DATATYPE_NULL;
+  if (stride == 0 || stride > (size_t)INT_MAX) return MPI_ERR_COUNT;
+
+  err = MPI_Type_contiguous((int)stride, MPI_BYTE, &raw_type);
+  if (err != MPI_SUCCESS) return err;
+
+  err = MPI_Type_create_resized(raw_type, 0, (MPI_Aint)stride,
+                                &particle_type);
+  MPI_Type_free(&raw_type);
+  if (err != MPI_SUCCESS) return err;
+
+  err = MPI_Type_commit(&particle_type);
+  if (err != MPI_SUCCESS) {
+    MPI_Type_free(&particle_type);
+    return err;
+  }
+
+  *type = particle_type;
+  return MPI_SUCCESS;
 }
 
 oh_particle_adapter

@@ -85,6 +85,24 @@ oh_particle_adapter adapter = make_my_particle_adapter();
 oh_set_particle_adapter(&adapter);
 ```
 
+region/species が整数 field で表現されている場合は、callback を手書きせずに
+offset helper を使えます。`int` field なら `oh_particle_adapter_use_int_fields()`、
+`long` / `long long` field や `OH_BIG_SPACE` を想定する region field なら
+`oh_particle_adapter_use_integer_fields()` を使います。
+
+```c
+MPI_Datatype my_particle_mpi_type;
+
+oh_particle_adapter_make_byte_type(sizeof(struct my_particle),
+                                   &my_particle_mpi_type);
+adapter = oh_default_particle_adapter(my_particle_mpi_type);
+adapter.stride = sizeof(struct my_particle);
+oh_particle_adapter_use_integer_fields(
+    &adapter,
+    offsetof(struct my_particle, region), sizeof(((struct my_particle*)0)->region),
+    offsetof(struct my_particle, species), sizeof(((struct my_particle*)0)->species));
+```
+
 custom adapter を使わない状態に戻す場合は、次の `oh_init()` より前に
 `oh_set_particle_adapter(NULL)` を呼びます。これは default `S_particle` adapter と
 default byte MPI datatype へ戻す操作です。

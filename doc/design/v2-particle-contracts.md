@@ -18,6 +18,16 @@ For common C structs with `int` fields, v2 provides:
 - `oh_particle_adapter_use_int_fields(adapter, region_offset, species_offset)`
 - `oh_particle_adapter_use_single_species_int_region(adapter, region_offset)`
 
+For common C structs with wider signed integer fields, v2 also provides:
+
+- `oh_particle_adapter_use_integer_fields(adapter, region_offset, region_size,
+  species_offset, species_size)`
+- `oh_particle_adapter_use_single_species_integer_region(adapter,
+  region_offset, region_size)`
+
+Use the width-aware helpers when the region field may need to carry
+`OH_BIG_SPACE` or Level-4 packed ids.
+
 The legacy `S_particle.nid` semantics are:
 
 - `nid >= 0`: particle belongs to a region/subdomain.

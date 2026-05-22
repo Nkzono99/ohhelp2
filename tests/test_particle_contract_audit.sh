@@ -196,6 +196,7 @@ check_present 'oh_inject_particle_get\(\)' doc/design/v2-particle-contracts.md
 check_present 'remap_injected_particle\(\)` is additive' \
   doc/design/v2-particle-contracts.md
 check_present '二重計上' doc/usage/v2-particle-and-weight.md
+check_present 'remap is additive' AGENTS.md
 check_present 'packed-grid id operations' doc/design/v2-particle-contracts.md
 check_present 'level4_secondary_region_offset' src/c/ohhelp4_particle.h
 check_present 'OH_LEVEL4_PARTICLE_REMOVED' src/c/ohhelp4_particle.h

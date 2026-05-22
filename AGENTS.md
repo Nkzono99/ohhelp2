@@ -44,3 +44,7 @@ binary layout, or behavior is not a constraint unless a task explicitly says so.
   particle-layout contracts. If a new direct `nid`/`spec`/coordinate access is
   intentional, update `doc/design/v2-particle-contracts.md` in the same change
   and keep the access inside the documented migration boundary.
+- Treat injected-particle accounting as part of the particle contract. In
+  Level 2/3, remap/remove APIs operate on the injected copy inside OhHelp's
+  particle buffer, and remap is additive; avoid examples or code paths that
+  remap an already-counted injected particle without first removing its count.

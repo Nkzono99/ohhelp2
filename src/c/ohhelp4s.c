@@ -640,7 +640,7 @@ static int try_primary4s(const int currmode, const int level, const int stats) {
     struct oh_state* state = oh4s_state();
     const int oldp = state->region_id[1];
 
-    if (!try_primary1(currmode, level, stats)) return(FALSE);
+    if (!try_primary1_state(state, currmode, level, stats)) return(FALSE);
     state = oh4s_state();
     exchange_particles4s(currmode, 0, level, 0, oldp, -1, stats);
     if (Mode_PS(currmode))  update_real_neighbors(state, URN_PRI, 0, -1, -1);
@@ -650,7 +650,8 @@ static int try_primary4s(const int currmode, const int level, const int stats) {
 static int try_stable4s(const int currmode, const int level, const int stats) {
     struct oh_state* state = oh4s_state();
 
-    if (!try_stable1(currmode, (Mode_Acc(currmode) ? level : -level), stats))
+    if (!try_stable1_state(state, currmode,
+                           (Mode_Acc(currmode) ? level : -level), stats))
         return(FALSE);
     state = oh4s_state();
     exchange_particles4s(currmode, 1, level, 0, state->region_id[1],
@@ -665,7 +666,7 @@ static void rebalance4s(const int currmode, const int level, const int stats) {
     const int ninj = state->n_of_injections;
     int s, n, newp;
 
-    rebalance1(currmode, (amode ? level : -level), stats);
+    rebalance1_state(state, currmode, (amode ? level : -level), stats);
     state = oh4s_state();
     newp = amode ? state->nodes[me].parentid : state->nodes_next[me].parentid;
     if (ninj && amode && oldp != newp) {
@@ -720,21 +721,22 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
             int i;
             const int nnns2 = state->n_of_nodes * state->n_of_species * 2;
             if (reb) {
-                exchange_particles(state->sec_recv_list, *state->sec_rl_size,
-                                   oldp, 0, currmode, stats);
+                exchange_particles_state(state, state->sec_recv_list,
+                                         *state->sec_rl_size,
+                                         oldp, 0, currmode, stats);
                 update_descriptors(state, oldp, newp);
                 set_grid_descriptor(state, 1, newp);
                 state = oh4s_state();
                 update_neighbors(state, 1);
                 update_real_neighbors(state, URN_SEC, 0, -1, newp);
             } else
-                exchange_particles(state->comm_list + state->sl_head_tail[1],
-                                   state->sec_sl_head_tail[0], oldp, 0,
-                                   currmode, stats);
+                exchange_particles_state(
+                    state, state->comm_list + state->sl_head_tail[1],
+                    state->sec_sl_head_tail[0], oldp, 0, currmode, stats);
             for (i = 0; i < nnns2; i++)  state->n_of_send[i] = 0;
         } else {
-            move_to_sendbuf_primary(Mode_PS(currmode), stats);
-            exchange_primary_particles(currmode, stats);
+            move_to_sendbuf_primary_state(state, Mode_PS(currmode), stats);
+            exchange_primary_particles_state(state, currmode, stats);
         }
         state = oh4s_state();
         count_population(state, nextmode, (Parent_New(pcode) ? 1 : 0), 0);

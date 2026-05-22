@@ -35,10 +35,20 @@ void init2(int **sdid, int nspec, int maxfrac, int **nphgram,
            int **nbor, int *pcoord, int stats, int repiter, int verbose);
 int  transbound2(int currmode, int stats, int level);
 void exchange_primary_particles(int currmode, int stats);
+void exchange_primary_particles_state(struct oh_state *state, int currmode,
+                                      int stats);
 void move_to_sendbuf_primary(int secondary, int stats);
+void move_to_sendbuf_primary_state(struct oh_state *state, int secondary,
+                                   int stats);
 void set_sendbuf_disps(int secondary, int parent);
+void set_sendbuf_disps_state(struct oh_state *state, int secondary,
+                             int parent);
 void exchange_particles(struct S_commlist *secrlist, int secrlsize,
                         int oldparent, int neighboring, int currmode,
                         int stats);
+void exchange_particles_state(struct oh_state *state,
+                              struct S_commlist *secrlist, int secrlsize,
+                              int oldparent, int neighboring, int currmode,
+                              int stats);
 
 #endif

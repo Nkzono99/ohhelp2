@@ -31,12 +31,6 @@ static void  allocate_particle_base(int **pbase);
 static void  allocate_level2_work_buffers(int ns, int nn, int nnns,
                                           int maxlocalp);
 static int   finish_transbound2_state(struct oh_state *state, int ret);
-static void  exchange_primary_particles_state(struct oh_state *state,
-                                              int currmode, int stats);
-static void  set_sendbuf_disps_state(struct oh_state *state, int secondary,
-                                     int parent);
-static void  move_to_sendbuf_primary_state(struct oh_state *state,
-                                           int secondary, int stats);
 static void  move_to_sendbuf_secondary(int secondary, int stats);
 static void  move_to_sendbuf_secondary_state(struct oh_state *state,
                                              int secondary, int stats);
@@ -261,8 +255,7 @@ try_primary2(int currmode, int level, int stats) {
 static int
 try_primary2_state(struct oh_state *state, int currmode, int level, int stats) {
 
-  if (!try_primary1(currmode, level, stats))  return(FALSE);
-  state = oh1_state();
+  if (!try_primary1_state(state, currmode, level, stats))  return(FALSE);
   move_to_sendbuf_primary_state(state, Mode_PS(currmode), stats);
   exchange_primary_particles_state(state, currmode, stats);
   state->primary_parts = state->total_particles_global[state->my_rank];
@@ -274,7 +267,7 @@ void
 exchange_primary_particles(int currmode, int stats) {
   exchange_primary_particles_state(oh1_state(), currmode, stats);
 }
-static void
+void
 exchange_primary_particles_state(struct oh_state *state, int currmode,
                                  int stats) {
   int i, s, nn=state->n_of_nodes, ns=state->n_of_species, nnns=nn*ns;
@@ -345,12 +338,11 @@ try_stable2(int currmode, int level, int stats) {
 static int
 try_stable2_state(struct oh_state *state, int currmode, int level, int stats) {
 
-  if (!try_stable1(currmode, level, stats)) return(FALSE);
-  state = oh1_state();
-  exchange_particles(state->comm_list+state->sl_head_tail[1],
-                     state->sec_sl_head_tail[0],
-                     state->nodes[state->my_rank].parentid,
-                     currmode==MODE_NORM_SEC, currmode, stats);
+  if (!try_stable1_state(state, currmode, level, stats)) return(FALSE);
+  exchange_particles_state(state, state->comm_list+state->sl_head_tail[1],
+                           state->sec_sl_head_tail[0],
+                           state->nodes[state->my_rank].parentid,
+                           currmode==MODE_NORM_SEC, currmode, stats);
   return(TRUE);
 }
 static void
@@ -361,26 +353,25 @@ static void
 rebalance2_state(struct oh_state *state, int currmode, int level, int stats) {
   int me, ns, s, oldp, newp;
 
-  rebalance1(currmode, level, stats);
-  state = oh1_state();
+  rebalance1_state(state, currmode, level, stats);
   me=state->my_rank;  ns=state->n_of_species;
   oldp = state->nodes_next[me].parentid;
   newp = state->nodes[me].parentid;
   if (state->n_of_injections && oldp>=0 && oldp!=newp)
     for (s=0; s<ns; s++)  state->injected_particles[ns+s] = 0;
   if (Mode_Is_Norm(currmode))
-    exchange_particles(state->sec_recv_list, *state->sec_rl_size,
-                       Mode_PS(currmode) ? oldp : -1,
-                       1, currmode, stats);
+    exchange_particles_state(state, state->sec_recv_list, *state->sec_rl_size,
+                             Mode_PS(currmode) ? oldp : -1,
+                             1, currmode, stats);
   else
-    exchange_particles(state->sec_recv_list, *state->sec_rl_size, -1, 0,
-                       currmode, stats);
+    exchange_particles_state(state, state->sec_recv_list, *state->sec_rl_size,
+                             -1, 0, currmode, stats);
 }
 void
 move_to_sendbuf_primary(int secondary, int stats) {
   move_to_sendbuf_primary_state(oh1_state(), secondary, stats);
 }
-static void
+void
 move_to_sendbuf_primary_state(struct oh_state *state, int secondary,
                               int stats) {
   int me=state->my_rank, ns=state->n_of_species, nn=state->n_of_nodes;
@@ -514,7 +505,7 @@ void
 set_sendbuf_disps(int secondary, int parent) {
   set_sendbuf_disps_state(oh1_state(), secondary, parent);
 }
-static void
+void
 set_sendbuf_disps_state(struct oh_state *state, int secondary, int parent) {
   int nn=state->n_of_nodes, ns=state->n_of_species, me=state->my_rank;
   int *sendbuf_disps=state->send_buffer_disps;
@@ -542,13 +533,18 @@ set_sendbuf_disps_state(struct oh_state *state, int secondary, int parent) {
 void
 exchange_particles(struct S_commlist *secrlist, int secrlsize, int oldparent,
                    int neighboring, int currmode, int stats) {
-  struct oh_state *state;
+  exchange_particles_state(oh1_state(), secrlist, secrlsize, oldparent,
+                           neighboring, currmode, stats);
+}
+void
+exchange_particles_state(struct oh_state *state, struct S_commlist *secrlist,
+                         int secrlsize, int oldparent, int neighboring,
+                         int currmode, int stats) {
   int me, nn, ns, nnns;
   int newparent;
   int s, i, req;
 
-  move_to_sendbuf_secondary(Mode_PS(currmode), stats);
-  state = oh1_state();
+  move_to_sendbuf_secondary_state(state, Mode_PS(currmode), stats);
   me=state->my_rank;  nn=state->n_of_nodes;  ns=state->n_of_species;
   nnns=nn*ns;
   newparent=state->nodes[me].parentid;

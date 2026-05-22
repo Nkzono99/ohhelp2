@@ -393,6 +393,11 @@ The current code now has this first migration layer:
   state-backed transfer-count and particle-transfer helpers. Shadow grid
   descriptors and some Level-4-local schedule tables remain follow-up migration
   targets.
+- Level-4p/4s transition paths now call the Level-1/2 state-backed internal
+  entry points for primary/stable/rebalance decisions, primary send-buffer
+  staging, primary exchange, displacement setup, and secondary particle
+  exchange. The legacy wrappers remain for older internal callers, but Level-4
+  no longer re-enters the default context facade for these steps.
 
 ## Particle Layout
 

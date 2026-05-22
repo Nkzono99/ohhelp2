@@ -584,12 +584,12 @@ static int try_primary4p(const int currmode, const int level, const int stats) {
     dint*** npg = Mode_PS(currmode) ? state->level4_particle_grid_total :
                                       state->level4_particle_grid;
 
-    if (!try_primary1(currmode, level, stats)) return(FALSE);
+    if (!try_primary1_state(state, currmode, level, stats)) return(FALSE);
     state = oh4p_state();
     if (Mode_PS(currmode))  update_real_neighbors(state, URN_PRI, 0, -1, -1);
     if (Mode_Acc(currmode)) {
-        move_to_sendbuf_primary(Mode_PS(currmode), stats);
-        exchange_primary_particles(currmode, stats);
+        move_to_sendbuf_primary_state(state, Mode_PS(currmode), stats);
+        exchange_primary_particles_state(state, currmode, stats);
         count_population(oh4p_state(), 0, 0, stats);
         sort_particles(oh4p_state(), NULL, 0, 0, 0);
     } else {
@@ -601,17 +601,18 @@ static int try_primary4p(const int currmode, const int level, const int stats) {
         }
         if (state->total_particles_global[me] + nsend >
             (dint)state->n_of_local_particles_limit) {
-            move_to_sendbuf_primary(Mode_PS(currmode), stats);
-            exchange_primary_particles(currmode, stats);
+            move_to_sendbuf_primary_state(state, Mode_PS(currmode), stats);
+            exchange_primary_particles_state(state, currmode, stats);
             sort_particles(oh4p_state(), npg, 0, 0, stats);
         } else {
             struct S_particle* sbuf = state->send_buffer;
             move_and_sort_primary(state, npg, (oldp >= 0 ? 1 : 0), stats);
-            SendBuf = oh_particle_buffer_at(state->particle_adapter,
-                                            state->send_buffer,
-                                            state->total_particles_global[me]);
-            exchange_primary_particles(currmode, stats);
-            SendBuf = sbuf;
+            SendBuf = state->send_buffer =
+                oh_particle_buffer_at(state->particle_adapter,
+                                      state->send_buffer,
+                                      state->total_particles_global[me]);
+            exchange_primary_particles_state(state, currmode, stats);
+            SendBuf = state->send_buffer = sbuf;
             sort_received_particles(oh4p_state(), 0, 0, stats);
         }
     }
@@ -624,7 +625,8 @@ static int try_primary4p(const int currmode, const int level, const int stats) {
 static int try_stable4p(const int currmode, const int level, const int stats) {
     struct oh_state* state = oh4p_state();
 
-    if (!try_stable1(currmode, (Mode_Acc(currmode) ? level : -level), stats))
+    if (!try_stable1_state(state, currmode,
+                           (Mode_Acc(currmode) ? level : -level), stats))
         return(FALSE);
     state = oh4p_state();
     exchange_particles4p(currmode, level, 0, state->region_id[1],
@@ -639,7 +641,7 @@ static void rebalance4p(const int currmode, const int level, const int stats) {
     const int ninj = state->n_of_injections;
     int s, n, newp;
 
-    rebalance1(currmode, (amode ? level : -level), stats);
+    rebalance1_state(state, currmode, (amode ? level : -level), stats);
     state = oh4p_state();
     newp = amode ? state->nodes[me].parentid : state->nodes_next[me].parentid;
     if (ninj && amode && oldp != newp) {
@@ -690,17 +692,19 @@ static void exchange_particles4p(const int currmode, const int level, int reb,
         int i;
         const int nnns2 = state->n_of_nodes * state->n_of_species * 2;
         if (reb) {
-            exchange_particles(state->sec_recv_list, *state->sec_rl_size,
-                               oldp, 0, currmode, stats);
+            exchange_particles_state(state, state->sec_recv_list,
+                                     *state->sec_rl_size,
+                                     oldp, 0, currmode, stats);
             update_descriptors(state, oldp, newp);
             set_grid_descriptor(state, 1, newp);
             state = oh4p_state();
             update_neighbors(state, 1);
             update_real_neighbors(state, URN_SEC, 0, -1, newp);
         } else
-            exchange_particles(state->comm_list + state->sl_head_tail[1],
-                               state->sec_sl_head_tail[0], oldp, 0,
-                               currmode, stats);
+            exchange_particles_state(state,
+                                     state->comm_list + state->sl_head_tail[1],
+                                     state->sec_sl_head_tail[0], oldp, 0,
+                                     currmode, stats);
         for (i = 0; i < nnns2; i++)  state->n_of_send[i] = 0;
         count_population(state, 1, (Parent_New(pcode) ? 1 : 0), 0);
         reduce_population(state, mpi_allreduce_wrapper);
@@ -1707,7 +1711,7 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
     }
     state->recv_buffer_bases[s] = level4_particle_at(state, rbb_index);
     send_base = nacc;
-    set_sendbuf_disps(psold, -1);
+    set_sendbuf_disps_state(state, psold, -1);
     for (ps = 0, t = 0, p = state->particles, mysd = me; ps <= psold;
          ps++, mysd = -1) {
         for (s = 0, sbd = state->send_buffer_disps; s < ns;
@@ -1753,7 +1757,7 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
         }
         p = oh_particle_buffer_at(state->particle_adapter, p, 1);
     }
-    set_sendbuf_disps(psold, -1);
+    set_sendbuf_disps_state(state, psold, -1);
 }
 
 static void sort_received_particles(struct oh_state* state, const int nextmode,

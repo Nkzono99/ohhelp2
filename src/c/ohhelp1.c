@@ -69,12 +69,6 @@ static void  print_stats_state(struct oh_state *state,
                                struct S_statstotal *stotal, int cstep, int n);
 static void  stats_reduce_time(void* inarg, void* ioarg, int* len,
                                MPI_Datatype* type);
-static int   try_primary1_state(struct oh_state *state, int currmode,
-                                int level, int stats);
-static int   try_stable1_state(struct oh_state *state, int currmode,
-                               int level, int stats);
-static void  rebalance1_state(struct oh_state *state, int currmode,
-                              int level, int stats);
 static void  build_new_comm_state(struct oh_state *state, int currmode,
                                   int level, int nbridx, int stats);
 static void  oh1_broadcast_state(struct oh_state *state, void* pbuf,
@@ -543,7 +537,7 @@ int
 try_primary1(int currmode, int level, int stats) {
   return try_primary1_state(oh1_state(), currmode, level, stats);
 }
-static int
+int
 try_primary1_state(struct oh_state *state, int currmode, int level, int stats) {
   int nn=state->n_of_nodes, ns=state->n_of_species, nnns=nn*ns;
   int me=state->my_rank, nlpmax=state->n_of_local_particles_max;
@@ -597,7 +591,7 @@ int
 try_stable1(int currmode, int level, int stats) {
   return try_stable1_state(oh1_state(), currmode, level, stats);
 }
-static int
+int
 try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
   int nn=state->n_of_nodes;
   int nlpmax=state->n_of_local_particles_max;
@@ -1116,7 +1110,7 @@ void
 rebalance1(int currmode, int level, int stats) {
   rebalance1_state(oh1_state(), currmode, level, stats);
 }
-static void
+void
 rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   int nn=state->n_of_nodes;
   dint nofp=state->n_of_particles;

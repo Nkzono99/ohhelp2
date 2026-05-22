@@ -191,7 +191,7 @@ int  oh4p_remap_particle_to_subdomain(struct S_particle *part, const int ps,
 #define \
 oh_init(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20,A21,A22,A23,A24,A25,A26) \
 oh4s_init(A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,A20,A21,A22,A23,A24,A25,A26)
-#define oh_particle_buffer(A1,A2) oh4s_per_grid_histogram(A1,A2)
+#define oh_particle_buffer(A1,A2) oh4s_particle_buffer(A1,A2)
 #define oh_per_grid_histogram(A1,A2) oh4s_per_grid_histogram(A1,A2)
 #define oh_transbound(A1,A2)      oh4s_transbound(A1,A2)
 #define oh_exchange_border_data(A1,A2,A3,A4) \

@@ -15,6 +15,13 @@ The site that provided OhHelp is no longer available, so we are redistributing i
 ohhelpf = { git = "https://github.com/Nkzono99/ohhelp-for-fpm" }
 ```
 
+## Usage documentation
+
+- [OhHelp v2 Usage Guide](doc/usage/README.md)
+- [PIC integration lifecycle](doc/usage/pic-lifecycle.md)
+- [API by OhHelp level](doc/usage/api-by-level.md)
+- [v2 particle layout and weighted load](doc/usage/v2-particle-and-weight.md)
+
 ## License notice
 
 This repository contains code derived from the original OhHelp software.

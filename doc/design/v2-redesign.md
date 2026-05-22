@@ -43,6 +43,8 @@ The current code now has this first migration layer:
 - Level-1 transbound aggregation now has a state-backed internal path for local
   particle histograms, global weighted-load totals, neighbor tables, and
   send/receive count mirrors.
+- Level-1 total-particle counter initialization now has a state-backed internal
+  path for `TotalP` / `TotalPNext` and primary/total particle counters.
 - Stable-secondary stay counting now takes `oh_state` and uses context-owned
   rank, communicator, particle histograms, node descriptors, and scratch space.
 - Stable-secondary particle assignment now receives `oh_state`, including the

@@ -33,6 +33,7 @@ static void  make_send_count_state(struct oh_state *state,
                                    struct S_commlist* slist, int slsize);
 static void  count_next_particles_state(struct oh_state *state,
                                         struct S_commlist* rlist, int rlsize);
+static void  set_total_particles_state(struct oh_state *state);
 static int   transbound1_state(struct oh_state *state, int currmode,
                                int stats, int level);
 struct S_heap_key {
@@ -365,22 +366,39 @@ oh1_families(int **famindex, int **members) {
 }
 void
 set_total_particles() {
-  int ns=nOfSpecies, nn=nOfNodes, nnns=nn*ns;
-  int cm=(Mode_PS(currMode))&&(RegionId[1]>=0);
+  struct oh_state *state = oh1_state();
+
+  set_total_particles_state(state);
+  TotalP = state->total_particles;
+  primaryParts = state->primary_parts;
+  totalParts = state->total_parts;
+  oh1_sync_default_state();
+}
+static void
+set_total_particles_state(struct oh_state *state) {
+  int ns=state->n_of_species, nn=state->n_of_nodes, nnns=nn*ns;
+  int cm=(Mode_PS(state->curr_mode))&&(state->region_id[1]>=0);
+  int *nofplocal=state->n_of_particles_local;
+  int *totalp_next=state->total_particles_next;
+  int *totalp=state->total_particles;
   int s, i, j, tpp, tps;
 
-  if (!TotalP)  TotalP = (int*)mem_alloc(sizeof(int), 2*ns, "TotalP");
-  primaryParts = 0;  totalParts = 0;
+  if (!totalp)
+    totalp = state->total_particles =
+      (int*)mem_alloc(sizeof(int), 2*ns, "TotalP");
+  state->primary_parts = 0;
+  state->total_parts = 0;
   for (s=0,j=0; s<ns; s++) {
     for (i=0,tpp=0,tps=0; i<nn; i++,j++) {
-      tpp += NOfPLocal[j];  tps += NOfPLocal[nnns+j];
+      tpp += nofplocal[j];  tps += nofplocal[nnns+j];
     }
     if (!cm)  tps = 0;
-    TotalP[s] = TotalPNext[s] = tpp;  TotalP[ns+s] = TotalPNext[ns+s] = tps;
-    primaryParts += tpp;  totalParts += tps;
+    totalp[s] = totalp_next[s] = tpp;
+    totalp[ns+s] = totalp_next[ns+s] = tps;
+    state->primary_parts += tpp;
+    state->total_parts += tps;
   }
-  totalParts += primaryParts;
-  oh1_sync_default_state();
+  state->total_parts += state->primary_parts;
 }
 int
 oh1_transbound_(int *currmode, int *stats) {
@@ -414,7 +432,11 @@ transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
   Verbose(1,vprint("oh_transbound"));
   if ((stats=statsMode&&stats)) oh1_stats_time(STATS_TRANSBOUND, 0);
   if (!totalp) {
-    set_total_particles();
+    set_total_particles_state(state);
+    TotalP = state->total_particles;
+    primaryParts = state->primary_parts;
+    totalParts = state->total_parts;
+    oh1_sync_default_state();
     state = oh1_state();
     totalp = state->total_particles;
     totalp_next = state->total_particles_next;

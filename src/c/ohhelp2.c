@@ -108,6 +108,11 @@ oh2_set_particle_mpi_type_(int *type) {
 }
 void
 oh2_set_particle_mpi_type(MPI_Datatype type) {
+  if (type == MPI_DATATYPE_NULL) {
+    useCustomTParticle = 0;
+    CustomTParticle = MPI_DATATYPE_NULL;
+    return;
+  }
   CustomTParticle = type;
   useCustomTParticle = 1;
 }

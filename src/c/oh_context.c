@@ -143,6 +143,14 @@ oh_context_set_particle_adapter(struct oh_state *context,
 }
 
 void
+oh_context_set_particle_mpi_type(struct oh_state *context, MPI_Datatype type) {
+  if (context && context!=&OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
+  oh2_set_particle_mpi_type(type);
+  oh1_sync_default_state();
+}
+
+void
 oh1_state_(struct oh_state **state) {
   *state = oh1_state();
 }

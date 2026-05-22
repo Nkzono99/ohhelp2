@@ -182,9 +182,9 @@ The current code now has this first migration layer:
 - Level-2 initialization now separates particle-adapter selection, particle
   storage allocation, base-counter allocation, and communication work-buffer
   allocation, then synchronizes the default `oh_state` mirror explicitly.
-- `oh_context_set_particle_adapter()` exposes the Level-2 particle adapter hook
-  through the context facade. It still targets the default context only, matching
-  the current migration stage.
+- `oh_context_set_particle_mpi_type()` and `oh_context_set_particle_adapter()`
+  expose the Level-2 particle movement hooks through the context facade. They
+  still target the default context only, matching the current migration stage.
 - Level-3 geometry, field, boundary, and border-exchange globals are now
   mirrored into `oh_state`. Fields that depend on Level-3-only array constants
   are stored as opaque `int *`/struct pointers for now so `ohhelp1.h` does not
@@ -434,7 +434,8 @@ and fields used by the selected level, so it is not the final adapter design.
 `oh_default_particle_adapter()` describes the current `S_particle` layout. Level
 2 also has `oh2_set_particle_mpi_type()` / `oh_set_particle_mpi_type()` so a
 caller can provide the MPI datatype used for particle movement instead of always
-using a raw contiguous byte type.
+using a raw contiguous byte type. Passing `MPI_DATATYPE_NULL` clears that custom
+type request so the next initialization builds the default byte datatype.
 
 Level 2 now also has `oh2_set_particle_adapter()` / `oh_set_particle_adapter()`.
 The first implementation stores the adapter and uses its MPI datatype during

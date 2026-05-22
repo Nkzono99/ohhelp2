@@ -27,7 +27,7 @@ gfortran -cpp -Iinclude -Jbuild/docker -c src/fortran/oh_mod4p.F90 \
 gfortran -cpp -Iinclude -Jbuild/docker -c src/fortran/oh_mod4s.F90 \
   -o build/docker/oh_mod4s.o
 
-gcc -Iinclude tests/test_oh_context_header.c \
+mpicc -Iinclude tests/test_oh_context_header.c \
   -c -o build/docker/test_oh_context_header.o
 mpicc -Iinclude tests/test_ohhelp_c_header.c \
   -c -o build/docker/test_ohhelp_c_header.o

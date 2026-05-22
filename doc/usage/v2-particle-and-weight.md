@@ -255,6 +255,9 @@ region field が同じ役割を持ちます。
   次の `oh_init()` では default `S_particle` adapter と default byte MPI datatype が
   使われます。adapter に渡した MPI datatype の所有権は利用側に残るため、解除時に
   OhHelp はその datatype を free しません。
+- adapter はそのままで MPI datatype 設定だけ default に戻す場合は、
+  `oh_set_particle_mpi_type(MPI_DATATYPE_NULL)` または
+  `oh_context_set_particle_mpi_type(ctx, MPI_DATATYPE_NULL)` を呼びます。
 
 ## 既存 `S_particle` を使う場合
 

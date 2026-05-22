@@ -21,6 +21,7 @@
 /* Prototypes for the functions called from simulator code */
 void oh2_set_total_particles();
 int  oh2_max_local_particles(dint npmax, int maxfrac, int minmargin);
+/* Passing MPI_DATATYPE_NULL resets to the default byte datatype. */
 void oh2_set_particle_mpi_type(MPI_Datatype type);
 /* Passing NULL resets particle movement to the default S_particle adapter. */
 void oh2_set_particle_adapter(const oh_particle_adapter *adapter);

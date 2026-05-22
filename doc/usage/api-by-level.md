@@ -83,6 +83,8 @@ oh_set_particle_adapter(&adapter);
 custom adapter を使わない状態に戻す場合は、次の `oh_init()` より前に
 `oh_set_particle_adapter(NULL)` を呼びます。これは default `S_particle` adapter と
 default byte MPI datatype へ戻す操作です。
+MPI datatype 設定だけを default byte datatype に戻す場合は
+`oh_set_particle_mpi_type(MPI_DATATYPE_NULL)` を使います。
 
 初期化:
 

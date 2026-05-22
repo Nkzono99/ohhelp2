@@ -21,11 +21,14 @@ static int  level4_particle_index(struct oh_state* state,
                                   const struct S_particle* part);
 static int  level4_particle_is_injected(struct oh_state* state,
                                         const struct S_particle* part);
+static OH_nid_t level4_particle_region(struct oh_state* state,
+                                       const struct S_particle* part,
+                                       int primary_or_secondary);
 static int  level4_particle_species(struct oh_state* state,
                                     const struct S_particle* part);
 static void level4_set_particle_region(struct oh_state* state,
                                        struct S_particle* part,
-                                       int region,
+                                       OH_nid_t region,
                                        int primary_or_secondary);
 static void level4_copy_particle(struct oh_state* state,
                                  struct S_particle* dst,
@@ -204,6 +207,13 @@ level4_particle_is_injected(struct oh_state* state,
     return level4_particle_index(state, part) >= state->total_parts;
 }
 
+static OH_nid_t
+level4_particle_region(struct oh_state* state, const struct S_particle* part,
+                       int primary_or_secondary) {
+    return (OH_nid_t)state->particle_adapter->get_region(
+        state->particle_adapter, part, primary_or_secondary);
+}
+
 static int
 level4_particle_species(struct oh_state* state, const struct S_particle* part) {
     return Particle_Spec(
@@ -213,7 +223,7 @@ level4_particle_species(struct oh_state* state, const struct S_particle* part) {
 
 static void
 level4_set_particle_region(struct oh_state* state, struct S_particle* part,
-                           int region, int primary_or_secondary) {
+                           OH_nid_t region, int primary_or_secondary) {
     state->particle_adapter->set_region(state->particle_adapter, part, region,
                                         primary_or_secondary);
 }
@@ -248,13 +258,21 @@ level4_push_particle(struct oh_state* state, struct S_particle** cursor,
           state->abs_neighbors[PS][subdomid] : subdomid - OH_NEIGHBORS))
 #define Primarize_Id(P, SD) {\
   const OH_nid_t nidelem =\
-    ((P)->nid -= (OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid);\
+    level4_particle_region(state, P, 1) -\
+    ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid);\
+  level4_set_particle_region(state, P, nidelem, 1);\
   SD = Subdomain_Id(nidelem, 1);\
 }
 #define Primarize_Id_Only(P) \
-  (P)->nid -= (OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid
+  level4_set_particle_region(\
+      state, P,\
+      level4_particle_region(state, P, 1) -\
+      ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid), 1)
 #define Secondarize_Id(P) \
-  (P)->nid += (OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid
+  level4_set_particle_region(\
+      state, P,\
+      level4_particle_region(state, P, 1) +\
+      ((OH_nid_t)(state->n_of_nodes + OH_NEIGHBORS) << loggrid), 1)
 #define Secondary_Injected(ID) \
   (((ID) >> loggrid) >= state->n_of_nodes + OH_NEIGHBORS)
 #define Neighbor_Subdomain_Id(ID, PS) \
@@ -710,7 +728,7 @@ static void rebalance4p(const int currmode, const int level, const int stats) {
             for (i = 0, p = level4_particle_at(state, state->total_parts);
                  i < ninj;
                  i++, p = oh_particle_buffer_at(state->particle_adapter, p, 1)) {
-                const OH_nid_t nid = p->nid;
+                const OH_nid_t nid = level4_particle_region(state, p, 0);
                 int sdid;
                 if (Secondary_Injected(nid)) {
                     Primarize_Id(p, sdid);  Secondarize_Id(p);
@@ -1678,9 +1696,12 @@ static void count_population(struct oh_state* state, const int nextmode,
             For_All_Grid(ps, -exti, -exti, -exti, exti, exti, exti)
                 npgs[The_Grid()] = 0;
             for (i = 0; i < tpn; i++, j++) {
-                const int g = Grid_Position(state->particles[j].nid);
+                struct S_particle* p = level4_particle_at(state, j);
+                const int g = Grid_Position(level4_particle_region(state, p, ps));
                 npgs[g]++;
-                state->particles[j].nid = Combine_Subdom_Pos(OH_NBR_SELF, g);
+                level4_set_particle_region(state, p,
+                                           Combine_Subdom_Pos(OH_NBR_SELF, g),
+                                           ps);
             }
         }
         if (ps == 0)  primaryParts = state->primary_parts = tp;
@@ -1719,7 +1740,9 @@ static void sort_particles(struct oh_state* state, dint*** npg,
                 }
             }
             for (i = 0; i < tpn; i++, p++)
-                state->send_buffer[npgt[Grid_Position(p->nid)]++] = *p;
+                state->send_buffer[
+                    npgt[Grid_Position(level4_particle_region(state, p, ps))]++] =
+                    *p;
         }
     }
 }
@@ -1764,7 +1787,7 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
             dint* npgt = state->level4_particle_grid_total[0][s];
             const int itail = state->total_particles[t];
             for (i = 0; i < itail; i++, p++) {
-                const OH_nid_t nid = p->nid;
+                const OH_nid_t nid = level4_particle_region(state, p, ps);
                 if (nid >= 0) {
                     const int sdid = Neighbor_Subdomain_Id(nid, ps);
                     if (sdid == mysd)
@@ -1775,7 +1798,7 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
         }
     }
     for (i = 0; i < ninj; i++, p++) {
-        const OH_nid_t nid = p->nid;
+        const OH_nid_t nid = level4_particle_region(state, p, 0);
         const int s = level4_particle_species(state, p);
         int sdid;
         if (nid < 0) continue;
@@ -1806,7 +1829,9 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
             dint* npgt = state->level4_particle_grid_total[ps][s];
             const struct S_particle* rbtail = *rbb;
             for (; p < rbtail; p++)
-                state->send_buffer[npgt[Grid_Position(p->nid)]++] = *p;
+                state->send_buffer[
+                    npgt[Grid_Position(level4_particle_region(state, p, ps))]++] =
+                    *p;
         }
     }
 }
@@ -1815,7 +1840,7 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
   ((G) + state->level4_grid_offset[(PS) * OH_NEIGHBORS + ((NID) >> loggrid)])
 
 #define Move_Or_Do(P, PS, MYSD, MOVEIF, ACT) {\
-  const OH_nid_t nid = P->nid;\
+  const OH_nid_t nid = level4_particle_region(state, P, PS);\
   int g = Grid_Position(nid);\
   int sdid, dst;\
   if (nid<0)  continue;\
@@ -1831,7 +1856,7 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
         npg[g] = 0;  ACT;\
       } else {\
         sb[state->n_of_send[hs->tag+hs->rid]++] = *P;\
-        if (MOVEIF<0)  P->nid = -1;\
+        if (MOVEIF<0)  level4_set_particle_region(state, P, -1, PS);\
         if (--(hs->count)==0)  npg[g]--;\
       }\
     }\
@@ -1855,7 +1880,7 @@ static void move_to_sendbuf_sec4p(const int psold, const int trans, const int ol
          i < ninj;
          i++, p = oh_particle_buffer_at(state->particle_adapter, p, 1)) {
         const int s = level4_particle_species(state, p);
-        const OH_nid_t nid = p->nid;
+        const OH_nid_t nid = level4_particle_region(state, p, 0);
         const int ps = Secondary_Injected(nid) ? 1 : 0;
         dint* npg = state->level4_particle_grid[ps][s];
         if (nid < 0) continue;
@@ -2006,7 +2031,7 @@ static void move_and_sort_secondary(const int psold, const int psnew, const int 
     }
     for (i = 0; i < ninj; i++, p++) {
         const int s = level4_particle_species(state, p);
-        const OH_nid_t nid = p->nid;
+        const OH_nid_t nid = level4_particle_region(state, p, 0);
         const int ps = Secondary_Injected(nid) ? 1 : 0;
         const int mysd = mysubdom[ps];
         dint* npg = state->level4_particle_grid[ps][s];
@@ -2127,7 +2152,9 @@ static void check_particle_location4p(struct oh_state* state,
   if (G<0) {\
     K -= INC;\
     if (xyz<lb) {\
-      if (Boundaries[MYSD][DIM][OH_LOWER]) { P->nid = -1;  return(-1); }\
+      if (Boundaries[MYSD][DIM][OH_LOWER]) {\
+        level4_set_particle_region(state, P, -1, ps);  return(-1);\
+      }\
       XYZ += Grid[DIM].fcoord[OH_UPPER] - lb;\
     }\
     if (G<-OH_PGRID_EXT)  K = -OH_NEIGHBORS;\
@@ -2135,7 +2162,9 @@ static void check_particle_location4p(struct oh_state* state,
     double ub = Grid[DIM].fcoord[OH_UPPER];\
     K += INC;\
     if (xyz>=ub) {\
-      if (Boundaries[MYSD][DIM][OH_UPPER]) { P->nid = -1;  return(-1); }\
+      if (Boundaries[MYSD][DIM][OH_UPPER]) {\
+        level4_set_particle_region(state, P, -1, ps);  return(-1);\
+      }\
       XYZ -= ub - lb;\
     }\
     G-=UB;\
@@ -2181,7 +2210,8 @@ int oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps, const i
     if (k == OH_NBR_SELF) {
         state->level4_particle_grid[ps][s][idx]++;
         state->n_of_particles_local[psnn + mysd]++;
-        part->nid = Combine_Subdom_Pos(k, idx);
+        level4_set_particle_region(state, part, Combine_Subdom_Pos(k, idx),
+                                   ps);
         if (inj) {
             if (ps) {
                 state->injected_particles[ns + s]++;  Secondarize_Id(part);
@@ -2194,7 +2224,8 @@ int oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps, const i
         return(oh4p_map_particle_to_subdomain(part, ps, s));
     sd = abs_neighbors[ps][k];
     if (sd >= nn) {
-        part->nid = -1;  return(-1);
+        level4_set_particle_region(state, part, -1, ps);
+        return(-1);
     }
     Adjust_Neighbor_Grid(gx, sd, OH_DIM_X);
     Do_Y(Adjust_Neighbor_Grid(gy, sd, OH_DIM_Y));
@@ -2204,11 +2235,14 @@ int oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps, const i
     if (sd == mysd) {
         idx = Coord_To_Index(gx, gy, gz, w, dw);
         state->level4_particle_grid[ps][s][idx]++;
-        part->nid = Combine_Subdom_Pos(OH_NBR_SELF, idx);
+        level4_set_particle_region(
+            state, part, Combine_Subdom_Pos(OH_NBR_SELF, idx), ps);
         if (inj)  state->injected_particles[ps ? ns + s : s]++;
     } else {
         state->level4_particle_grid[ps][s][idx]++;
-        part->nid = Combine_Subdom_Pos(k, Coord_To_Index(gx, gy, gz, w, dw));
+        level4_set_particle_region(
+            state, part, Combine_Subdom_Pos(k, Coord_To_Index(gx, gy, gz, w, dw)),
+            ps);
     }
     if (inj && ps)  Secondarize_Id(part);
     return(sd);
@@ -2222,12 +2256,16 @@ int oh4p_map_particle_to_neighbor(struct S_particle* part, const int ps, const i
   XYZ = PXYZ;\
   LG = 0;\
   if (XYZ<lb) {\
-    if (Level4_Boundary_Condition(DIM, OH_LOWER)) { P->nid = -1;  return(-1); }\
+    if (Level4_Boundary_Condition(DIM, OH_LOWER)) {\
+      level4_set_particle_region(state, P, -1, ps);  return(-1);\
+    }\
     XYZ += (ub - lb);  PXYZ = XYZ;\
     LG = Grid[DIM].coord[OH_LOWER] - Grid[DIM].coord[OH_UPPER];\
   }\
   else if (XYZ>=ub) {\
-    if (Level4_Boundary_Condition(DIM, OH_UPPER)) { P->nid = -1;  return(-1); }\
+    if (Level4_Boundary_Condition(DIM, OH_UPPER)) {\
+      level4_set_particle_region(state, P, -1, ps);  return(-1);\
+    }\
     XYZ -= (ub - lb);  PXYZ = XYZ;\
     LG = Grid[DIM].coord[OH_UPPER] - Grid[DIM].coord[OH_LOWER];\
   }\
@@ -2295,7 +2333,10 @@ int oh4p_map_particle_to_subdomain(struct S_particle* part, const int ps,
     if (SubDomainDesc) {
         sd = map_irregular_subdomain(x, If_Dim(OH_DIM_Y, y, 0),
                                      If_Dim(OH_DIM_Z, z, 0));
-        if (sd < 0) { part->nid = -1;  return(-1); }
+        if (sd < 0) {
+            level4_set_particle_region(state, part, -1, ps);
+            return(-1);
+        }
     } else {
         Map_Particle_To_Subdomain(gx, OH_DIM_X, px);
         Do_Y(Map_Particle_To_Subdomain(gy, OH_DIM_Y, py));
@@ -2308,11 +2349,16 @@ int oh4p_map_particle_to_subdomain(struct S_particle* part, const int ps,
     state->n_of_particles_local[t * nn + sd]++;
     if (aacc) {
         currMode = state->curr_mode = Mode_Set_Any(state->curr_mode);
-        part->nid = Combine_Subdom_Pos(sd + OH_NEIGHBORS,
-                                       Coord_To_Index(gx, gy, gz, w, dw));
+        level4_set_particle_region(
+            state, part,
+            Combine_Subdom_Pos(sd + OH_NEIGHBORS,
+                               Coord_To_Index(gx, gy, gz, w, dw)),
+            ps);
     } else {
         state->level4_particle_grid[ps][s][Coord_To_Index(lx, ly, lz, w, dw)]++;
-        part->nid = Combine_Subdom_Pos(k, Coord_To_Index(gx, gy, gz, w, dw));
+        level4_set_particle_region(
+            state, part, Combine_Subdom_Pos(k, Coord_To_Index(gx, gy, gz, w, dw)),
+            ps);
     }
     if (inj) {
         if (sd == mysd)  state->injected_particles[t]++;
@@ -2358,8 +2404,8 @@ void oh4p_remove_mapped_particle(struct S_particle* part, const int ps, const in
     struct oh_state* state = oh4p_state();
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     const int inj = level4_particle_is_injected(state, part);
-    OH_nid_t nid = part->nid;
     int sd, g, psreal = ps, mysd, t;
+    OH_nid_t nid = level4_particle_region(state, part, psreal);
     Decl_Grid_Info();
 
     check_particle_location4p(state, part, psreal, s, inj);
@@ -2367,7 +2413,8 @@ void oh4p_remove_mapped_particle(struct S_particle* part, const int ps, const in
     sd = Subdomain_Id(nid, psreal);
     g = Grid_Position(nid);
     if (sd >= nn) {
-        psreal = 1;  Primarize_Id(part, sd);  nid = part->nid;
+        psreal = 1;  Primarize_Id(part, sd);
+        nid = level4_particle_region(state, part, psreal);
     }
     mysd = state->region_id[psreal];
     level4_set_particle_region(state, part, -1, psreal);

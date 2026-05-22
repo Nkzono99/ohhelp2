@@ -110,6 +110,9 @@ When editing particle movement or mapping code, check for:
 - Level 2 implementation code must not directly read or write `nid` or `spec`.
 - Level 3 implementation code must not directly read or write `nid` or `spec`;
   direct `x/y/z` access is limited to the default `S_particle` mapping adapter.
+- Level 4 implementation code must not directly read or write `nid` or `spec`.
+  Packed-id manipulation is still present, but it must pass through local helper
+  functions/macros using the active particle adapter.
 - New direct particle-field access must not spread outside the known migration
   files: `oh_particle_adapter.c`, `ohhelp3.c`, `ohhelp4p.c`, `ohhelp4s.c`, and
   the legacy POS-aware headers.

@@ -395,6 +395,9 @@ weights(hot_region) = 2.5d0
 call oh_set_region_weights(weights)
 ```
 
+Fortran で粒子数ベースへ戻す場合は、全要素を `1.0d0` にした配列を
+再設定します。
+
 ## いつ重みを設定するか
 
 基本は `oh_init()` の後、最初の `oh_transbound()` の前に設定します。

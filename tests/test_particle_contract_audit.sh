@@ -87,8 +87,17 @@ check_present 'void oh2_inject_particle\(void \*part\)' include/ohhelp2.h
 check_present 'void \*oh2_inject_particle_get\(void \*part\)' include/ohhelp2.h
 check_present 'oh_inject_particle_get\(A1\)' include/ohhelp_c.h
 check_absent 'oh_inject_particle_get' include/ohhelp_f.h
+check_present 'oh_set_region_weights\(A1\)' include/ohhelp_c.h
+check_present 'oh_set_region_weights\(A1\)' include/ohhelp_f.h
+check_present 'oh1_set_region_weights' src/fortran/oh_mod1.F90
+check_present 'real\*8,intent\(in\) :: weights\(\*\)' src/fortran/oh_mod1.F90
+check_present 'oh_context_set_region_weights' include/oh_context.h
+check_present 'Fortran.*1\.0d0' doc/usage/v2-particle-and-weight.md
 check_present 'oh_inject_particle_get' tests/test_ohhelp2_header.c
 check_present 'oh_inject_particle_get' tests/test_ohhelp_c_header.c
+check_present 'oh_set_region_weights' tests/test_ohhelp2_header.c
+check_present 'oh_set_region_weights' tests/test_ohhelp_c_header.c
+check_present 'oh_context_set_region_weights' tests/test_oh_context_header.c
 check_present 'int \*\*totalp, void \*\*pbuf' include/ohhelp2.h
 
 # Level 3 may touch S_particle.x/y/z only inside the default S_particle mapping

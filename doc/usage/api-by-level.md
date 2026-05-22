@@ -80,6 +80,10 @@ oh_particle_adapter adapter = make_my_particle_adapter();
 oh_set_particle_adapter(&adapter);
 ```
 
+custom adapter を使わない状態に戻す場合は、次の `oh_init()` より前に
+`oh_set_particle_adapter(NULL)` を呼びます。これは default `S_particle` adapter と
+default byte MPI datatype へ戻す操作です。
+
 初期化:
 
 ```c

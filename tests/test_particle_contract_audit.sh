@@ -47,6 +47,8 @@ check_absent 'struct S_(node|heap|commlist|commsched_context|comms|statscurr|sta
 check_absent '\b(init1|mem_alloc|mem_alloc_error|errstop|local_errstop|set_total_particles|transbound1|try_primary1|try_stable1|rebalance1|build_new_comm|vprint|dprint)\s*\(' include/ohhelp1.h
 check_present 'oh1_comm' include/ohhelp1.h
 check_absent '->(nid|spec)\b' src/c/ohhelp2.c
+check_present 'useCustomParticleAdapter = 0;' src/c/ohhelp2.c
+check_present 'CustomTParticle = MPI_DATATYPE_NULL;' src/c/ohhelp2.c
 check_absent '\b(Decl_Grid_Info|Subdomain_Id|Primarize_Id)\b' include/ohhelp2.h
 check_absent '\b(nidelement|subdomid|gridmask|loggrid)\b' include/ohhelp2.h
 check_absent '\b(init2|transbound2|exchange_primary_particles|move_to_sendbuf_primary|set_sendbuf_disps|exchange_particles)\s*\(' include/ohhelp2.h

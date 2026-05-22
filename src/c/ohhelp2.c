@@ -113,6 +113,12 @@ oh2_set_particle_mpi_type(MPI_Datatype type) {
 }
 void
 oh2_set_particle_adapter(const oh_particle_adapter *adapter) {
+  if (!adapter) {
+    useCustomParticleAdapter = 0;
+    useCustomTParticle = 0;
+    CustomTParticle = MPI_DATATYPE_NULL;
+    return;
+  }
   if (!oh_particle_adapter_validate(adapter))
     local_errstop("invalid oh_particle_adapter");
   CustomParticleAdapter = *adapter;

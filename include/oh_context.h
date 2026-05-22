@@ -14,6 +14,7 @@ typedef struct oh_particle_adapter oh_particle_adapter;
 oh_context *oh_default_context(void);
 /* Passing NULL resets all region weights to 1.0 on the default context. */
 void oh_context_set_region_weights(oh_context *context, const double *weights);
+/* Passing NULL resets particle movement to the default S_particle adapter. */
 void oh_context_set_particle_adapter(oh_context *context,
                                      const oh_particle_adapter *adapter);
 

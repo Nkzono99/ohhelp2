@@ -250,6 +250,11 @@ region field が同じ役割を持ちます。
   callback も用意してください。
 - 現在の implementation は default context への adapter 設定です。
   完全な複数 context 対応は v2 の継続作業です。
+- `oh_set_particle_adapter(NULL)` または
+  `oh_context_set_particle_adapter(ctx, NULL)` を呼ぶと custom adapter 設定は解除され、
+  次の `oh_init()` では default `S_particle` adapter と default byte MPI datatype が
+  使われます。adapter に渡した MPI datatype の所有権は利用側に残るため、解除時に
+  OhHelp はその datatype を free しません。
 
 ## 既存 `S_particle` を使う場合
 

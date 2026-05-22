@@ -438,7 +438,9 @@ using a raw contiguous byte type.
 
 Level 2 now also has `oh2_set_particle_adapter()` / `oh_set_particle_adapter()`.
 The first implementation stores the adapter and uses its MPI datatype during
-initialization.
+initialization. Passing `NULL` clears the custom adapter and custom particle MPI
+datatype request, so the next initialization uses the default `S_particle`
+adapter and default byte MPI datatype.
 
 The Level-2 injection/remap/remove path now reads region/species and marks a
 removed particle through the active adapter.

@@ -137,8 +137,11 @@ check_present 'tests/test_oh_v2_fortran\.F90' scripts/docker-build-test.sh
 check_present 'ffree-line-length-none' scripts/docker-build-test.sh
 check_present 'EPSILON=1\.0d0,MU=1\.0d0' sample/sample.F90
 check_present 'particle adapter handles' README.md
+check_present 'oh2_init_raw\(\).*oh3_init_raw\(\)' README.md
 check_present 'Fortran からも Level 1-3 は利用対象' doc/usage/README.md
 check_present 'ohhelp_v2` module' doc/usage/README.md
+check_present '任意の Fortran 粒子 layout' doc/usage/README.md
+check_present 'oh2_init_raw\(\).*oh3_init_raw\(\)' doc/usage/README.md
 check_present 'pic-lifecycle-fortran\.md' doc/usage/README.md
 check_present 'api-by-level-fortran\.md' doc/usage/README.md
 check_present 'v2-particle-and-weight-fortran\.md' doc/usage/README.md
@@ -150,6 +153,8 @@ check_present 'Fortran mirror' doc/usage/v2-particle-and-weight.md
 check_present 'C mirror' doc/usage/v2-particle-and-weight-fortran.md
 check_present 'Fortran では `ohhelp_v2` の opaque handle' \
   doc/usage/api-by-level-fortran.md
+check_present 'oh2_init_raw\(\).*oh3_init_raw\(\)' \
+  doc/usage/api-by-level-fortran.md
 check_present 'sample/sample\.F90' \
   doc/usage/README.md
 check_present 'oh_particle_adapter_create_byte' \
@@ -158,6 +163,11 @@ check_present 'oh_context_inject_particle_get' \
   doc/usage/pic-lifecycle-fortran.md
 check_present 'callback adapter' \
   doc/usage/v2-particle-and-weight-fortran.md
+check_present 'custom particle layout の raw init' \
+  doc/usage/v2-particle-and-weight-fortran.md
+check_present 'oh3_init_raw' src/fortran/oh_v2.F90
+check_present 'oh_fortran_oh3_init_raw' src/c/oh_fortran_v2.c
+check_present 'oh3_init_raw' tests/test_oh_v2_fortran.F90
 check_present 'oh_particle_adapter_use_level3_position_fields' \
   doc/usage/api-by-level-fortran.md
 check_present 'oh_particle_adapter_set_callbacks' \

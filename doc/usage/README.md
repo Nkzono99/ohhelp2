@@ -30,6 +30,23 @@ usage guide は C 版と Fortran 版を別ページとして mirror します。
 Fortran 版は `ohhelp_f.h` / `ohhelp1` / `ohhelp2` / `ohhelp3` と、
 v2 の `ohhelp_v2` opaque handle API を使う例を載せます。
 
+## 現在の実装ステータス
+
+| 項目 | C | Fortran |
+| --- | --- | --- |
+| Level 1-3 default API | supported | supported |
+| Level 1-3 context facade | default context のみ supported | `ohhelp_v2` から default context のみ supported |
+| region weight | supported | supported |
+| custom particle adapter | supported | `ohhelp_v2` で設定 API は利用可能 |
+| 任意 layout の粒子配列を init に渡す経路 | supported | `oh2_init_raw()` / `oh3_init_raw()` |
+| Level 4p/4s | v2.x 対象 | v2.x 対象 |
+
+Fortran の v2.0 実用経路は、Level 1-3 を既存の `type(oh_particle)` 配列で使い、
+必要に応じて `oh_set_region_weights()` と `ohhelp_v2` の default-context facade を
+併用する形です。`ohhelp_v2` には adapter handle と callback/offset 設定 API も
+あります。任意の Fortran 粒子 layout では、adapter を登録した上で
+`oh2_init_raw()` / `oh3_init_raw()` に `c_loc()` で配列と粒子バッファを渡します。
+
 ## v2.0 の対象範囲
 
 v2.0 では Level 1-3 を利用可能な範囲として固めます。通常の PIC 利用では
@@ -41,12 +58,12 @@ Fortran からも Level 1-3 は利用対象です。`ohhelp_f.h` の alias と
 Docker 検証で compile-check され、`sample/sample.F90` も Level 3 の
 Fortran 利用例として compile-check されます。
 
-v2 の context facade と particle adapter は `src/fortran/oh_v2.F90` の
+v2 の context facade と particle adapter 設定 API は `src/fortran/oh_v2.F90` の
 `ohhelp_v2` module からも使えます。Fortran 側では C 構造体を直接公開せず、
 `type(oh_context_handle)` と `type(oh_particle_adapter_handle)` の opaque handle
-として扱います。複数 context の完全な独立運用は引き続き v2.x の対象ですが、
-default context に対する Level 1-3 操作、offset-based adapter、callback adapter
-の設定は Fortran から呼べます。
+として扱います。raw init bridge では粒子バッファを `type(c_ptr)` として受け渡し、
+custom adapter の stride/datatype で Level 2/3 の粒子移動を行います。複数 context
+の完全な独立運用は引き続き v2.x の対象です。
 
 Level 4p/4s は v2.x の継続対応対象です。v2.0 では既存コードの compile
 coverage と移行中の実装境界を維持しますが、custom particle layout を含む

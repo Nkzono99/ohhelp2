@@ -46,6 +46,21 @@ Level 1 collective、Level 2 injection、Level 3 mapping/field exchange も
 `oh_context_*` から呼べます。field や particle を渡す API では `c_loc()` で
 `type(c_ptr)` を渡します。
 
+## v2.0 で推奨する Fortran 経路
+
+v2.0 で安定して使う前提の Fortran 経路は、`ohhelp_f.h` と
+`ohhelp1` / `ohhelp2` / `ohhelp3` module を使い、粒子配列には
+`type(oh_particle)` を渡す形です。
+
+`ohhelp_v2` は context facade と adapter handle を Fortran から触るための
+低レベル bridge です。region weight、context wrapper、adapter の offset/callback
+設定に加えて、任意の Fortran derived type 配列を渡す
+`oh2_init_raw()` / `oh3_init_raw()` も compile-check されています。
+
+`raw` init は、配列を `c_loc()` で渡す C interop API です。既存の
+`oh_init()` alias は引き続き `type(oh_particle)` 配列向けの簡潔な経路として
+残します。
+
 ## Level 1: スケジュールだけを使う
 
 Level 1 は、粒子データを OhHelp に渡しません。利用側が粒子転送を実装し、
@@ -101,7 +116,8 @@ call oh_init(sdid, nspec, maxfrac, nphgram, totalp, &
              stats, repiter, verbose)
 ```
 
-custom particle layout を使う場合は `ohhelp_v2` の adapter handle を使います。
+custom particle layout 用の adapter 設定は `ohhelp_v2` の handle で行えます。
+粒子バッファは `type(c_ptr)` にして `oh2_init_raw()` に渡します。
 
 ```fortran
 type(oh_context_handle) :: ctx
@@ -112,6 +128,13 @@ ctx = oh_default_context()
 call oh_particle_adapter_create_byte(adapter, c_sizeof(sample_particle), ierr)
 call oh_particle_adapter_use_int_fields(adapter, region_offset, species_offset)
 call oh_context_set_particle_adapter(ctx, adapter)
+
+raw_particles = c_loc(particles(1))
+call oh2_init_raw(c_loc(sdid(1)), nspec, maxfrac, &
+                  c_loc(nphgram(1,1,1)), c_loc(totalp(1,1)), &
+                  raw_particles, c_loc(pbase(1)), maxlocalp, &
+                  c_loc(mycomm), c_loc(nbor(1,1,1)), c_loc(pcoord(1)), &
+                  stats, repiter, verbose)
 ```
 
 injection/removal:
@@ -176,12 +199,24 @@ end if
 call oh_exchange_borders(eb(1,0,0,0,1), eb(1,0,0,0,2), FEB, currmode)
 ```
 
-custom particle layout では、Level 3 用 position fields を adapter に設定します。
+custom particle layout 用の Level 3 position fields は adapter に設定できます。
+初期化は `oh3_init_raw()` で行います。
 
 ```fortran
 call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
                                                     y_offset, z_offset)
 call oh_context_set_particle_adapter(ctx, adapter)
+
+raw_particles = c_loc(particles(1))
+call oh3_init_raw(c_loc(sdid(1)), nspec, maxfrac, &
+                  c_loc(nphgram(1,1,1)), c_loc(totalp(1,1)), &
+                  raw_particles, c_loc(pbase(1)), maxlocalp, &
+                  c_loc(mycomm), c_loc(nbor(1,1,1)), c_loc(pcoord(1)), &
+                  c_loc(sdoms(1,1,1)), c_loc(scoord(1,1)), nbound, &
+                  c_loc(bcond(1,1)), c_loc(bounds(1,1,1)), &
+                  c_loc(ftypes(1,1)), c_loc(cfields(1)), &
+                  c_loc(ctypes(1,1,1,1)), c_loc(fsizes(1,1,1)), &
+                  stats, repiter, verbose)
 ```
 
 ## Level 4p / 4s

@@ -6,7 +6,10 @@
 #include <mpi.h>
 
 #include "oh_fortran_v2.h"
+#include "ohhelp1_internal.h"
+#include "ohhelp2_internal.h"
 #include "ohhelp3.h"
+#include "ohhelp3_internal.h"
 
 struct oh_fortran_particle_adapter {
   oh_particle_adapter adapter;
@@ -156,6 +159,52 @@ void
 oh_fortran_context_exchange_borders(oh_context *context, void *pfld,
                                     void *sfld, int ctype, int bcast) {
   oh_context_exchange_borders(context, pfld, sfld, ctype, bcast);
+}
+
+void
+oh_fortran_oh2_init_raw(
+  int *sdid, int nspec, int maxfrac, int *nphgram, int *totalp, void **pbuf,
+  int *pbase, int maxlocalp, struct S_mycommf *mycomm, int *nbor,
+  int *pcoord, int stats, int repiter, int verbose) {
+  int *sdid_ptr = sdid;
+  int *nphgram_ptr = nphgram;
+  int *totalp_ptr = totalp;
+  struct S_particle *particle_ptr = pbuf ? (struct S_particle*)*pbuf : NULL;
+  int *pbase_ptr = pbase;
+  int *nbor_ptr = nbor;
+
+  if (!pbuf) local_errstop("oh2_init_raw requires a particle pointer slot");
+  specBase = 1;
+  init2(&sdid_ptr, nspec, maxfrac, &nphgram_ptr, &totalp_ptr, &particle_ptr,
+        &pbase_ptr, maxlocalp, NULL, mycomm, &nbor_ptr, pcoord, stats,
+        repiter, verbose);
+  *pbuf = particle_ptr;
+}
+
+void
+oh_fortran_oh3_init_raw(
+  int *sdid, int nspec, int maxfrac, int *nphgram, int *totalp, void **pbuf,
+  int *pbase, int maxlocalp, struct S_mycommf *mycomm, int *nbor,
+  int *pcoord, int *sdoms, int *scoord, int nbound, int *bcond,
+  int *bounds, int *ftypes, int *cfields, int *ctypes, int *fsizes,
+  int stats, int repiter, int verbose) {
+  int *sdid_ptr = sdid;
+  int *nphgram_ptr = nphgram;
+  int *totalp_ptr = totalp;
+  struct S_particle *particle_ptr = pbuf ? (struct S_particle*)*pbuf : NULL;
+  int *pbase_ptr = pbase;
+  int *nbor_ptr = nbor;
+  int *sdoms_ptr = sdoms;
+  int *bounds_ptr = bounds;
+  int *fsizes_ptr = fsizes;
+
+  if (!pbuf) local_errstop("oh3_init_raw requires a particle pointer slot");
+  specBase = 1;
+  init3(&sdid_ptr, nspec, maxfrac, &nphgram_ptr, &totalp_ptr, NULL, NULL,
+        &particle_ptr, &pbase_ptr, maxlocalp, NULL, mycomm, &nbor_ptr,
+        pcoord, &sdoms_ptr, scoord, nbound, bcond, &bounds_ptr, ftypes,
+        cfields, -1, ctypes, &fsizes_ptr, stats, repiter, verbose, 0);
+  *pbuf = particle_ptr;
 }
 
 int

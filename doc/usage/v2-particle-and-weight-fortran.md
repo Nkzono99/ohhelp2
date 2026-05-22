@@ -2,8 +2,15 @@
 
 Language: [C mirror](v2-particle-and-weight.md) | Fortran
 
-v2 では、従来の固定 `type(oh_particle)` 前提だけでなく、Fortran 側の
-custom particle layout も扱えるようにします。このページは Fortran 版です。
+v2 では、従来の固定 `type(oh_particle)` 前提を保ちながら、Fortran からも
+context facade と particle adapter 設定 API にアクセスできるようにしています。
+このページは Fortran 版です。
+
+v2.0 で supported として扱う実用経路は、Level 1-3 を
+`type(oh_particle)` 配列で使う形です。`ohhelp_v2` の adapter handle は
+offset/callback を設定できる低レベル bridge です。任意 Fortran particle layout は
+`oh2_init_raw()` / `oh3_init_raw()` に `c_loc()` で配列と粒子バッファを渡して
+初期化します。
 
 ## Particle adapter
 
@@ -18,7 +25,8 @@ type(oh_particle_adapter_handle) :: adapter
 
 adapter の実体は C 側にあり、Fortran 側では `type(c_ptr)` を直接操作しません。
 通常は `oh_particle_adapter_create_byte()` で byte MPI datatype 付き adapter を
-作り、field offset を設定してから context に渡します。
+作り、field offset を設定してから context に渡します。この adapter 設定は
+default context facade に反映されます。
 
 ```fortran
 type(oh_context_handle) :: ctx
@@ -136,14 +144,54 @@ call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
 call oh_context_set_particle_adapter(ctx, adapter)
 ```
 
-粒子 push 中は、利用側の region field と histogram を更新します。
+`type(oh_particle)` を使う通常の Fortran Level 3 では、既存の
+`oh_map_particle_to_neighbor()` を使って粒子の `nid` と histogram を更新します。
 
 ```fortran
-dst = oh_context_map_particle_to_neighbor(ctx, p%x, p%y, p%z, ps)
-p%region = dst
+dst = oh_map_particle_to_neighbor(p%x, p%y, p%z, ps)
+p%nid = dst
 nphgram(self+1,s) = nphgram(self+1,s) - 1
 nphgram(dst+1,s) = nphgram(dst+1,s) + 1
 ```
+
+`oh_context_map_particle_to_neighbor()` は `ohhelp_v2` の context facade から同じ
+mapping を呼ぶ低レベル API です。`bind(C)` な custom particle 型を使う場合は、
+adapter に登録した region field を利用側で更新します。
+
+## custom particle layout の raw init
+
+任意の Fortran particle layout を Level 2/3 に渡す場合は、adapter 設定後に
+`type(c_ptr)` の粒子バッファ pointer を raw init bridge へ渡します。
+
+```fortran
+type, bind(C) :: pic_particle
+  real(c_double) :: x, y, z
+  real(c_double) :: vx, vy, vz
+  integer(c_int) :: region
+  integer(c_int) :: species
+end type
+
+type(pic_particle), target :: particles(maxlocalp)
+type(oh_mycomm_v2), target :: mycomm
+type(c_ptr) :: raw_particles
+
+raw_particles = c_loc(particles(1))
+call oh3_init_raw(c_loc(sdid(1)), nspec, maxfrac, &
+                  c_loc(nphgram(1,1,1)), c_loc(totalp(1,1)), &
+                  raw_particles, c_loc(pbase(1)), maxlocalp, &
+                  c_loc(mycomm), c_loc(nbor(1,1,1)), c_loc(pcoord(1)), &
+                  c_loc(sdoms(1,1,1)), c_loc(scoord(1,1)), nbound, &
+                  c_loc(bcond(1,1)), c_loc(bounds(1,1,1)), &
+                  c_loc(ftypes(1,1)), c_loc(cfields(1)), &
+                  c_loc(ctypes(1,1,1,1)), c_loc(fsizes(1,1,1)), &
+                  stats, repiter, verbose)
+```
+
+`raw_particles` は `intent(inout)` です。`c_null_ptr` を渡した場合、OhHelp が
+adapter stride に基づいて粒子バッファを確保し、返された pointer を
+`c_f_pointer()` で Fortran pointer に戻せます。利用側で配列を確保して
+`c_loc(particles(1))` を渡す場合は、その配列がそのまま OhHelp の粒子バッファに
+なります。
 
 ## `nid` と remove の扱い
 
@@ -221,5 +269,6 @@ end do
 
 - context API は default context facade です。完全な複数 context 独立運用は
   v2.x の対象です。
-- Fortran custom particle layout は `bind(C)` と `iso_c_binding` を前提にします。
+- Fortran custom particle layout の adapter 設定と raw init は `bind(C)` と
+  `iso_c_binding` を前提にします。
 - Level 4p/4s は v2.x 対応対象で、v2.0 の supported scope には含めません。

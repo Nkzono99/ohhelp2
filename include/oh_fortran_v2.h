@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include "oh_context.h"
+#include "ohhelp1.h"
 #include "oh_particle_adapter.h"
 
 #ifdef __cplusplus
@@ -59,6 +60,17 @@ void oh_fortran_context_allreduce_field(oh_context *context, void *pfld,
                                         void *sfld, int ftype);
 void oh_fortran_context_exchange_borders(oh_context *context, void *pfld,
                                          void *sfld, int ctype, int bcast);
+
+void oh_fortran_oh2_init_raw(
+  int *sdid, int nspec, int maxfrac, int *nphgram, int *totalp, void **pbuf,
+  int *pbase, int maxlocalp, struct S_mycommf *mycomm, int *nbor,
+  int *pcoord, int stats, int repiter, int verbose);
+void oh_fortran_oh3_init_raw(
+  int *sdid, int nspec, int maxfrac, int *nphgram, int *totalp, void **pbuf,
+  int *pbase, int maxlocalp, struct S_mycommf *mycomm, int *nbor,
+  int *pcoord, int *sdoms, int *scoord, int nbound, int *bcond,
+  int *bounds, int *ftypes, int *cfields, int *ctypes, int *fsizes,
+  int stats, int repiter, int verbose);
 
 int oh_fortran_particle_adapter_create_byte(
   size_t stride, oh_fortran_particle_adapter **adapter);

@@ -19,7 +19,9 @@ compile coverage, but the supported v2 API for Level 4 is deferred to v2.x.
 
 Fortran users can use the Level 1-3 modules with the default `type(oh_particle)`
 layout. The `ohhelp_v2` module also exposes the v2 context facade and opaque
-particle adapter handles for custom Fortran particle layouts.
+particle adapter handles. Arbitrary Fortran particle layouts can use the
+`ohhelp_v2` raw init bridge (`oh2_init_raw()` / `oh3_init_raw()`) with `c_loc()`
+and a registered particle adapter.
 
 ## Install
 ``` toml
@@ -30,9 +32,9 @@ ohhelp2 = { git = "https://github.com/Nkzono99/ohhelp2" }
 ## Usage documentation
 
 - [OhHelp v2 Usage Guide](doc/usage/README.md)
-- [PIC integration lifecycle](doc/usage/pic-lifecycle.md)
-- [API by OhHelp level](doc/usage/api-by-level.md)
-- [v2 particle layout and weighted load](doc/usage/v2-particle-and-weight.md)
+- PIC integration lifecycle: [C](doc/usage/pic-lifecycle.md), [Fortran](doc/usage/pic-lifecycle-fortran.md)
+- API by OhHelp level: [C](doc/usage/api-by-level.md), [Fortran](doc/usage/api-by-level-fortran.md)
+- v2 particle layout and weighted load: [C](doc/usage/v2-particle-and-weight.md), [Fortran](doc/usage/v2-particle-and-weight-fortran.md)
 
 ## License notice
 

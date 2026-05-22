@@ -13,6 +13,14 @@ module ohhelp_v2
     type(c_ptr) :: ptr = c_null_ptr
   end type
 
+  type, bind(C) :: oh_mycomm_v2
+    integer(c_int) :: prime
+    integer(c_int) :: sec
+    integer(c_int) :: rank
+    integer(c_int) :: root
+    integer(c_int) :: black
+  end type
+
   abstract interface
     function oh_particle_get_region_callback(adapter, particle, &
                                              primary_or_secondary) &
@@ -54,6 +62,7 @@ module ohhelp_v2
 
   public :: oh_context_handle
   public :: oh_particle_adapter_handle
+  public :: oh_mycomm_v2
   public :: oh_particle_get_region_callback
   public :: oh_particle_set_region_callback
   public :: oh_particle_get_species_callback
@@ -82,6 +91,8 @@ module ohhelp_v2
   public :: oh_context_reduce_field
   public :: oh_context_allreduce_field
   public :: oh_context_exchange_borders
+  public :: oh2_init_raw
+  public :: oh3_init_raw
   public :: oh_particle_adapter_create_byte
   public :: oh_particle_adapter_destroy
   public :: oh_particle_adapter_validate
@@ -294,6 +305,56 @@ module ohhelp_v2
       type(c_ptr), value :: sfld
       integer(c_int), value :: ctype
       integer(c_int), value :: bcast
+    end subroutine
+
+    subroutine c_oh2_init_raw(sdid, nspec, maxfrac, nphgram, totalp, pbuf, &
+        pbase, maxlocalp, mycomm, nbor, pcoord, stats, repiter, verbose) &
+        bind(C, name="oh_fortran_oh2_init_raw")
+      import :: c_ptr, c_int
+      type(c_ptr), value :: sdid
+      integer(c_int), value :: nspec
+      integer(c_int), value :: maxfrac
+      type(c_ptr), value :: nphgram
+      type(c_ptr), value :: totalp
+      type(c_ptr) :: pbuf
+      type(c_ptr), value :: pbase
+      integer(c_int), value :: maxlocalp
+      type(c_ptr), value :: mycomm
+      type(c_ptr), value :: nbor
+      type(c_ptr), value :: pcoord
+      integer(c_int), value :: stats
+      integer(c_int), value :: repiter
+      integer(c_int), value :: verbose
+    end subroutine
+
+    subroutine c_oh3_init_raw(sdid, nspec, maxfrac, nphgram, totalp, pbuf, &
+        pbase, maxlocalp, mycomm, nbor, pcoord, sdoms, scoord, nbound, &
+        bcond, bounds, ftypes, cfields, ctypes, fsizes, stats, repiter, &
+        verbose) bind(C, name="oh_fortran_oh3_init_raw")
+      import :: c_ptr, c_int
+      type(c_ptr), value :: sdid
+      integer(c_int), value :: nspec
+      integer(c_int), value :: maxfrac
+      type(c_ptr), value :: nphgram
+      type(c_ptr), value :: totalp
+      type(c_ptr) :: pbuf
+      type(c_ptr), value :: pbase
+      integer(c_int), value :: maxlocalp
+      type(c_ptr), value :: mycomm
+      type(c_ptr), value :: nbor
+      type(c_ptr), value :: pcoord
+      type(c_ptr), value :: sdoms
+      type(c_ptr), value :: scoord
+      integer(c_int), value :: nbound
+      type(c_ptr), value :: bcond
+      type(c_ptr), value :: bounds
+      type(c_ptr), value :: ftypes
+      type(c_ptr), value :: cfields
+      type(c_ptr), value :: ctypes
+      type(c_ptr), value :: fsizes
+      integer(c_int), value :: stats
+      integer(c_int), value :: repiter
+      integer(c_int), value :: verbose
     end subroutine
 
     function c_oh_particle_adapter_create_byte(stride, adapter) &
@@ -599,6 +660,61 @@ contains
     type(c_ptr), intent(in), value :: sfld
     integer(c_int), intent(in) :: ctype, bcast
     call c_oh_context_exchange_borders(context%ptr, pfld, sfld, ctype, bcast)
+  end subroutine
+
+  subroutine oh2_init_raw(sdid, nspec, maxfrac, nphgram, totalp, pbuf, pbase, &
+                          maxlocalp, mycomm, nbor, pcoord, stats, repiter, &
+                          verbose)
+    type(c_ptr), intent(in), value :: sdid
+    integer(c_int), intent(in) :: nspec
+    integer(c_int), intent(in) :: maxfrac
+    type(c_ptr), intent(in), value :: nphgram
+    type(c_ptr), intent(in), value :: totalp
+    type(c_ptr), intent(inout) :: pbuf
+    type(c_ptr), intent(in), value :: pbase
+    integer(c_int), intent(in) :: maxlocalp
+    type(c_ptr), intent(in), value :: mycomm
+    type(c_ptr), intent(in), value :: nbor
+    type(c_ptr), intent(in), value :: pcoord
+    integer(c_int), intent(in) :: stats
+    integer(c_int), intent(in) :: repiter
+    integer(c_int), intent(in) :: verbose
+    call c_oh2_init_raw(sdid, nspec, maxfrac, nphgram, totalp, pbuf, pbase, &
+                        maxlocalp, mycomm, nbor, pcoord, stats, repiter, &
+                        verbose)
+  end subroutine
+
+  subroutine oh3_init_raw(sdid, nspec, maxfrac, nphgram, totalp, pbuf, pbase, &
+                          maxlocalp, mycomm, nbor, pcoord, sdoms, scoord, &
+                          nbound, bcond, bounds, ftypes, cfields, ctypes, &
+                          fsizes, stats, repiter, verbose)
+    type(c_ptr), intent(in), value :: sdid
+    integer(c_int), intent(in) :: nspec
+    integer(c_int), intent(in) :: maxfrac
+    type(c_ptr), intent(in), value :: nphgram
+    type(c_ptr), intent(in), value :: totalp
+    type(c_ptr), intent(inout) :: pbuf
+    type(c_ptr), intent(in), value :: pbase
+    integer(c_int), intent(in) :: maxlocalp
+    type(c_ptr), intent(in), value :: mycomm
+    type(c_ptr), intent(in), value :: nbor
+    type(c_ptr), intent(in), value :: pcoord
+    type(c_ptr), intent(in), value :: sdoms
+    type(c_ptr), intent(in), value :: scoord
+    integer(c_int), intent(in) :: nbound
+    type(c_ptr), intent(in), value :: bcond
+    type(c_ptr), intent(in), value :: bounds
+    type(c_ptr), intent(in), value :: ftypes
+    type(c_ptr), intent(in), value :: cfields
+    type(c_ptr), intent(in), value :: ctypes
+    type(c_ptr), intent(in), value :: fsizes
+    integer(c_int), intent(in) :: stats
+    integer(c_int), intent(in) :: repiter
+    integer(c_int), intent(in) :: verbose
+    call c_oh3_init_raw(sdid, nspec, maxfrac, nphgram, totalp, pbuf, pbase, &
+                        maxlocalp, mycomm, nbor, pcoord, sdoms, scoord, &
+                        nbound, bcond, bounds, ftypes, cfields, ctypes, &
+                        fsizes, stats, repiter, verbose)
   end subroutine
 
   subroutine oh_particle_adapter_create_byte(adapter, stride, ierr)

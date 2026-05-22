@@ -40,8 +40,9 @@ default layout では `type(oh_particle)` の配列を使います。
 - primary / secondary の開始位置 `pbase`
 - 場データの descriptor `ftypes`, `cfields`, `ctypes`, `fsizes`
 
-custom particle layout を使う場合は、`bind(C)` な粒子型と
-`type(oh_particle_adapter_handle)` を用意します。
+custom particle layout を使う場合は、`bind(C)` な粒子型、
+`type(oh_particle_adapter_handle)`、`type(c_ptr)` の粒子バッファ pointer を
+用意します。初期化は `ohhelp_v2` の `oh2_init_raw()` / `oh3_init_raw()` で行います。
 
 ## 3. 初期化時の基本順序
 
@@ -137,8 +138,10 @@ if (pbuf(p)%x < xl .or. pbuf(p)%x >= xu .or. &
 end if
 ```
 
-custom particle layout では `ohhelp_v2` の adapter に region/position field を
-設定し、利用側の push で同じ意味の region field を更新します。
+custom particle layout 用には `ohhelp_v2` の adapter に region/position field を
+設定し、`oh3_init_raw()` で初期化します。粒子 push 中は adapter に登録した
+region field と histogram を、default `type(oh_particle)` の `nid` と同じ意味で
+更新します。
 
 ## 7. 粒子 injection / removal
 

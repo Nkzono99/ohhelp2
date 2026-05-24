@@ -91,7 +91,7 @@ check_present 'run_injected_position_routing_test' \
   tests/test_oh_context_lifecycle.c
 check_present 'state_update_injected_particle_count\(\)' \
   doc/v2/design/particle-adapter.md
-check_present 'same subdomain mapper used later by `move_injected_to_sendbuf\(\)`' \
+check_present 'position-field helper alone does not make the physical position authoritative' \
   doc/v2/design/particle-adapter.md
 check_present 'type == MPI_DATATYPE_NULL' src/c/ohhelp2.c
 check_present 'oh_context_set_particle_mpi_type' include/oh_context.h

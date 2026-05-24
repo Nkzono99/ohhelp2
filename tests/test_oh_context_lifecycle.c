@@ -76,6 +76,57 @@ assert_region(const char *label, int actual, int expected, int rank) {
 }
 
 static void
+run_position_fields_preserve_region_routing_test(
+    int rank, int n, MPI_Datatype pic_type, const oh_particle_adapter *adapter) {
+  oh_context *context = 0;
+  struct pic_particle particles[16] = {{0}};
+  int nphgram[4] = {0, 0, 0, 0};
+  int totalp[2] = {0, 0};
+  int pbase[3] = {0, 0, 0};
+  int sdid[2] = {rank, -1};
+  int *nphgram_ptr = nphgram;
+  int *totalp_ptr = totalp;
+  int *pbase_ptr = pbase;
+  int err;
+
+  if (n != 2) return;
+
+  err = oh_context_create(MPI_COMM_WORLD, &context);
+  assert(err == MPI_SUCCESS);
+  configure_level3_context_with_maxfrac(context, n, OH_DIM_X, 10000);
+  set_custom_adapter(context, adapter);
+
+  if (rank == 0) {
+    particles[0].x = 0.75;
+    particles[0].y = 0.5;
+    particles[0].z = 0.5;
+    particles[0].region = 0;
+    particles[0].species = 1;
+    nphgram[0] = 1;
+  }
+
+  oh_context_bind_region_ids(context, sdid, OH_PARTICLES_BORROWED);
+  oh_context_bind_particles(context, particles, 16, OH_PARTICLES_BORROWED);
+  oh_context_bind_particle_accounting(context, &nphgram_ptr, &totalp_ptr,
+                                      &pbase_ptr, OH_PARTICLES_BORROWED);
+  oh_context_set_total_particles(context);
+
+  (void)oh_context_transbound3(context, OH_MODE_NORMAL_PRIMARY, 0);
+  if (rank == 0) {
+    assert(pbase[2] == 1);
+    assert(particles[0].region == 0);
+  } else {
+    assert(pbase[2] == 0);
+  }
+
+  oh_context_unbind_region_ids(context);
+  oh_context_unbind_particle_accounting(context);
+  oh_context_unbind_particles(context);
+  oh_context_destroy(context);
+  (void)pic_type;
+}
+
+static void
 run_injected_position_routing_test(int rank, int n, MPI_Datatype pic_type,
                                    const oh_particle_adapter *adapter) {
   oh_context *context = 0;
@@ -106,7 +157,8 @@ run_injected_position_routing_test(int rank, int n, MPI_Datatype pic_type,
   injected_particle.x = 0.75;
   injected_particle.y = 0.5;
   injected_particle.z = 0.5;
-  injected_particle.region = 0;
+  injected_particle.region = oh_context_map_particle_to_subdomain(
+    context, injected_particle.x, injected_particle.y, injected_particle.z);
   injected_particle.species = 1;
   if (rank == 0)
     oh_context_inject_particle(context, &injected_particle);
@@ -274,9 +326,13 @@ main(int argc, char **argv) {
   particles_x[0].x = coord_x[0];
   particles_x[0].y = coord_x[1];
   particles_x[0].z = coord_x[2];
+  particles_x[0].region = rank;
+  particles_x[0].species = 1;
   particles_y[0].x = coord_y[0];
   particles_y[0].y = coord_y[1];
   particles_y[0].z = coord_y[2];
+  particles_y[0].region = rank;
+  particles_y[0].species = 1;
   assert(oh_particle_adapter_make_byte_type(sizeof(particles_x[0]),
                                             &pic_type) == MPI_SUCCESS);
   adapter = oh_default_particle_adapter(pic_type);
@@ -298,6 +354,8 @@ main(int argc, char **argv) {
            context_y->particle_adapter, &particles_y[0], 0) == rank);
 
   run_localized_secondary_test(rank, n, pic_type, &adapter);
+  run_position_fields_preserve_region_routing_test(rank, n, pic_type,
+                                                   &adapter);
   run_injected_position_routing_test(rank, n, pic_type, &adapter);
 
   oh_context_bind_region_ids(context_x, sdid_x, OH_PARTICLES_BORROWED);

@@ -97,6 +97,11 @@ call oh_context_get_region_ids(ctx, c_loc(sdid(1)))
 call oh_context_exchange_borders(ctx, pfld_ptr, sfld_ptr, ctype, bcast)
 ```
 
+For integer-region adapters, store `dst` in the particle's region field before
+`transbound`. Position-field helpers are used for Level 3 neighbor/boundary
+mapping and do not override an existing integer-region `map_to_subdomain`
+policy.
+
 `ctype` and field-operation `ftype` values are zero-based for the v2 context
 API. A v1-compatible application wrapper should subtract one from one-based
 Fortran field ids before calling `oh_context_bcast_field()`,
@@ -106,6 +111,12 @@ Fortran field ids before calling `oh_context_bcast_field()`,
 After `oh_context_transbound3()`, use the bound `sdid` or
 `oh_context_get_region_ids()` before refreshing primary/secondary field,
 charging, or flux buffers.
+
+Level 1-3 `transbound` returns `OH_MODE_NORMAL_PRIMARY`,
+`OH_MODE_NORMAL_SECONDARY`, or `OH_MODE_REBALANCE_SECONDARY`. The `ANY` mode
+constants are compatibility values for historical mode encoding, not expected
+Level 1-3 results. If `mode == OH_MODE_REBALANCE_SECONDARY`, refresh
+region-local buffers after reading the updated `sdid`/`pbase` state.
 
 `pbase` is an offset/count array. With a Fortran `integer(c_int) :: pbase(3)`,
 `pbase(2)` is the primary/secondary split offset and `pbase(3)` is the total

@@ -240,11 +240,14 @@ void
 oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
                                          size_t x_offset, size_t y_offset,
                                          size_t z_offset) {
+  const int had_subdomain_mapper = adapter && adapter->map_to_subdomain;
+
   if (!adapter) return;
   oh_particle_adapter_use_position_fields(adapter, x_offset, y_offset,
                                           z_offset);
   adapter->map_to_neighbor = offset_level3_map_particle_to_neighbor;
-  adapter->map_to_subdomain = offset_level3_map_particle_to_subdomain;
+  if (!had_subdomain_mapper)
+    adapter->map_to_subdomain = offset_level3_map_particle_to_subdomain;
 }
 
 void
@@ -254,10 +257,12 @@ oh3_bind_context_particle_adapter(struct oh_state *state) {
   if (!state || oh_context_is_default_state(state)) return;
   adapter = state->particle_adapter;
   if (!adapter) return;
-  if (adapter->map_to_neighbor == offset_level3_map_particle_to_neighbor &&
-      adapter->map_to_subdomain == offset_level3_map_particle_to_subdomain) {
+  if (adapter->map_to_neighbor == offset_level3_map_particle_to_neighbor) {
     adapter->user_data = state;
     adapter->map_to_neighbor = context_level3_map_particle_to_neighbor;
+  }
+  if (adapter->map_to_subdomain == offset_level3_map_particle_to_subdomain) {
+    adapter->user_data = state;
     adapter->map_to_subdomain = context_level3_map_particle_to_subdomain;
   }
 }

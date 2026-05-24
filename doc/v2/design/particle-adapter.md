@@ -90,6 +90,14 @@ inside a documented packed-id path.
 Level 3 boundary mapping may mutate position fields when periodic wrapping is
 needed. This is part of the mapping contract.
 
+Position-field helpers provide coordinates for Level 3 neighbor/boundary
+mapping. If the adapter already has a `map_to_subdomain()` implementation, such
+as the integer-region helper used for v1-style load balancing, adding position
+fields must not replace that subdomain mapper. New v2 integrations should map a
+particle's physical position explicitly with `oh_context_map_particle_to_subdomain()`
+and store the result through the adapter region field or callback before
+`transbound`.
+
 ## Injection Accounting
 
 Injected-particle accounting is part of the particle contract.
@@ -112,10 +120,13 @@ Level 2 centralizes those updates in `state_update_injected_particle_count()`
 so inject, remap, and remove paths use the same accounting rule.
 
 For Level 3/context adapters, pending injected particles are accounted with the
-same subdomain mapper used later by `move_injected_to_sendbuf()`. The raw
-region field is not the authority when `map_to_subdomain()` is available,
-because user layouts may keep a stale or independent region field while the
-particle position determines the actual destination.
+same subdomain mapper used later by `move_injected_to_sendbuf()`. When the
+adapter uses the integer-region helper, that mapper reads the region field; a
+position-field helper alone does not make the physical position authoritative
+for load balancing. If an injected particle should be routed by physical
+position, first call `oh_context_map_particle_to_subdomain()` and store the
+returned region id in the injected copy, or provide an explicit callback
+`map_to_subdomain()` with that policy.
 
 Calling `set_total_particles_state()` after injection finalizes pending
 injected copies as ordinary local particles by clearing `nOfInjections` and

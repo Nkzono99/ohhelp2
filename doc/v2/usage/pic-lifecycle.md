@@ -87,6 +87,17 @@ oh_context_get_region_ids(ctx, sdid);
 oh_context_exchange_borders(ctx, pfld, sfld, ctype, bcast);
 ```
 
+For integer-region adapters, store `dst` in the particle's region field before
+`transbound`. Position-field helpers are used for Level 3 neighbor/boundary
+mapping and do not override an existing integer-region `map_to_subdomain`
+policy.
+
+Level 1-3 `transbound` returns `OH_MODE_NORMAL_PRIMARY`,
+`OH_MODE_NORMAL_SECONDARY`, or `OH_MODE_REBALANCE_SECONDARY`. The `ANY` mode
+constants are compatibility values for historical mode encoding, not expected
+Level 1-3 results. If `mode == OH_MODE_REBALANCE_SECONDARY`, refresh
+region-local buffers after reading the updated `sdid`/`pbase` state.
+
 `pbase[1]` is the primary/secondary split offset after transbound, and
 `pbase[2]` is the total local particle count / end offset.
 

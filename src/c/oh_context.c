@@ -906,7 +906,7 @@ oh_context_reduce(struct oh_state *context, void *pbuf, void *sbuf,
 void
 oh_context_set_total_particles(struct oh_state *context) {
   context = context_or_default(context);
-  set_total_particles_state(context);
+  oh2_set_total_particles_state(context);
   if (context_is_default(context)) {
     TotalP = context->total_particles;
     primaryParts = context->primary_parts;

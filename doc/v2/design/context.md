@@ -165,3 +165,19 @@ Use named constants, not magic numbers:
 - `OH_MODE_ANY_SECONDARY`
 
 Short aliases such as `OH_MODE_NORM_PRI` are provided for compact code.
+
+For Level 1-3 context APIs, applications should handle these values as
+`transbound` return modes:
+
+- `OH_MODE_NORMAL_PRIMARY`: the context is operating as a primary region only.
+- `OH_MODE_NORMAL_SECONDARY`: the context has an active secondary region and
+  the current primary/secondary assignment remains usable.
+- `OH_MODE_REBALANCE_SECONDARY`: the secondary assignment was rebuilt; refresh
+  secondary-side field, charging, flux, and other region-local buffers from
+  the updated `sdid` and `pbase` state.
+
+`OH_MODE_ANY_PRIMARY` and `OH_MODE_ANY_SECONDARY` remain public compatibility
+constants for the historical mode encoding and may be accepted as input
+`currmode` values. They are not the normal Level 1-3 return contract. New v2
+code should not branch on them as expected `transbound` results unless a later
+Level 4 or compatibility path documents that behavior explicitly.

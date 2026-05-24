@@ -95,6 +95,9 @@ static void  state_copy_particle(struct oh_state *state,
 static void  state_copy_particles(struct oh_state *state,
                                   struct S_particle *dst,
                                   const struct S_particle *src, int count);
+static void  finalize_injected_particles_state(struct oh_state *state);
+static int   state_injected_particle_region_kind(struct oh_state *state,
+                                                 struct S_particle *part);
 
 void
 oh2_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
@@ -1170,13 +1173,115 @@ oh2_set_total_particles_() {
 }
 void
 oh2_set_total_particles() {
-  struct oh_state *state = oh1_state();
+  oh2_set_total_particles_state(oh1_state());
+}
+void
+oh2_set_total_particles_state(struct oh_state *state) {
+  if (!state) state = oh1_state();
+  if (state->n_of_injections) finalize_injected_particles_state(state);
   set_total_particles_state(state);
-  TotalP = state->total_particles;
-  primaryParts = state->primary_parts;
-  totalParts = state->total_parts;
-  nOfInjections = state->n_of_injections;
-  oh1_sync_default_state();
+  if (state->particle_base_bound) {
+    *state->secondary_base = state->primary_parts;
+    *state->total_local_particles = state->total_parts;
+  }
+  if (oh_context_is_default_state(state)) {
+    TotalP = state->total_particles;
+    primaryParts = state->primary_parts;
+    totalParts = state->total_parts;
+    nOfInjections = state->n_of_injections;
+    oh1_sync_default_state();
+  }
+}
+static void
+finalize_injected_particles_state(struct oh_state *state) {
+  const int ns=state->n_of_species, nn=state->n_of_nodes;
+  const int old_primary=state->primary_parts;
+  const int old_total=state->total_parts;
+  const int ninj=state->n_of_injections;
+  const int scan_total=old_total+ninj;
+  const int nclass=ns*2, nhist=nclass*nn;
+  int *counts, *hist, *cursor;
+  int i, s, t, ps, dst, total;
+
+  if (!state->particle_buffer_bound)
+    local_errstop("particle buffer is not bound");
+  if (!state->particle_accounting_bound || !state->particle_base_bound)
+    local_errstop("particle accounting is not bound");
+  if (!state->send_buffer)
+    local_errstop("particle work buffer is not allocated");
+  if (scan_total>state->n_of_local_particles_limit)
+    local_errstop("injection causes local particle buffer overflow");
+
+  counts = (int*)mem_alloc(sizeof(int), nclass, "FinalizeCounts");
+  hist = (int*)mem_alloc(sizeof(int), nhist, "FinalizeNOfPLocal");
+  cursor = (int*)mem_alloc(sizeof(int), nclass, "FinalizeCursor");
+  for (i=0; i<nclass; i++) counts[i] = cursor[i] = 0;
+  for (i=0; i<nhist; i++) hist[i] = 0;
+
+  for (i=0; i<scan_total; i++) {
+    struct S_particle *part=state_particle_at(state, state->particles, i);
+    if (i<old_total) {
+      ps = i<old_primary ? 0 : 1;
+      dst = state_particle_subdomain(state, part, ps);
+    } else {
+      ps = state_injected_particle_region_kind(state, part);
+      dst = state_map_injected_particle_to_subdomain(state, part);
+    }
+    if (dst<0) continue;
+    s = state_particle_species(state, part);
+    t = ps*ns+s;
+    counts[t]++;
+    hist[t*nn+dst]++;
+  }
+
+  total = 0;
+  for (s=0; s<ns; s++) {
+    cursor[s] = total;
+    total += counts[s];
+  }
+  state->primary_parts = total;
+  for (s=0; s<ns; s++) {
+    t = ns+s;
+    cursor[t] = total;
+    total += counts[t];
+  }
+  if (total>state->n_of_local_particles_limit)
+    local_errstop("injection causes local particle buffer overflow");
+
+  for (i=0; i<scan_total; i++) {
+    struct S_particle *part=state_particle_at(state, state->particles, i);
+    if (i<old_total) {
+      ps = i<old_primary ? 0 : 1;
+      dst = state_particle_subdomain(state, part, ps);
+    } else {
+      ps = state_injected_particle_region_kind(state, part);
+      dst = state_map_injected_particle_to_subdomain(state, part);
+    }
+    if (dst<0) continue;
+    s = state_particle_species(state, part);
+    t = ps*ns+s;
+    state_copy_particle(state,
+                        state_particle_at(state, state->send_buffer,
+                                          cursor[t]++), part);
+  }
+
+  state_copy_particles(state, state->particles, state->send_buffer, total);
+  for (i=0; i<nhist; i++) state->n_of_particles_local[i] = hist[i];
+  for (i=0; i<nclass; i++) state->injected_particles[i] = 0;
+  state->total_parts = total;
+  state->n_of_injections = 0;
+  *state->secondary_base = state->primary_parts;
+  *state->total_local_particles = total;
+
+  free(cursor);
+  free(hist);
+  free(counts);
+}
+static int
+state_injected_particle_region_kind(struct oh_state *state,
+                                    struct S_particle *part) {
+  int dst = state_map_injected_particle_to_subdomain(state, part);
+  return dst>=0 && dst==state->region_id[1] ? 1 : 0;
 }
 int
 oh2_max_local_particles_(dint *npmax, int *maxfrac, int *minmargin) {

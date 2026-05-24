@@ -35,6 +35,12 @@ buffer、accounting arrays、Level 3 geometry は context に保持されます�
 mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats)
 ```
 
+Level 1-3 `transbound` returns `OH_MODE_NORMAL_PRIMARY`,
+`OH_MODE_NORMAL_SECONDARY`, or `OH_MODE_REBALANCE_SECONDARY`.
+`OH_MODE_ANY_PRIMARY` and `OH_MODE_ANY_SECONDARY` are compatibility constants
+for the historical mode encoding; new v2 code should not branch on them as
+expected Level 1-3 return values.
+
 `maxfrac` は load-balance threshold で、buffer capacity の余裕とは別です。
 強い局所 injection がある場合は、粒子 buffer サイズを次の helper で別途決めます。
 
@@ -98,6 +104,15 @@ call oh_context_get_region_ids(ctx, c_loc(sdid(1)))
 call oh_context_bcast_field(ctx, pfld_ptr, sfld_ptr, 0_c_int)
 call oh_context_exchange_borders(ctx, pfld_ptr, sfld_ptr, 0_c_int, bcast)
 ```
+
+For adapter layouts with integer region fields, write the result of
+`oh_context_map_particle_to_subdomain()` back to the particle's region field
+before `transbound`. Position-field helpers support Level 3 neighbor/boundary
+mapping; they do not replace an existing integer-region `map_to_subdomain`
+path.
+
+If `mode == OH_MODE_REBALANCE_SECONDARY`, refresh region-local buffers after
+reading the updated `sdid`/`pbase` state.
 
 After transbound, `sdid(1)` is the active primary region and `sdid(2)` is the
 active secondary region (`-1` if inactive). `pbase(2)` is the secondary split

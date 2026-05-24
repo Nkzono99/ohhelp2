@@ -1,5 +1,33 @@
 # Changelog
 
+## v2.1.2 - 2026-05-24
+
+This patch release fixes two downstream migration issues reported from DRIFT
+while keeping the supported v2 scope at Level 1-3.
+
+### Fixed
+
+- Fixed default fpm dependency builds so Level 4 C translation units compile
+  without downstream users defining `OH_LIB_LEVEL_4P` or `OH_LIB_LEVEL_4S`.
+- Added the Fortran v2 helper `oh_context_configure_level3_legacy()` for
+  migration code that still has the old active-decomposition sentinel and
+  one-based Level 3 boundary IDs.
+
+### Documentation
+
+- Documented the Level 4 fpm build guard in the v2 level-scope design note.
+- Documented the Fortran Level 3 legacy configuration helper in the v2 usage
+  and context design guides.
+
+### Verification
+
+- `bash tests/test_particle_contract_audit.sh`
+- Docker `mpicc` compile check for Level 4 C sources with and without Level 4
+  macros.
+- Docker fpm builds:
+  - `fpm build --compiler mpifort --c-compiler mpicc`
+  - `fpm build --compiler mpiifx --c-compiler mpiicx`
+
 ## v2.1.1 - 2026-05-24
 
 This patch release keeps the supported scope at Level 1-3 and promotes the

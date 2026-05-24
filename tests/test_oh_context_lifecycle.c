@@ -173,7 +173,15 @@ main(int argc, char **argv) {
   assert(nphgram_x != nphgram_y);
   assert(totalp_x != totalp_y);
   assert(pbase_x != pbase_y);
+  assert(oh_context_transbound1(context_x, OH_MODE_NORMAL_PRIMARY, 0) ==
+         OH_MODE_NORMAL_PRIMARY);
+  assert(oh_context_transbound2(context_x, OH_MODE_NORMAL_PRIMARY, 0) ==
+         OH_MODE_NORMAL_PRIMARY);
   assert(oh_context_transbound3(context_x, OH_MODE_NORMAL_PRIMARY, 0) ==
+         OH_MODE_NORMAL_PRIMARY);
+  assert(oh_context_transbound1(context_y, OH_MODE_NORMAL_PRIMARY, 0) ==
+         OH_MODE_NORMAL_PRIMARY);
+  assert(oh_context_transbound2(context_y, OH_MODE_NORMAL_PRIMARY, 0) ==
          OH_MODE_NORMAL_PRIMARY);
   assert(oh_context_transbound3(context_y, OH_MODE_NORMAL_PRIMARY, 0) ==
          OH_MODE_NORMAL_PRIMARY);

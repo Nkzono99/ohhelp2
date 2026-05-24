@@ -99,10 +99,18 @@ program test_oh_context_lifecycle_fortran
   if (c_associated(totalp_x, totalp_y)) stop 17
   if (c_associated(pbase_x, pbase_y)) stop 18
 
-  mode = oh_context_transbound3(context_x, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  mode = oh_context_transbound1(context_x, OH_MODE_NORMAL_PRIMARY, 0_c_int)
   if (mode /= OH_MODE_NORMAL_PRIMARY) stop 19
-  mode = oh_context_transbound3(context_y, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  mode = oh_context_transbound2(context_x, OH_MODE_NORMAL_PRIMARY, 0_c_int)
   if (mode /= OH_MODE_NORMAL_PRIMARY) stop 20
+  mode = oh_context_transbound3(context_x, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  if (mode /= OH_MODE_NORMAL_PRIMARY) stop 21
+  mode = oh_context_transbound1(context_y, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  if (mode /= OH_MODE_NORMAL_PRIMARY) stop 22
+  mode = oh_context_transbound2(context_y, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  if (mode /= OH_MODE_NORMAL_PRIMARY) stop 23
+  mode = oh_context_transbound3(context_y, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  if (mode /= OH_MODE_NORMAL_PRIMARY) stop 24
 
   call oh_context_unbind_particle_accounting(context_x)
   call oh_context_unbind_particles(context_x)

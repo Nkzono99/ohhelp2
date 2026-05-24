@@ -45,6 +45,7 @@ void oh2_set_particle_adapter_state(struct oh_state *state,
 void *oh2_inject_particle_state(struct oh_state *state, void *part);
 void oh2_remap_injected_particle_state(struct oh_state *state, void *part);
 void oh2_remove_injected_particle_state(struct oh_state *state, void *part);
+void oh2_set_total_particles_state(struct oh_state *state);
 void exchange_primary_particles_state(struct oh_state *state, int currmode,
                                       int stats);
 void move_to_sendbuf_primary_state(struct oh_state *state, int secondary,

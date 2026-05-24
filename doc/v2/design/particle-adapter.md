@@ -111,6 +111,12 @@ the internal primary/secondary/species counter array that tracks those copies.
 Level 2 centralizes those updates in `state_update_injected_particle_count()`
 so inject, remap, and remove paths use the same accounting rule.
 
+For Level 3/context adapters, pending injected particles are accounted with the
+same subdomain mapper used later by `move_injected_to_sendbuf()`. The raw
+region field is not the authority when `map_to_subdomain()` is available,
+because user layouts may keep a stale or independent region field while the
+particle position determines the actual destination.
+
 Calling `set_total_particles_state()` after injection finalizes pending
 injected copies as ordinary local particles by clearing `nOfInjections` and
 `InjectedParticles` after their counts are included in `totalParts`. This keeps

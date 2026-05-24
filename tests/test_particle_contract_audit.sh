@@ -86,7 +86,12 @@ check_absent '->(nid|spec)\b' src/c/ohhelp2.c
 check_present 'OH_nid_t region' src/c/ohhelp2.c
 check_present 'state_mark_particle_removed' src/c/ohhelp2.c
 check_present 'state_update_injected_particle_count' src/c/ohhelp2.c
+check_present 'state_map_injected_particle_to_subdomain' src/c/ohhelp2.c
+check_present 'run_injected_position_routing_test' \
+  tests/test_oh_context_lifecycle.c
 check_present 'state_update_injected_particle_count\(\)' \
+  doc/v2/design/particle-adapter.md
+check_present 'same subdomain mapper used later by `move_injected_to_sendbuf\(\)`' \
   doc/v2/design/particle-adapter.md
 check_present 'type == MPI_DATATYPE_NULL' src/c/ohhelp2.c
 check_present 'oh_context_set_particle_mpi_type' include/oh_context.h

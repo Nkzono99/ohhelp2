@@ -9,6 +9,16 @@
 module ohhelp1
   use oh_type
   implicit none
+  integer, parameter :: OH_MODE_NORMAL_PRIMARY = 0
+  integer, parameter :: OH_MODE_NORMAL_SECONDARY = 1
+  integer, parameter :: OH_MODE_REBALANCE_SECONDARY = -1
+  integer, parameter :: OH_MODE_ANY_PRIMARY = 2
+  integer, parameter :: OH_MODE_ANY_SECONDARY = 3
+  integer, parameter :: OH_MODE_NORM_PRI = OH_MODE_NORMAL_PRIMARY
+  integer, parameter :: OH_MODE_NORM_SEC = OH_MODE_NORMAL_SECONDARY
+  integer, parameter :: OH_MODE_REB_SEC = OH_MODE_REBALANCE_SECONDARY
+  integer, parameter :: OH_MODE_ANY_PRI = OH_MODE_ANY_PRIMARY
+  integer, parameter :: OH_MODE_ANY_SEC = OH_MODE_ANY_SECONDARY
   interface
     subroutine oh1_fam_comm(fortran_comm)
       implicit none

@@ -52,7 +52,8 @@ main(void) {
   oh_bcast_field(primary_field, secondary_field, 0);
   oh_reduce_field(primary_field, secondary_field, 0);
   oh_allreduce_field(primary_field, secondary_field, 0);
-  oh_exchange_borders(primary_field, secondary_field, 0, 0);
+  oh_exchange_borders(primary_field, secondary_field, 0,
+                      OH_MODE_NORMAL_PRIMARY);
 
 #if OH_DIMENSION == 1
   (void)oh_map_particle_to_neighbor(&particle.x, 0);
@@ -65,6 +66,10 @@ main(void) {
   (void)oh_map_particle_to_subdomain(particle.x, particle.y, particle.z);
 #endif
 
-  (void)oh_transbound(0, 0);
+  (void)oh_transbound(OH_MODE_NORMAL_PRIMARY, 0);
+  (void)OH_MODE_NORMAL_SECONDARY;
+  (void)OH_MODE_REBALANCE_SECONDARY;
+  (void)OH_MODE_ANY_PRIMARY;
+  (void)OH_MODE_ANY_SECONDARY;
   return 0;
 }

@@ -27,9 +27,13 @@ main(void) {
                                       OH_PARTICLES_OWNED);
   oh_context_unbind_particle_accounting(context);
   oh_context_set_region_weights(context, weights);
-  (void)oh_context_transbound1(context, 0, 0);
-  (void)oh_context_transbound2(context, 0, 0);
-  (void)oh_context_transbound3(context, 0, 0);
+  (void)oh_context_transbound1(context, OH_MODE_NORMAL_PRIMARY, 0);
+  (void)oh_context_transbound2(context, OH_MODE_NORMAL_PRIMARY, 0);
+  (void)oh_context_transbound3(context, OH_MODE_NORMAL_PRIMARY, 0);
+  (void)OH_MODE_NORMAL_SECONDARY;
+  (void)OH_MODE_REBALANCE_SECONDARY;
+  (void)OH_MODE_ANY_PRIMARY;
+  (void)OH_MODE_ANY_SECONDARY;
   oh_context_broadcast(context, primary, secondary, 0, 0, MPI_DOUBLE,
                        MPI_DOUBLE);
   oh_context_all_reduce(context, primary, secondary, 0, 0, MPI_DOUBLE,

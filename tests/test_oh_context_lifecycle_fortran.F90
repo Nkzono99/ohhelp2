@@ -83,8 +83,8 @@ program test_oh_context_lifecycle_fortran
   if (.not. c_associated(totalp)) stop 4
   if (.not. c_associated(pbase)) stop 5
 
-  mode = oh_context_transbound3(context, 0_c_int, 0_c_int)
-  if (mode /= 0_c_int) stop 8
+  mode = oh_context_transbound3(context, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  if (mode /= OH_MODE_NORMAL_PRIMARY) stop 8
 
   call oh_context_unbind_particle_accounting(context)
   call oh_context_unbind_particles(context)

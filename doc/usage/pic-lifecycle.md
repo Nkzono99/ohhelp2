@@ -84,18 +84,19 @@ Level 4s は `oh_init()` が `maxlocalp` と communication buffer size を返し
 現在の計算モードを表します。
 
 ```c
-currmode = oh_transbound(0, stats);
+currmode = oh_transbound(OH_MODE_NORMAL_PRIMARY, stats);
 
-if (currmode < 0) {
+if (currmode == OH_MODE_REBALANCE_SECONDARY) {
     oh_bcast_field(field_primary, field_secondary, field_type_eb);
-    currmode = 1;
+    currmode = OH_MODE_NORMAL_SECONDARY;
 }
 
 oh_exchange_borders(field_primary, field_secondary, field_type_eb, currmode);
 ```
 
-`currmode < 0` は、OhHelp が secondary 側の場を broadcast する必要がある
-状態を表します。利用側では broadcast 後に `currmode = 1` として扱います。
+`OH_MODE_REBALANCE_SECONDARY` は、OhHelp が secondary 側の場を broadcast
+する必要がある状態を表します。利用側では broadcast 後に
+`OH_MODE_NORMAL_SECONDARY` として扱います。
 
 ## 5. timestep 内の基本ループ
 
@@ -122,9 +123,9 @@ for (int step = 0; step < nstep; step++) {
 
     currmode = oh_transbound(currmode, stats);
 
-    if (currmode < 0) {
+    if (currmode == OH_MODE_REBALANCE_SECONDARY) {
         oh_bcast_field(field_primary, field_secondary, field_type_eb);
-        currmode = 1;
+        currmode = OH_MODE_NORMAL_SECONDARY;
     }
 
     current_scatter(pbuf + pbase[0],
@@ -139,7 +140,7 @@ for (int step = 0; step < nstep; step++) {
                         sdoms[sdid[1]]);
     }
 
-    if (currmode != 0) {
+    if (currmode != OH_MODE_NORMAL_PRIMARY) {
         oh_allreduce_field(current_primary, current_secondary, field_type_current);
     }
 

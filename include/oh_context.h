@@ -6,6 +6,7 @@
 
 #include <mpi.h>
 
+#include "oh_mode.h"
 #include "oh_particle_ownership.h"
 
 #ifdef __cplusplus

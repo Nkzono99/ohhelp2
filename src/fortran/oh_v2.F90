@@ -15,6 +15,19 @@ module ohhelp_v2
 
   integer(c_int), parameter, public :: OH_PARTICLES_BORROWED = 0_c_int
   integer(c_int), parameter, public :: OH_PARTICLES_OWNED = 1_c_int
+  integer(c_int), parameter, public :: OH_MODE_NORMAL_PRIMARY = 0_c_int
+  integer(c_int), parameter, public :: OH_MODE_NORMAL_SECONDARY = 1_c_int
+  integer(c_int), parameter, public :: OH_MODE_REBALANCE_SECONDARY = -1_c_int
+  integer(c_int), parameter, public :: OH_MODE_ANY_PRIMARY = 2_c_int
+  integer(c_int), parameter, public :: OH_MODE_ANY_SECONDARY = 3_c_int
+  integer(c_int), parameter, public :: OH_MODE_NORM_PRI = &
+    OH_MODE_NORMAL_PRIMARY
+  integer(c_int), parameter, public :: OH_MODE_NORM_SEC = &
+    OH_MODE_NORMAL_SECONDARY
+  integer(c_int), parameter, public :: OH_MODE_REB_SEC = &
+    OH_MODE_REBALANCE_SECONDARY
+  integer(c_int), parameter, public :: OH_MODE_ANY_PRI = OH_MODE_ANY_PRIMARY
+  integer(c_int), parameter, public :: OH_MODE_ANY_SEC = OH_MODE_ANY_SECONDARY
 
   type, bind(C) :: oh_mycomm_v2
     integer(c_int) :: prime

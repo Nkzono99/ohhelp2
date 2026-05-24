@@ -24,6 +24,20 @@ Fortran では `ohhelp_f.h` の `oh_*` alias と `ohhelp1` / `ohhelp2` /
 | `oh_all_reduce()` / `oh_reduce()` | primary/secondary 同期 | secondary 側の寄与を集約する。 |
 | `oh_set_region_weights()` | `oh_init()` 後 | region ごとの計算コスト重みを設定する。 |
 
+`currmode` には magic number ではなく、`ohhelp1` 系 module と `ohhelp_v2`
+module が公開する定数を使います。
+
+| 定数 | 値 | 意味 |
+| --- | ---: | --- |
+| `OH_MODE_NORMAL_PRIMARY` | 0 | primary だけを通常計算する。初期値。 |
+| `OH_MODE_NORMAL_SECONDARY` | 1 | primary / secondary を通常計算する。 |
+| `OH_MODE_REBALANCE_SECONDARY` | -1 | rebalance 後に secondary field broadcast が必要。 |
+| `OH_MODE_ANY_PRIMARY` | 2 | primary 側で anywhere/accommodation mode を使う。 |
+| `OH_MODE_ANY_SECONDARY` | 3 | secondary 側も含めて anywhere/accommodation mode を使う。 |
+
+短い互換名として `OH_MODE_NORM_PRI` / `OH_MODE_NORM_SEC` /
+`OH_MODE_REB_SEC` / `OH_MODE_ANY_PRI` / `OH_MODE_ANY_SEC` も提供します。
+
 ## Context API
 
 Fortran では `ohhelp_v2` の opaque handle を使います。default context facade に加えて、
@@ -35,7 +49,7 @@ use ohhelp_v2
 
 type(oh_context_handle) :: ctx
 real(c_double), target :: weights(nregions)
-integer(c_int) :: currmode
+integer(c_int) :: currmode = OH_MODE_NORMAL_PRIMARY
 
 ctx = oh_default_context()
 call oh_context_set_region_weights(ctx, weights)
@@ -47,6 +61,7 @@ v2.x では process-global default context の解消に向けて、heap-owned co
 
 ```fortran
 type(oh_context_handle) :: owned
+integer(c_int) :: currmode = OH_MODE_NORMAL_PRIMARY
 integer(c_int) :: ierr
 
 call oh_context_create(owned, fortran_comm, ierr)
@@ -216,12 +231,12 @@ nphgram(m+1,s) = nphgram(m+1,s) + 1
 field 同期:
 
 ```fortran
-if (currmode < 0) then
+if (currmode == OH_MODE_REBALANCE_SECONDARY) then
   call oh_bcast_field(eb(1,0,0,0,1), eb(1,0,0,0,2), FEB)
-  currmode = 1
+  currmode = OH_MODE_NORMAL_SECONDARY
 end if
 
-if (currmode /= 0) then
+if (currmode /= OH_MODE_NORMAL_PRIMARY) then
   call oh_allreduce_field(cd(1,0,0,0,1), cd(1,0,0,0,2), FCD)
 end if
 

@@ -18,6 +18,7 @@
 #include <mpi.h>
 
 #include "oh_config.h"
+#include "oh_mode.h"
 #include "oh_stats.h"
 
 #ifndef TRUE
@@ -75,11 +76,11 @@ typedef struct oh_particle_adapter oh_particle_adapter;
 struct oh_state;
 
 /* Basic process configuration modes */
-#define MODE_NORM_PRI (0)
-#define MODE_NORM_SEC (1)
-#define MODE_REB_SEC  (-1)
-#define MODE_ANY_PRI  (2)
-#define MODE_ANY_SEC  (3)
+#define MODE_NORM_PRI OH_MODE_NORM_PRI
+#define MODE_NORM_SEC OH_MODE_NORM_SEC
+#define MODE_REB_SEC  OH_MODE_REB_SEC
+#define MODE_ANY_PRI  OH_MODE_ANY_PRI
+#define MODE_ANY_SEC  OH_MODE_ANY_SEC
 #define Mode_PS(M)       (M&1)
 #define Mode_Acc(M)      (M&2)
 #define Mode_Set_Pri(M)  (M&2)

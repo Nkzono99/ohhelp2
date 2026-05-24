@@ -78,11 +78,11 @@ allocate(eb(6, fsizes(1,1,FEB):fsizes(2,1,FEB), &
 初期粒子配置後、最初に `oh_transbound()` を呼びます。
 
 ```fortran
-currmode = oh_transbound(0, stats)
+currmode = oh_transbound(OH_MODE_NORMAL_PRIMARY, stats)
 
-if (currmode < 0) then
+if (currmode == OH_MODE_REBALANCE_SECONDARY) then
   call oh_bcast_field(eb(1,0,0,0,1), eb(1,0,0,0,2), FEB)
-  currmode = 1
+  currmode = OH_MODE_NORMAL_SECONDARY
 end if
 
 call oh_exchange_borders(eb(1,0,0,0,1), eb(1,0,0,0,2), FEB, currmode)
@@ -107,12 +107,12 @@ do step = 1, nstep
 
   currmode = oh_transbound(currmode, stats)
 
-  if (currmode < 0) then
+  if (currmode == OH_MODE_REBALANCE_SECONDARY) then
     call oh_bcast_field(eb(1,0,0,0,1), eb(1,0,0,0,2), FEB)
-    currmode = 1
+    currmode = OH_MODE_NORMAL_SECONDARY
   end if
 
-  if (currmode /= 0) then
+  if (currmode /= OH_MODE_NORMAL_PRIMARY) then
     call oh_allreduce_field(cd(1,0,0,0,1), cd(1,0,0,0,2), FCD)
   end if
 

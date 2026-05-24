@@ -320,7 +320,7 @@ call oh_context_set_region_weights(ctx)
 call oh_init(...)
 call oh_set_region_weights(weights)
 
-currmode = oh_transbound(0, stats)
+currmode = oh_transbound(OH_MODE_NORMAL_PRIMARY, stats)
 ```
 
 重みが時間発展で変わる場合は、次の `oh_transbound()` の前に更新します。

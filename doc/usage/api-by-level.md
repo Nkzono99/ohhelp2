@@ -28,6 +28,19 @@ v2.0 では Level 1-3 を supported scope とします。Level 4p/4s は v2.x �
 | `oh_all_reduce()` / `oh_reduce()` | primary/secondary 同期 | secondary 側の寄与を集約する。 |
 | `oh_set_region_weights()` | `oh_init()` 後、通常は最初の `oh_transbound()` 前 | region ごとの計算コスト重みを設定する。 |
 
+`currmode` には magic number ではなく、公開定数を使います。
+
+| 定数 | 値 | 意味 |
+| --- | ---: | --- |
+| `OH_MODE_NORMAL_PRIMARY` | 0 | primary だけを通常計算する。初期値。 |
+| `OH_MODE_NORMAL_SECONDARY` | 1 | primary / secondary を通常計算する。 |
+| `OH_MODE_REBALANCE_SECONDARY` | -1 | rebalance 後に secondary field broadcast が必要。 |
+| `OH_MODE_ANY_PRIMARY` | 2 | primary 側で anywhere/accommodation mode を使う。 |
+| `OH_MODE_ANY_SECONDARY` | 3 | secondary 側も含めて anywhere/accommodation mode を使う。 |
+
+短い互換名として `OH_MODE_NORM_PRI` / `OH_MODE_NORM_SEC` /
+`OH_MODE_REB_SEC` / `OH_MODE_ANY_PRI` / `OH_MODE_ANY_SEC` も提供します。
+
 ## Context API
 
 v2.0 では C の `oh_default_context()` で現在の default OhHelp instance を
@@ -38,9 +51,10 @@ Level 1-3 の主要操作には context-facing wrapper を用意しています�
 
 ```c
 oh_context *ctx = oh_default_context();
+int currmode = OH_MODE_NORMAL_PRIMARY;
 
 oh_context_set_region_weights(ctx, weights);
-oh_context_transbound3(ctx, currmode, stats);
+currmode = oh_context_transbound3(ctx, currmode, stats);
 oh_context_map_particle_to_neighbor(ctx, &p.x, &p.y, &p.z, ps);
 oh_context_bcast_field(ctx, eb_primary, eb_secondary, field_type_eb);
 oh_context_exchange_borders(ctx, eb_primary, eb_secondary, field_type_eb,
@@ -52,6 +66,7 @@ v2.x では process-global default context の解消に向けて、heap-owned co
 
 ```c
 oh_context *owned = NULL;
+int currmode = OH_MODE_NORMAL_PRIMARY;
 int err = oh_context_create(MPI_COMM_WORLD, &owned);
 
 oh_context_configure_particles(owned, nspec, maxfrac);
@@ -262,12 +277,12 @@ default mapping が自動設定されます。
 場データ同期:
 
 ```c
-if (currmode < 0) {
+if (currmode == OH_MODE_REBALANCE_SECONDARY) {
     oh_bcast_field(eb_primary, eb_secondary, field_type_eb);
-    currmode = 1;
+    currmode = OH_MODE_NORMAL_SECONDARY;
 }
 
-if (currmode != 0) {
+if (currmode != OH_MODE_NORMAL_PRIMARY) {
     oh_allreduce_field(j_primary, j_secondary, field_type_current);
 }
 

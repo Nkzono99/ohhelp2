@@ -474,7 +474,7 @@ oh_set_region_weights(NULL);
 oh_init(...);
 oh_set_region_weights(weights);
 
-currmode = oh_transbound(0, stats);
+currmode = oh_transbound(OH_MODE_NORMAL_PRIMARY, stats);
 ```
 
 重みが時間発展で変わる場合は、次の `oh_transbound()` の前に更新します。
@@ -521,7 +521,7 @@ weight(region) =
 oh_init(...);
 oh_set_region_weights(initial_weights);
 
-currmode = oh_transbound(0, stats);
+currmode = oh_transbound(OH_MODE_NORMAL_PRIMARY, stats);
 
 for (int step = 0; step < nstep; step++) {
     measure_or_predict_region_cost(weights);

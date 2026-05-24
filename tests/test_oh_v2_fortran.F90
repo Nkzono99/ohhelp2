@@ -99,9 +99,13 @@ program test_oh_v2_fortran
                                            raw_totalp, raw_pbase, &
                                            OH_PARTICLES_BORROWED)
 
-  dst = oh_context_transbound1(context, 0_c_int, 0_c_int)
-  dst = oh_context_transbound2(context, 0_c_int, 0_c_int)
-  dst = oh_context_transbound3(context, 0_c_int, 0_c_int)
+  dst = oh_context_transbound1(context, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  dst = oh_context_transbound2(context, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  dst = oh_context_transbound3(context, OH_MODE_NORMAL_PRIMARY, 0_c_int)
+  dst = OH_MODE_NORMAL_SECONDARY
+  dst = OH_MODE_REBALANCE_SECONDARY
+  dst = OH_MODE_ANY_PRIMARY
+  dst = OH_MODE_ANY_SECONDARY
   call oh_context_grid_size(context, field)
   dst = oh_context_map_particle_to_neighbor(context, x, y, z, 0_c_int)
   dst = oh_context_map_particle_to_subdomain(context, x, y, z)

@@ -104,7 +104,8 @@ main(int argc, char **argv) {
   assert(nphgram);
   assert(totalp);
   assert(pbase);
-  assert(oh_context_transbound3(context, MODE_NORM_PRI, 0) == MODE_NORM_PRI);
+  assert(oh_context_transbound3(context, OH_MODE_NORMAL_PRIMARY, 0) ==
+         OH_MODE_NORMAL_PRIMARY);
   oh_context_unbind_particle_accounting(context);
   oh_context_unbind_particles(context);
   oh_context_destroy(context);

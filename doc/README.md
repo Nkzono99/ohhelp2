@@ -11,8 +11,9 @@ Current ohhelp2 documentation lives under [`v2/`](v2/).
 - [Fortran PIC lifecycle](v2/usage/pic-lifecycle-fortran.md)
 - [C API by level](v2/usage/api-by-level.md)
 - [Fortran API by level](v2/usage/api-by-level-fortran.md)
-- [Design notes](v2/design/v2-redesign.md)
-- [Particle contract notes](v2/design/v2-particle-contracts.md)
+- [Design guide](v2/design/README.md)
+- [Context API design](v2/design/context.md)
+- [Particle adapter design](v2/design/particle-adapter.md)
 
 ## v1
 

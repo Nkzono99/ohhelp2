@@ -1,243 +1,93 @@
-# PIC Integration Lifecycle (C)
+# PIC Integration Lifecycle
 
-Language: C | [Fortran mirror](pic-lifecycle-fortran.md)
+Fortran mirror: [pic-lifecycle-fortran.md](pic-lifecycle-fortran.md)
 
-この文書では、PIC コードに OhHelp を組み込むときの典型的な呼び出し順を
-説明します。このページは C 版です。Fortran 版は同じ章立てで
-[PIC Integration Lifecycle (Fortran)](pic-lifecycle-fortran.md) に分けています。
+This page describes the C v2 lifecycle. For v1 manuals, see
+[`../../v1/`](../../v1/).
 
-## 1. ビルド時に level と次元を選ぶ
-
-`OH_DIMENSION` と `OH_LIB_LEVEL` は、ヘッダを include する前に決めます。
-Level 4 を使う場合は `OH_LIB_LEVEL_4P` または `OH_LIB_LEVEL_4S` を使います。
+## 1. Create And Configure A Context
 
 ```c
-#define OH_DIMENSION 3
-#define OH_LIB_LEVEL 3
-#include "ohhelp_c.h"
+oh_context *ctx = NULL;
+oh_context_create(MPI_COMM_WORLD, &ctx);
+oh_context_configure_particles(ctx, nspec, maxfrac);
+oh_context_set_region_weights(ctx, weights);
 ```
 
-Level 4p の例:
+Use one context per independent OhHelp instance.
+
+## 2. Describe Particle Layout
 
 ```c
-#define OH_DIMENSION 3
-#define OH_LIB_LEVEL_4P
-#include "ohhelp_c.h"
+oh_particle_adapter adapter = oh_default_particle_adapter(MPI_DATATYPE_NULL);
+oh_particle_adapter_use_int_fields(&adapter, region_offset, species_offset);
+oh_particle_adapter_use_position_fields(&adapter, x_offset, y_offset,
+                                        z_offset);
+oh_context_set_particle_adapter(ctx, &adapter);
 ```
 
-## 2. 初期化前に利用側のデータ構造を決める
+For callback adapter layouts, set `get_region`, `set_region`, `get_species`,
+and optional mapping callbacks.
 
-PIC 側では、少なくとも次の情報を用意します。
-
-- 粒子種数 `nspec`
-- 領域分割数 `pcoord`
-- subdomain 境界 `sdoms` と座標 `scoord`
-- 粒子数 histogram `nphgram`
-- primary / secondary の粒子数 `totalp`
-- 粒子バッファ `pbuf`
-- primary / secondary の開始位置 `pbase`
-- 場データの descriptor `ftypes`, `cfields`, `ctypes`, `fsizes`
-
-OhHelp は primary 領域だけでなく、必要に応じて secondary 領域も担当します。
-そのため、粒子と場の計算は primary / secondary の 2 系統を扱えるようにします。
-
-## 3. 初期化時の基本順序
-
-Level 2 以上では、まず最大粒子数を見積もって粒子バッファを確保します。
-Level 3 以上では、場データの境界交換 descriptor も `oh_init()` に渡します。
+## 3. Bind Buffers And Accounting
 
 ```c
-int currmode;
-int maxlocalp;
-void *raw_pbuf;
-
-MPI_Init(&argc, &argv);
-
-maxlocalp = oh_max_local_particles(npmax, maxfrac, minmargin);
-allocate_particle_buffer(&pbuf, maxlocalp);
-raw_pbuf = pbuf;
-allocate_histograms(&nphgram, nspec, node_count);
-allocate_total_counts(&totalp, nspec);
-
-oh_init(&sdid, nspec, maxfrac,
-        nphgram, totalp,
-        &raw_pbuf, &pbase, maxlocalp,
-        &mycomm, &nbor, pcoord,
-        sdoms, scoord,
-        nbound, bcond, bounds,
-        ftypes, cfields, ctypes, fsizes,
-        stats, repiter, verbose);
-pbuf = raw_pbuf;
-
-allocate_fields_from_fsizes(fsizes, &field_primary, &field_secondary);
-initialize_particles(pbuf, nphgram);
-initialize_fields(field_primary);
+oh_context_bind_particles(ctx, particles, maxlocalp, OH_PARTICLES_BORROWED);
+oh_context_bind_particle_accounting(ctx, nphgram, totalp, pbase,
+                                    OH_PARTICLES_BORROWED);
 ```
 
-Level 4s は `oh_init()` が `maxlocalp` と communication buffer size を返し、
-その後に `oh_particle_buffer()` で粒子バッファを渡す形です。詳細は
-[API by OhHelp level](api-by-level.md) を参照してください。
+Borrowed buffers stay owned by the application. OhHelp mutates the bound
+particle buffer and accounting arrays during transfer.
 
-## 4. 最初の transbound と場の同期
-
-初期粒子配置後、最初に `oh_transbound()` を呼びます。戻り値 `currmode` は
-現在の計算モードを表します。
+## 4. Configure Level 3 Geometry
 
 ```c
-currmode = oh_transbound(OH_MODE_NORMAL_PRIMARY, stats);
-
-if (currmode == OH_MODE_REBALANCE_SECONDARY) {
-    oh_bcast_field(field_primary, field_secondary, field_type_eb);
-    currmode = OH_MODE_NORMAL_SECONDARY;
-}
-
-oh_exchange_borders(field_primary, field_secondary, field_type_eb, currmode);
+oh_context_configure_level3(ctx, pcoord, sdoms, scoord, nbound, bcond,
+                            bounds, ftypes, cfields, ctypes, fsizes);
 ```
 
-`OH_MODE_REBALANCE_SECONDARY` は、OhHelp が secondary 側の場を broadcast
-する必要がある状態を表します。利用側では broadcast 後に
-`OH_MODE_NORMAL_SECONDARY` として扱います。
+This enables subdomain mapping and field-border exchange.
 
-## 5. timestep 内の基本ループ
+## 5. PIC Step
 
-典型的な PIC ループでは、粒子 push、粒子移動と負荷分散、電流 scatter、
-電流同期、場 solve、場境界交換の順で呼びます。
+A typical Level 3 step is:
+
+```text
+push particles
+map particle positions to destination regions
+scatter current / charge
+exchange field borders
+solve fields
+transbound particles
+```
+
+In C:
 
 ```c
-for (int step = 0; step < nstep; step++) {
-    particle_push(pbuf + pbase[0],
-                  totalp[0],
-                  field_primary,
-                  sdoms[sdid[0]],
-                  0,
-                  nphgram[0]);
-
-    if (sdid[1] >= 0) {
-        particle_push(pbuf + pbase[1],
-                      totalp[1],
-                      field_secondary,
-                      sdoms[sdid[1]],
-                      1,
-                      nphgram[1]);
-    }
-
-    currmode = oh_transbound(currmode, stats);
-
-    if (currmode == OH_MODE_REBALANCE_SECONDARY) {
-        oh_bcast_field(field_primary, field_secondary, field_type_eb);
-        currmode = OH_MODE_NORMAL_SECONDARY;
-    }
-
-    current_scatter(pbuf + pbase[0],
-                    totalp[0],
-                    current_primary,
-                    sdoms[sdid[0]]);
-
-    if (sdid[1] >= 0) {
-        current_scatter(pbuf + pbase[1],
-                        totalp[1],
-                        current_secondary,
-                        sdoms[sdid[1]]);
-    }
-
-    if (currmode != OH_MODE_NORMAL_PRIMARY) {
-        oh_allreduce_field(current_primary, current_secondary, field_type_current);
-    }
-
-    oh_exchange_borders(current_primary, current_secondary,
-                        field_type_current, currmode);
-
-    field_solve(field_primary, current_primary, sdoms[sdid[0]]);
-    if (sdid[1] >= 0) {
-        field_solve(field_secondary, current_secondary, sdoms[sdid[1]]);
-    }
-
-    oh_exchange_borders(field_primary, field_secondary,
-                        field_type_eb, currmode);
-}
+int dst = oh_context_map_particle_to_subdomain(ctx, x, y, z);
+int mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats);
+oh_context_exchange_borders(ctx, pfld, sfld, ctype, bcast);
 ```
 
-## 6. 粒子 push 中に必要な更新
+## Injection
 
-粒子が subdomain 境界を越えた場合、利用側は「どの隣接領域へ移動するか」を
-OhHelp に問い合わせ、粒子の region id と histogram を更新します。
-
-Level 3 の例:
+Injection copies a particle into OhHelp's injection area:
 
 ```c
-if (particle_is_outside_subdomain(&p, sdom)) {
-    int old_region = self_region_index;
-    int dst = oh_map_particle_to_neighbor(&p.x, &p.y, &p.z, primary_or_secondary);
-
-    nphgram[species][old_region]--;
-    nphgram[species][dst]++;
-    adapter.set_region(&adapter, &p, dst, primary_or_secondary);
-}
+oh_context_inject_particle(ctx, &particle);
+void *copy = oh_context_inject_particle_get(ctx, &particle);
 ```
 
-Level 4p/4s では粒子構造体そのものを渡します。
+`oh_context_inject_particle_get()` is a C 専用の helper in the sense that it
+returns a raw pointer to the injected copy. If a counted injected copy must be
+removed, call `oh_context_remove_injected_particle()` instead of only changing
+its region value.
+
+## Shutdown
 
 ```c
-if (particle_is_outside_subdomain(&p, sdom)) {
-    int dst = oh_map_particle_to_neighbor(&p, primary_or_secondary, species);
-    /* Level 4 mapping updates the packed particle id through OhHelp's rules. */
-}
+oh_context_unbind_particle_accounting(ctx);
+oh_context_unbind_particles(ctx);
+oh_context_destroy(ctx);
 ```
-
-## 7. 粒子 injection / removal
-
-外部境界、衝突モデル、粒子生成モデルなどで粒子数が変わる場合は、
-OhHelp の injection/removal API を使います。
-
-Level 2/3:
-
-```c
-struct S_particle p = make_new_particle();
-set_particle_region(&p, -1);
-struct S_particle *pinj = oh_inject_particle_get(&p);
-
-/* injection 後に region を有効化する場合 */
-set_particle_region(pinj, new_region);
-oh_remap_injected_particle(pinj);
-
-/* 削除する場合 */
-oh_remove_injected_particle(pinj);
-```
-
-`oh_remap_injected_particle()` と `oh_remove_injected_particle()` は、元の一時粒子
-ではなく、OhHelp の particle buffer 内にある injected particle のポインタを
-受け取ります。後から操作しない単純な注入では `oh_inject_particle(&p)` だけでも
-構いません。
-`oh_remap_injected_particle()` は負の region で注入した粒子を後から有効化する
-ための API です。正の region で注入済みの粒子を別 region へ移す場合は、先に
-`oh_remove_injected_particle()` で既存 count を取り消してから region を更新し、
-`oh_remap_injected_particle()` を呼びます。
-
-`oh_inject_particle_get()` は C 専用の helper です。Fortran では injection 領域の
-要素、つまり `pbuf(totalp(1,1)+k)` に相当する injected particle そのものを
-`oh_remap_injected_particle()` / `oh_remove_injected_particle()` に渡します。
-
-Level 4p/4s:
-
-```c
-struct S_particle p = make_new_particle();
-int ok = oh_inject_particle(&p, primary_or_secondary);
-
-if (!ok) {
-    handle_injection_failure();
-}
-```
-
-## 8. 統計と verbose
-
-`stats` を有効にして `oh_init()` / `oh_transbound()` に渡すと、OhHelp 側の
-負荷分散・通信の統計を取りやすくなります。
-
-```c
-oh_init_stats(key, primary_or_secondary);
-oh_stats_time(key, primary_or_secondary);
-oh_show_stats(step, currmode);
-oh_print_stats(nstep);
-```
-
-開発中は `verbose` を有効にして、分割・通信の変化を確認してください。

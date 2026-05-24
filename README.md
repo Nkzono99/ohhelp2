@@ -17,11 +17,10 @@ load balancing.
 The current v2 line supports Level 1-3. Level 4p/4s source files are kept under
 compile coverage, but the supported v2 API for Level 4 is deferred to v2.x.
 
-Fortran users can use the Level 1-3 modules with the default `type(oh_particle)`
-layout. The `ohhelp_v2` module also exposes the v2 context facade and opaque
-particle adapter handles. Arbitrary Fortran particle layouts can use the
-`ohhelp_v2` raw init bridge (`oh2_init_raw()` / `oh3_init_raw()`) with `c_loc()`
-and a registered particle adapter.
+Fortran v2 users should use the `ohhelp_v2` module for the Level 1-3 context
+facade, opaque particle adapter handles, and raw init bridge. Arbitrary
+Fortran particle layouts can use `oh2_init_raw()` / `oh3_init_raw()` with
+`c_loc()` and a registered particle adapter.
 
 C and Fortran both have runtime-covered non-default context paths for Level 1-3.
 The Docker smoke tests create two heap-owned contexts on the same communicator,
@@ -37,6 +36,7 @@ ohhelp2 = { git = "https://github.com/Nkzono99/ohhelp2" }
 ## Usage documentation
 
 - [OhHelp v2 Usage Guide](doc/v2/usage/README.md)
+- [OhHelp v2 Design Guide](doc/v2/design/README.md)
 - PIC integration lifecycle: [C](doc/v2/usage/pic-lifecycle.md), [Fortran](doc/v2/usage/pic-lifecycle-fortran.md)
 - API by OhHelp level: [C](doc/v2/usage/api-by-level.md), [Fortran](doc/v2/usage/api-by-level-fortran.md)
 - v2 particle layout and weighted load: [C](doc/v2/usage/v2-particle-and-weight.md), [Fortran](doc/v2/usage/v2-particle-and-weight-fortran.md)

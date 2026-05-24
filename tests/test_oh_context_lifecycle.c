@@ -73,6 +73,9 @@ main(int argc, char **argv) {
   int *nphgram_y = 0;
   int *totalp_y = 0;
   int *pbase_y = 0;
+  int sdid_x[2] = {0, -1};
+  int sdid_y[2] = {0, -1};
+  int copied_sdid[2] = {0, 0};
   double coord_x[3] = {0.5, 0.5, 0.5};
   double coord_y[3] = {0.5, 0.5, 0.5};
   double field[8] = {0.0};
@@ -95,6 +98,9 @@ main(int argc, char **argv) {
   assert(err == MPI_SUCCESS);
   assert(context_y);
   assert(context_x != context_y);
+  assert(oh_context_max_local_particles_for_capacity(
+           context_x, 1000, 250, 8) ==
+         ((1000 - 1) / n + 1) + ((((1000 - 1) / n + 1) * 250 - 1) / 100 + 1));
 
   configure_level3_context(context_x, n, OH_DIM_X);
 #if OH_DIMENSION >= 2
@@ -158,6 +164,8 @@ main(int argc, char **argv) {
   assert(context_y->particle_adapter->map_to_subdomain(
            context_y->particle_adapter, &particles_y[0], 0) == rank);
 
+  oh_context_bind_region_ids(context_x, sdid_x, OH_PARTICLES_BORROWED);
+  oh_context_bind_region_ids(context_y, sdid_y, OH_PARTICLES_BORROWED);
   oh_context_bind_particles(context_x, particles_x, 4, OH_PARTICLES_BORROWED);
   oh_context_bind_particle_accounting(context_x, &nphgram_x, &totalp_x,
                                       &pbase_x, OH_PARTICLES_OWNED);
@@ -185,9 +193,17 @@ main(int argc, char **argv) {
          OH_MODE_NORMAL_PRIMARY);
   assert(oh_context_transbound3(context_y, OH_MODE_NORMAL_PRIMARY, 0) ==
          OH_MODE_NORMAL_PRIMARY);
+  oh_context_get_region_ids(context_x, copied_sdid);
+  assert(copied_sdid[0] == sdid_x[0]);
+  assert(copied_sdid[1] == sdid_x[1]);
+  oh_context_get_region_ids(context_y, copied_sdid);
+  assert(copied_sdid[0] == sdid_y[0]);
+  assert(copied_sdid[1] == sdid_y[1]);
 
+  oh_context_unbind_region_ids(context_x);
   oh_context_unbind_particle_accounting(context_x);
   oh_context_unbind_particles(context_x);
+  oh_context_unbind_region_ids(context_y);
   oh_context_unbind_particle_accounting(context_y);
   oh_context_unbind_particles(context_y);
   oh_context_destroy(context_x);

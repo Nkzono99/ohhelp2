@@ -30,6 +30,14 @@ buffer、accounting arrays、Level 3 geometry は context に保持されます�
 mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats)
 ```
 
+`maxfrac` は load-balance threshold で、buffer capacity の余裕とは別です。
+強い局所 injection がある場合は、粒子 buffer サイズを次の helper で別途決めます。
+
+```fortran
+maxlocalp = oh_context_max_local_particles_for_capacity( &
+  ctx, global_particle_limit, capacity_percent, min_margin)
+```
+
 ## Level 1
 
 Level 1 は負荷分散 schedule と communicator を扱います。粒子転送は利用側で
@@ -50,13 +58,16 @@ arrays を bind してから transbound します。
 
 ```fortran
 type(oh_particle_adapter_handle) :: adapter
-type(c_ptr) :: particles_ptr
+integer(c_int), target :: sdid(2)
+type(c_ptr) :: particles_ptr, sdid_ptr
 
 call oh_particle_adapter_create_byte(adapter, stride, ierr)
 call oh_particle_adapter_use_integer_fields(adapter, region_offset, &
                                             region_size, species_offset, &
                                             species_size)
 call oh_context_set_particle_adapter(ctx, adapter)
+sdid_ptr = c_loc(sdid(1))
+call oh_context_bind_region_ids(ctx, sdid_ptr, OH_PARTICLES_BORROWED)
 call oh_context_bind_particles(ctx, particles_ptr, maxlocalp, &
                                OH_PARTICLES_BORROWED)
 
@@ -78,7 +89,13 @@ call oh_context_configure_level3(ctx, pcoord_ptr, sdoms_ptr, scoord_ptr, &
                                  cfields_ptr, ctypes_ptr, fsizes_ptr)
 
 mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats)
+call oh_context_get_region_ids(ctx, c_loc(sdid(1)))
 ```
+
+After transbound, `sdid(1)` is the active primary region and `sdid(2)` is the
+active secondary region (`-1` if inactive). `pbase(2)` is the secondary split
+offset and `pbase(3)` is the total local particle count / end offset; they are
+particle-buffer offsets, not Fortran lower-bound indices.
 
 任意 layout の既存 init argument list を使いたい場合は、`ohhelp_v2` の
 raw init bridge を使います。`oh2_init_raw()` / `oh3_init_raw()` は

@@ -21,6 +21,14 @@ call oh_context_configure_particles(ctx, nspec, maxfrac)
 call oh_context_set_region_weights(ctx, weights)
 ```
 
+`maxfrac` は load-balance threshold です。一時的な injection burst 用の
+buffer capacity は別に見積もれます。
+
+```fortran
+maxlocalp = oh_context_max_local_particles_for_capacity( &
+  ctx, global_particle_limit, capacity_percent, min_margin)
+```
+
 ## 2. Describe Particle Layout
 
 ```fortran
@@ -39,15 +47,20 @@ For callback adapter layouts, pass `c_funloc()` values to
 ## 3. Bind Buffers And Accounting
 
 ```fortran
-type(c_ptr) :: particles_ptr, nphgram_ptr, totalp_ptr, pbase_ptr
+integer(c_int), target :: sdid(2)
+type(c_ptr) :: particles_ptr, sdid_ptr, nphgram_ptr, totalp_ptr, pbase_ptr
 
+sdid_ptr = c_loc(sdid(1))
+call oh_context_bind_region_ids(ctx, sdid_ptr, OH_PARTICLES_BORROWED)
 call oh_context_bind_particles(ctx, particles_ptr, maxlocalp, &
                                OH_PARTICLES_BORROWED)
 call oh_context_bind_particle_accounting(ctx, nphgram_ptr, totalp_ptr, &
                                          pbase_ptr, OH_PARTICLES_BORROWED)
 ```
 
-The bound arrays must stay alive until unbind or context destroy.
+The bound arrays must stay alive until unbind or context destroy. `sdid(1)` is
+the active primary region id. `sdid(2)` is the active secondary region id, or
+`-1` when no secondary region is active.
 
 ## 4. Configure Level 3 Geometry
 
@@ -68,8 +81,18 @@ integer(c_int) :: dst, mode
 
 dst = oh_context_map_particle_to_subdomain(ctx, x, y, z)
 mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats)
+call oh_context_get_region_ids(ctx, c_loc(sdid(1)))
 call oh_context_exchange_borders(ctx, pfld_ptr, sfld_ptr, ctype, bcast)
 ```
+
+After `oh_context_transbound3()`, use the bound `sdid` or
+`oh_context_get_region_ids()` before refreshing primary/secondary field,
+charging, or flux buffers.
+
+`pbase` is an offset/count array. With a Fortran `integer(c_int) :: pbase(3)`,
+`pbase(2)` is the primary/secondary split offset and `pbase(3)` is the total
+local particle count / end offset. These values are offsets into the bound
+particle buffer, not Fortran lower-bound indices.
 
 ## Injection
 

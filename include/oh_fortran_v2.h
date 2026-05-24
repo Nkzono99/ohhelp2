@@ -30,10 +30,17 @@ void oh_fortran_context_set_particle_adapter(
 void *oh_fortran_context_bind_particles(oh_context *context, void *particles,
                                         int maxlocalp, int ownership);
 void oh_fortran_context_unbind_particles(oh_context *context);
+int *oh_fortran_context_bind_region_ids(oh_context *context, int *sdid,
+                                        int ownership);
+void oh_fortran_context_unbind_region_ids(oh_context *context);
+void oh_fortran_context_get_region_ids(oh_context *context, int *sdid);
 void oh_fortran_context_bind_particle_accounting(
   oh_context *context, int **nphgram, int **totalp, int **pbase,
   int ownership);
 void oh_fortran_context_unbind_particle_accounting(oh_context *context);
+int oh_fortran_context_max_local_particles_for_capacity(
+  oh_context *context, long long global_particle_limit,
+  int capacity_percent, int min_margin);
 void oh_fortran_context_configure_level3(
   oh_context *context, const int *pcoord, const int *sdoms,
   const int *scoord, int nbound, const int *bcond, const int *bounds,

@@ -33,6 +33,14 @@ mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats);
 Short aliases such as `OH_MODE_NORM_PRI` / `OH_MODE_NORM_SEC` /
 `OH_MODE_REB_SEC` are also available.
 
+`maxfrac` is the load-balance threshold. For particle-buffer capacity headroom,
+size the buffer separately:
+
+```c
+maxlocalp = oh_context_max_local_particles_for_capacity(
+    ctx, global_particle_limit, capacity_percent, min_margin);
+```
+
 ## Level 1
 
 Level 1 manages the load-balance schedule and communicator. The application
@@ -57,6 +65,7 @@ oh_particle_adapter_use_integer_fields(&adapter, region_offset, region_size,
                                        species_offset, species_size);
 
 oh_context_set_particle_adapter(ctx, &adapter);
+oh_context_bind_region_ids(ctx, sdid, OH_PARTICLES_BORROWED);
 oh_context_bind_particles(ctx, particles, maxlocalp, OH_PARTICLES_BORROWED);
 oh_context_bind_particle_accounting(ctx, nphgram, totalp, pbase,
                                     OH_PARTICLES_BORROWED);
@@ -74,11 +83,16 @@ oh_context_configure_level3(ctx, pcoord, sdoms, scoord, nbound, bcond,
 
 dst = oh_context_map_particle_to_subdomain(ctx, x, y, z);
 mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats);
+oh_context_get_region_ids(ctx, sdid);
 oh_context_exchange_borders(ctx, pfld, sfld, ctype, bcast);
 ```
 
 Choose Level 3 for normal PIC integrations where OhHelp maps particles between
 subdomains and handles field halo exchange.
+
+After transbound, `sdid[0]` / `sdid[1]` are the active primary and secondary
+regions. `pbase[1]` is the primary/secondary split offset, and `pbase[2]` is
+the total local particle count / end offset.
 
 ## Level 4p/4s
 

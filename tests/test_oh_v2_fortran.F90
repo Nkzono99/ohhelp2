@@ -35,6 +35,7 @@ program test_oh_v2_fortran
   integer(c_int) :: dst
   type(c_ptr) :: injected
   type(c_ptr) :: raw_particles
+  type(c_ptr) :: raw_sdid
   type(c_ptr) :: raw_nphgram
   type(c_ptr) :: raw_totalp
   type(c_ptr) :: raw_pbase
@@ -75,6 +76,7 @@ program test_oh_v2_fortran
   call oh_set_particle_adapter(adapter)
 
   raw_particles = c_loc(particle_buffer(1))
+  raw_sdid = c_loc(sdid(1))
   call oh2_init_raw(c_loc(sdid(1)), 1_c_int, 20_c_int, &
                     c_loc(nphgram(1,1,1)), c_loc(totalp(1,1)), &
                     raw_particles, c_loc(pbase(1)), 4_c_int, &
@@ -93,11 +95,15 @@ program test_oh_v2_fortran
   raw_nphgram = c_loc(nphgram(1,1,1))
   raw_totalp = c_loc(totalp(1,1))
   raw_pbase = c_loc(pbase(1))
+  call oh_context_bind_region_ids(context, raw_sdid, OH_PARTICLES_BORROWED)
+  call oh_context_get_region_ids(context, c_loc(sdid(1)))
   call oh_context_bind_particles(context, raw_particles, 4_c_int, &
                                  OH_PARTICLES_BORROWED)
   call oh_context_bind_particle_accounting(context, raw_nphgram, &
                                            raw_totalp, raw_pbase, &
                                            OH_PARTICLES_BORROWED)
+  dst = oh_context_max_local_particles_for_capacity(context, 1000_c_long_long, &
+                                                    250_c_int, 8_c_int)
 
   dst = oh_context_transbound1(context, OH_MODE_NORMAL_PRIMARY, 0_c_int)
   dst = oh_context_transbound2(context, OH_MODE_NORMAL_PRIMARY, 0_c_int)
@@ -125,6 +131,7 @@ program test_oh_v2_fortran
   call oh_context_remove_injected_particle(context, injected)
 
   call oh_context_set_particle_adapter(context)
+  call oh_context_unbind_region_ids(context)
   call oh_context_unbind_particles(context)
   call oh_context_unbind_particle_accounting(context)
   call oh_particle_adapter_destroy(adapter)

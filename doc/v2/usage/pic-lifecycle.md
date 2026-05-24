@@ -16,6 +16,14 @@ oh_context_set_region_weights(ctx, weights);
 
 Use one context per independent OhHelp instance.
 
+`maxfrac` controls load-balance tolerance. For temporary storage headroom during
+bursty injection, size the particle buffer separately:
+
+```c
+int maxlocalp = oh_context_max_local_particles_for_capacity(
+    ctx, global_particle_limit, capacity_percent, min_margin);
+```
+
 ## 2. Describe Particle Layout
 
 ```c
@@ -32,6 +40,9 @@ and optional mapping callbacks.
 ## 3. Bind Buffers And Accounting
 
 ```c
+int sdid[2] = {rank, -1};
+
+oh_context_bind_region_ids(ctx, sdid, OH_PARTICLES_BORROWED);
 oh_context_bind_particles(ctx, particles, maxlocalp, OH_PARTICLES_BORROWED);
 oh_context_bind_particle_accounting(ctx, nphgram, totalp, pbase,
                                     OH_PARTICLES_BORROWED);
@@ -39,6 +50,11 @@ oh_context_bind_particle_accounting(ctx, nphgram, totalp, pbase,
 
 Borrowed buffers stay owned by the application. OhHelp mutates the bound
 particle buffer and accounting arrays during transfer.
+
+After transbound, `sdid[0]` is the active primary region and `sdid[1]` is the
+active secondary region, or `-1` when secondary mode is inactive. Use
+`oh_context_get_region_ids(ctx, sdid)` if you want an explicit snapshot instead
+of a bound id array.
 
 ## 4. Configure Level 3 Geometry
 
@@ -67,8 +83,12 @@ In C:
 ```c
 int dst = oh_context_map_particle_to_subdomain(ctx, x, y, z);
 int mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats);
+oh_context_get_region_ids(ctx, sdid);
 oh_context_exchange_borders(ctx, pfld, sfld, ctype, bcast);
 ```
+
+`pbase[1]` is the primary/secondary split offset after transbound, and
+`pbase[2]` is the total local particle count / end offset.
 
 ## Injection
 

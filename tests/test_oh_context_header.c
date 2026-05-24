@@ -14,6 +14,10 @@ main(void) {
   int *nphgram = 0;
   int *totalp = 0;
   int *pbase = 0;
+  int *owned_sdid = 0;
+  int borrowed_sdid[2] = {0, -1};
+  int copied_sdid[2] = {0, 0};
+  int capacity;
   double x = 0.0;
   double y = 0.0;
   double z = 0.0;
@@ -55,6 +59,18 @@ main(void) {
   ierr = oh_context_create(MPI_COMM_WORLD, &owned_context);
   (void)ierr;
   oh_context_configure_particles(owned_context, 1, 20);
+  owned_sdid = oh_context_bind_region_ids(owned_context, 0,
+                                          OH_PARTICLES_OWNED);
+  oh_context_get_region_ids(owned_context, copied_sdid);
+  (void)owned_sdid;
+  oh_context_unbind_region_ids(owned_context);
+  oh_context_bind_region_ids(owned_context, borrowed_sdid,
+                             OH_PARTICLES_BORROWED);
+  oh_context_get_region_ids(owned_context, copied_sdid);
+  oh_context_unbind_region_ids(owned_context);
+  capacity = oh_context_max_local_particles_for_capacity(owned_context,
+                                                         1000, 250, 8);
+  (void)capacity;
   oh_context_configure_level3(owned_context, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
   oh_context_set_region_weights(owned_context, weights);
   oh_context_set_particle_mpi_type(owned_context, MPI_DATATYPE_NULL);

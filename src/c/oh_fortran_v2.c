@@ -100,6 +100,22 @@ oh_fortran_context_unbind_particles(oh_context *context) {
   oh_context_unbind_particles(context);
 }
 
+int *
+oh_fortran_context_bind_region_ids(oh_context *context, int *sdid,
+                                   int ownership) {
+  return oh_context_bind_region_ids(context, sdid, ownership);
+}
+
+void
+oh_fortran_context_unbind_region_ids(oh_context *context) {
+  oh_context_unbind_region_ids(context);
+}
+
+void
+oh_fortran_context_get_region_ids(oh_context *context, int *sdid) {
+  oh_context_get_region_ids(context, sdid);
+}
+
 void
 oh_fortran_context_bind_particle_accounting(
   oh_context *context, int **nphgram, int **totalp, int **pbase,
@@ -111,6 +127,14 @@ oh_fortran_context_bind_particle_accounting(
 void
 oh_fortran_context_unbind_particle_accounting(oh_context *context) {
   oh_context_unbind_particle_accounting(context);
+}
+
+int
+oh_fortran_context_max_local_particles_for_capacity(
+    oh_context *context, long long global_particle_limit,
+    int capacity_percent, int min_margin) {
+  return oh_context_max_local_particles_for_capacity(
+      context, global_particle_limit, capacity_percent, min_margin);
 }
 
 void

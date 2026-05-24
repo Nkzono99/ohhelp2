@@ -1,6 +1,7 @@
 /* File: oh_context.c
    v2 context facade for the current default OhHelp instance.
 */
+#include <limits.h>
 #include <stdlib.h>
 
 #include "ohhelp1.h"
@@ -22,6 +23,7 @@ static void ensure_context_level1_storage(struct oh_state *context);
 static void free_context_level2_storage(struct oh_state *context);
 static void ensure_context_level2_storage(struct oh_state *context,
                                           int maxlocalp);
+static void free_context_region_id_storage(struct oh_state *context);
 
 static int
 storage_ownership_is_valid(int ownership) {
@@ -62,6 +64,24 @@ free_context_particle_type(struct oh_state *context) {
   if (initialized) MPI_Type_free(&context->owned_particle_adapter.mpi_type);
   context->owned_particle_adapter.mpi_type = MPI_DATATYPE_NULL;
   context->owns_particle_mpi_type = 0;
+}
+
+static void
+free_context_region_id_storage(struct oh_state *context) {
+  int *freed = NULL;
+
+  if (!context) return;
+  if (context->owns_region_id && context->region_id) {
+    freed = context->region_id;
+    free(context->region_id);
+  }
+  if (context->owns_subdomain_id && context->subdomain_id &&
+      context->subdomain_id != freed)
+    free(context->subdomain_id);
+  context->region_id = NULL;
+  context->subdomain_id = NULL;
+  context->owns_region_id = 0;
+  context->owns_subdomain_id = 0;
 }
 
 static int
@@ -386,8 +406,7 @@ oh_context_destroy(struct oh_state *context) {
   free_context_level2_storage(context);
   free_context_level1_storage(context);
   free_context_particle_type(context);
-  if (context->owns_region_id) free(context->region_id);
-  if (context->owns_subdomain_id) free(context->subdomain_id);
+  free_context_region_id_storage(context);
   free(context->region_weights);
   free(context->total_load_global);
   free(context);
@@ -595,6 +614,72 @@ oh_context_unbind_particles(struct oh_state *context) {
   if (context_is_default(context)) oh1_sync_default_state();
 }
 
+int *
+oh_context_bind_region_ids(struct oh_state *context, int *sdid,
+                           int ownership) {
+  int previous[2];
+
+  context = context_or_default(context);
+  if (!storage_ownership_is_valid(ownership))
+    local_errstop("invalid region id ownership flag");
+  if (ownership==OH_PARTICLES_BORROWED && !sdid)
+    local_errstop("borrowed region id binding requires a non-NULL array");
+
+  previous[0] = context->region_id ? context->region_id[0] : context->my_rank;
+  previous[1] = context->region_id ? context->region_id[1] : -1;
+  free_context_region_id_storage(context);
+
+  if (ownership==OH_PARTICLES_OWNED && !sdid)
+    sdid = (int*)mem_alloc(sizeof(int), 2, "SubdomainID");
+
+  sdid[0] = previous[0];
+  sdid[1] = previous[1];
+  context->region_id = sdid;
+  context->subdomain_id = sdid;
+  context->owns_region_id = ownership==OH_PARTICLES_OWNED;
+  context->owns_subdomain_id = 0;
+
+  if (context_is_default(context)) {
+    RegionId[0] = sdid[0];
+    RegionId[1] = sdid[1];
+    SubdomainId = sdid;
+  }
+  return sdid;
+}
+
+void
+oh_context_unbind_region_ids(struct oh_state *context) {
+  int previous[2];
+  int *owned_ids;
+
+  context = context_or_default(context);
+  previous[0] = context->region_id ? context->region_id[0] : context->my_rank;
+  previous[1] = context->region_id ? context->region_id[1] : -1;
+  free_context_region_id_storage(context);
+
+  owned_ids = (int*)mem_alloc(sizeof(int), 2, "SubdomainID");
+  owned_ids[0] = previous[0];
+  owned_ids[1] = previous[1];
+  context->region_id = owned_ids;
+  context->subdomain_id = owned_ids;
+  context->owns_region_id = 1;
+  context->owns_subdomain_id = 0;
+
+  if (context_is_default(context)) {
+    RegionId[0] = owned_ids[0];
+    RegionId[1] = owned_ids[1];
+    SubdomainId = owned_ids;
+  }
+}
+
+void
+oh_context_get_region_ids(struct oh_state *context, int sdid[2]) {
+  context = context_or_default(context);
+  if (!sdid) local_errstop("region id getter requires a non-NULL array");
+  sdid[0] = context->region_id ? context->region_id[0] : context->my_rank;
+  sdid[1] = context->region_id ? context->region_id[1] : -1;
+}
+
 void
 oh_context_bind_particle_accounting_state(struct oh_state *state,
                                           int **nphgram, int **totalp,
@@ -720,6 +805,39 @@ oh_context_unbind_particle_accounting(struct oh_state *context) {
   context = context_or_default(context);
   oh_context_unbind_particle_accounting_state(context);
   if (context_is_default(context)) oh1_sync_default_state();
+}
+
+int
+oh_context_max_local_particles_for_capacity(
+    struct oh_state *context, long long global_particle_limit,
+    int capacity_percent, int min_margin) {
+  long long per_rank;
+  long long margin;
+  long long capacity;
+  int nn;
+
+  context = context_or_default(context);
+  nn = context->n_of_nodes;
+  if (nn<=0)
+    local_errstop("capacity calculation requires an initialized context");
+  if (global_particle_limit<=0)
+    local_errstop("global particle limit should be greater than 0");
+  if (capacity_percent<0)
+    local_errstop("capacity headroom percent should be non-negative");
+  if (min_margin<0)
+    local_errstop("capacity minimum margin should be non-negative");
+
+  per_rank = (global_particle_limit - 1) / nn + 1;
+  if (capacity_percent>0 &&
+      per_rank > (LLONG_MAX - 99) / (long long)capacity_percent)
+    mem_alloc_error("Particles", 0);
+  margin = capacity_percent==0
+             ? 0
+             : (per_rank * (long long)capacity_percent - 1) / 100 + 1;
+  if (margin < min_margin) margin = min_margin;
+  capacity = per_rank + margin;
+  if (capacity>INT_MAX) mem_alloc_error("Particles", 0);
+  return (int)capacity;
 }
 
 void

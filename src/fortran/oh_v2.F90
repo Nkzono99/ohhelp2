@@ -94,8 +94,12 @@ module ohhelp_v2
   public :: oh_context_set_particle_adapter
   public :: oh_context_bind_particles
   public :: oh_context_unbind_particles
+  public :: oh_context_bind_region_ids
+  public :: oh_context_unbind_region_ids
+  public :: oh_context_get_region_ids
   public :: oh_context_bind_particle_accounting
   public :: oh_context_unbind_particle_accounting
+  public :: oh_context_max_local_particles_for_capacity
   public :: oh_context_configure_level3
   public :: oh_context_configure_level3_legacy
   public :: oh_context_transbound1
@@ -199,6 +203,28 @@ module ohhelp_v2
       type(c_ptr), value :: context
     end subroutine
 
+    function c_oh_context_bind_region_ids(context, sdid, ownership) &
+        bind(C, name="oh_fortran_context_bind_region_ids") result(bound)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: context
+      type(c_ptr), value :: sdid
+      integer(c_int), value :: ownership
+      type(c_ptr) :: bound
+    end function
+
+    subroutine c_oh_context_unbind_region_ids(context) &
+        bind(C, name="oh_fortran_context_unbind_region_ids")
+      import :: c_ptr
+      type(c_ptr), value :: context
+    end subroutine
+
+    subroutine c_oh_context_get_region_ids(context, sdid) &
+        bind(C, name="oh_fortran_context_get_region_ids")
+      import :: c_ptr
+      type(c_ptr), value :: context
+      type(c_ptr), value :: sdid
+    end subroutine
+
     subroutine c_oh_context_bind_particle_accounting(context, nphgram, &
                                                      totalp, pbase, &
                                                      ownership) &
@@ -216,6 +242,18 @@ module ohhelp_v2
       import :: c_ptr
       type(c_ptr), value :: context
     end subroutine
+
+    function c_oh_context_max_local_particles_for_capacity( &
+        context, global_particle_limit, capacity_percent, min_margin) &
+        bind(C, name="oh_fortran_context_max_local_particles_for_capacity") &
+        result(maxlocalp)
+      import :: c_ptr, c_int, c_long_long
+      type(c_ptr), value :: context
+      integer(c_long_long), value :: global_particle_limit
+      integer(c_int), value :: capacity_percent
+      integer(c_int), value :: min_margin
+      integer(c_int) :: maxlocalp
+    end function
 
     subroutine c_oh_context_configure_level3(context, pcoord, sdoms, &
         scoord, nbound, bcond, bounds, ftypes, cfields, ctypes, fsizes) &
@@ -663,6 +701,27 @@ contains
     call c_oh_context_unbind_particles(context%ptr)
   end subroutine
 
+  subroutine oh_context_bind_region_ids(context, sdid, ownership)
+    type(oh_context_handle), intent(in) :: context
+    type(c_ptr), intent(inout) :: sdid
+    integer(c_int), intent(in) :: ownership
+
+    sdid = c_oh_context_bind_region_ids(context%ptr, sdid, ownership)
+  end subroutine
+
+  subroutine oh_context_unbind_region_ids(context)
+    type(oh_context_handle), intent(in) :: context
+
+    call c_oh_context_unbind_region_ids(context%ptr)
+  end subroutine
+
+  subroutine oh_context_get_region_ids(context, sdid)
+    type(oh_context_handle), intent(in) :: context
+    type(c_ptr), intent(in), value :: sdid
+
+    call c_oh_context_get_region_ids(context%ptr, sdid)
+  end subroutine
+
   subroutine oh_context_bind_particle_accounting(context, nphgram, totalp, &
                                                  pbase, ownership)
     type(oh_context_handle), intent(in) :: context
@@ -680,6 +739,18 @@ contains
 
     call c_oh_context_unbind_particle_accounting(context%ptr)
   end subroutine
+
+  integer(c_int) function oh_context_max_local_particles_for_capacity( &
+      context, global_particle_limit, capacity_percent, min_margin)
+    type(oh_context_handle), intent(in) :: context
+    integer(c_long_long), intent(in) :: global_particle_limit
+    integer(c_int), intent(in) :: capacity_percent
+    integer(c_int), intent(in) :: min_margin
+
+    oh_context_max_local_particles_for_capacity = &
+      c_oh_context_max_local_particles_for_capacity( &
+        context%ptr, global_particle_limit, capacity_percent, min_margin)
+  end function
 
   subroutine oh_context_configure_level3(context, pcoord, sdoms, scoord, &
                                          nbound, bcond, bounds, ftypes, &

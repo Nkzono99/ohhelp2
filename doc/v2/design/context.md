@@ -22,7 +22,7 @@ if (oh_context_create(MPI_COMM_WORLD, &ctx) != 0) {
 oh_context_configure_particles(ctx, nspec, maxfrac);
 oh_context_set_region_weights(ctx, weights);
 
-/* bind particles, accounting arrays, and optional Level 3 geometry */
+/* bind particles, region ids, accounting arrays, and optional Level 3 geometry */
 
 mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats);
 
@@ -79,6 +79,24 @@ Ownership is explicit:
 Transfer calls mutate the bound particle buffer. This is intentional API
 behavior, not an incidental side effect.
 
+## Region Id State
+
+Level 2/3 transbound maintains the active primary/secondary region ids. In the
+raw v1-style init surface this was visible through caller-owned `sdid`. In the
+context API, ids are context-owned unless the application binds storage:
+
+```c
+int sdid[2] = {rank, -1};
+oh_context_bind_region_ids(ctx, sdid, OH_PARTICLES_BORROWED);
+oh_context_get_region_ids(ctx, sdid);
+```
+
+`sdid[0]` is the active primary region. `sdid[1]` is the active secondary
+region, or `-1` when no secondary region is active. Binding is the recommended
+path for applications that refresh region-local field, charging, or flux
+buffers after `oh_context_transbound3()`. `oh_context_get_region_ids()` is a
+snapshot helper for applications that do not want to bind caller-owned storage.
+
 ## Particle Accounting
 
 Level 1-3 transfer logic also needs accounting arrays. The context binds
@@ -93,6 +111,26 @@ oh_context_bind_particle_accounting(ctx, nphgram, totalp, pbase,
 For borrowed accounting arrays, OhHelp does not take ownership of allocation.
 The application must keep the arrays alive for the whole bound lifetime.
 `oh_context_unbind_particle_accounting()` detaches them from the context.
+
+`pbase` is an offset/count array, not a Fortran lower-bound array. In C,
+`pbase[1]` is the first secondary-particle offset after transbound and
+`pbase[2]` is the total local particle count / end offset. In Fortran those are
+`pbase(2)` and `pbase(3)`. The primary range is normally `[pbase[0], pbase[1])`;
+the secondary range is `[pbase[1], pbase[2])` when `sdid[1] >= 0`.
+
+## Capacity Headroom
+
+`maxfrac` remains the load-imbalance threshold used by rebalancing. Do not use
+it as the only particle-buffer capacity policy for bursty injection. For
+temporary storage headroom, use:
+
+```c
+int maxlocalp = oh_context_max_local_particles_for_capacity(
+    ctx, global_particle_limit, capacity_percent, min_margin);
+```
+
+`capacity_percent` is independent of `maxfrac`; for example, `250` allocates
+ceil-average particles plus 250 percent headroom, subject to `min_margin`.
 
 ## Level 3 Geometry
 
@@ -110,6 +148,11 @@ Fortran migration code that still has legacy Level 3 arrays can call
 `oh_context_configure_level3_legacy()` from `ohhelp_v2`. That helper accepts the
 active-decomposition sentinel used by the old Fortran initializer and translates
 one-based boundary IDs to the zero-based IDs used by the context API.
+
+Recommended Level 3 ordering is: create/configure context, configure particle
+adapter, bind region ids, bind particle buffer, bind accounting arrays,
+configure Level 3 geometry, call transbound, then read `sdid`/`pbase` and
+refresh application-side region buffers.
 
 ## Transbound Modes
 

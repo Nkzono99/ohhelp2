@@ -193,10 +193,16 @@ check_present 'oh_context_bind_particles' include/oh_context.h
 check_present 'oh_context_create' include/oh_context.h
 check_present 'oh_context_configure_particles' include/oh_context.h
 check_present 'oh_context_bind_particle_accounting' include/oh_context.h
+check_present 'oh_context_bind_region_ids' include/oh_context.h
+check_present 'oh_context_get_region_ids' include/oh_context.h
+check_present 'oh_context_max_local_particles_for_capacity' include/oh_context.h
 check_present 'oh_context_bind_particles' src/c/oh_context.c
 check_present 'oh_context_create' src/c/oh_context.c
 check_present 'oh_context_configure_particles' src/c/oh_context.c
 check_present 'oh_context_bind_particle_accounting' src/c/oh_context.c
+check_present 'oh_context_bind_region_ids' src/c/oh_context.c
+check_present 'oh_context_get_region_ids' src/c/oh_context.c
+check_present 'oh_context_max_local_particles_for_capacity' src/c/oh_context.c
 check_present 'oh_context_configure_level3_legacy' src/fortran/oh_v2.F90
 check_present 'oh_fortran_context_configure_level3_legacy' \
   include/oh_fortran_v2.h
@@ -214,6 +220,9 @@ check_present 'oh_context_bind_particles' src/fortran/oh_v2.F90
 check_present 'oh_context_create' src/fortran/oh_v2.F90
 check_present 'oh_context_configure_particles' src/fortran/oh_v2.F90
 check_present 'oh_context_bind_particle_accounting' src/fortran/oh_v2.F90
+check_present 'oh_context_bind_region_ids' src/fortran/oh_v2.F90
+check_present 'oh_context_get_region_ids' src/fortran/oh_v2.F90
+check_present 'oh_context_max_local_particles_for_capacity' src/fortran/oh_v2.F90
 check_present 'oh_context_unbind_particles' src/fortran/oh_v2.F90
 check_present 'oh_context_unbind_particle_accounting' src/fortran/oh_v2.F90
 check_present 'oh_fortran_context_bind_particles' include/oh_fortran_v2.h
@@ -221,10 +230,18 @@ check_present 'oh_fortran_context_create' include/oh_fortran_v2.h
 check_present 'oh_fortran_context_configure_particles' include/oh_fortran_v2.h
 check_present 'oh_fortran_context_bind_particle_accounting' \
   include/oh_fortran_v2.h
+check_present 'oh_fortran_context_bind_region_ids' include/oh_fortran_v2.h
+check_present 'oh_fortran_context_get_region_ids' include/oh_fortran_v2.h
+check_present 'oh_fortran_context_max_local_particles_for_capacity' \
+  include/oh_fortran_v2.h
 check_present 'oh_fortran_context_bind_particles' src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_create' src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_configure_particles' src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_bind_particle_accounting' \
+  src/c/oh_fortran_v2.c
+check_present 'oh_fortran_context_bind_region_ids' src/c/oh_fortran_v2.c
+check_present 'oh_fortran_context_get_region_ids' src/c/oh_fortran_v2.c
+check_present 'oh_fortran_context_max_local_particles_for_capacity' \
   src/c/oh_fortran_v2.c
 check_present 'particle_buffer_bound' src/c/oh_context_internal.h
 check_present 'particle_accounting_bound' src/c/oh_context_internal.h
@@ -259,13 +276,24 @@ check_present 'oh_context_create' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_configure_particles' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_destroy' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_bind_particles' tests/test_oh_context_lifecycle.c
+check_present 'oh_context_bind_region_ids' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_bind_particle_accounting' \
+  tests/test_oh_context_header.c
+check_present 'oh_context_bind_region_ids' tests/test_oh_context_header.c
+check_present 'oh_context_get_region_ids' tests/test_oh_context_header.c
+check_present 'oh_context_max_local_particles_for_capacity' \
   tests/test_oh_context_header.c
 check_present 'oh_context_bind_particles' tests/test_oh_v2_fortran.F90
 check_present 'oh_context_create' tests/test_oh_v2_fortran.F90
 check_present 'oh_context_configure_particles' tests/test_oh_v2_fortran.F90
 check_present 'oh_context_bind_particle_accounting' \
   tests/test_oh_v2_fortran.F90
+check_present 'oh_context_bind_region_ids' tests/test_oh_v2_fortran.F90
+check_present 'oh_context_get_region_ids' tests/test_oh_v2_fortran.F90
+check_present 'oh_context_max_local_particles_for_capacity' \
+  tests/test_oh_v2_fortran.F90
+check_present 'oh_context_bind_region_ids' tests/test_oh_context_lifecycle_fortran.F90
+check_present 'oh_context_get_region_ids' tests/test_oh_context_lifecycle_fortran.F90
 check_present 'oh_context_transbound3' tests/test_oh_context_header.c
 check_present 'oh_context_inject_particle_get' tests/test_oh_context_header.c
 check_present 'oh_context_map_particle_to_neighbor' tests/test_oh_context_header.c
@@ -421,6 +449,17 @@ check_present 'boundary plane thickness' doc/v2/design/particle-adapter.md
 check_present 'no current `original` particle field' doc/v2/design/particle-adapter.md
 check_absent '\boriginal\b' include/*.h src/c/*.c src/c/*.h src/fortran/*.F90
 check_present '粒子ポインタを `void \*`' doc/v2/usage/v2-particle-and-weight.md
+check_present 'oh_context_bind_region_ids' doc/v2/design/context.md
+check_present 'pbase\(2\).*secondary split' doc/v2/usage/api-by-level-fortran.md
+check_present 'pbase\(3\).*total local particle count' \
+  doc/v2/usage/api-by-level-fortran.md
+check_present 'buffer capacity' doc/v2/usage/api-by-level-fortran.md
+check_present 'oh_context_max_local_particles_for_capacity' \
+  doc/v2/usage/api-by-level.md
+check_present 'oh_context_bind_region_ids' doc/v2/usage/api-by-level.md
+check_present 'oh_context_max_local_particles_for_capacity' \
+  doc/v2/usage/pic-lifecycle-fortran.md
+check_present 'oh_context_get_region_ids' doc/v2/usage/pic-lifecycle.md
 check_absent '\bp\.nid\s*=' doc/v2/usage/api-by-level.md doc/v2/usage/pic-lifecycle.md
 check_present 'level4_secondary_injected' src/c/ohhelp4_particle.h
 

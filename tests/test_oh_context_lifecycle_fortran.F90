@@ -14,9 +14,14 @@ program test_oh_context_lifecycle_fortran
   type(c_ptr) :: totalp_y
   type(c_ptr) :: pbase_x
   type(c_ptr) :: pbase_y
+  type(c_ptr) :: sdid_x_ptr
+  type(c_ptr) :: sdid_y_ptr
   real(c_double), target :: field(8)
   real(c_double), target :: coord_x(3)
   real(c_double), target :: coord_y(3)
+  integer(c_int), target :: sdid_x(2)
+  integer(c_int), target :: sdid_y(2)
+  integer(c_int), target :: copied_sdid(2)
   integer :: mpierr
   integer :: rank
   integer :: nranks
@@ -31,6 +36,11 @@ program test_oh_context_lifecycle_fortran
   if (ierr /= 0_c_int) stop 1
   call oh_context_create(context_y, int(MPI_COMM_WORLD, c_int), ierr)
   if (ierr /= 0_c_int) stop 2
+  if (oh_context_max_local_particles_for_capacity( &
+        context_x, 1000_c_long_long, 250_c_int, 8_c_int) /= &
+      ((1000_c_int - 1_c_int) / int(nranks, c_int) + 1_c_int) + &
+      ((((1000_c_int - 1_c_int) / int(nranks, c_int) + 1_c_int) * &
+        250_c_int - 1_c_int) / 100_c_int + 1_c_int)) stop 27
 
   call configure_context(context_x, nranks, 1, .false.)
   call configure_context(context_y, nranks, 2, .true.)
@@ -68,6 +78,15 @@ program test_oh_context_lifecycle_fortran
                                0_c_int)
   call oh_context_allreduce_field(context_y, c_loc(field(1)), c_loc(field(1)), &
                                   0_c_int)
+
+  sdid_x = [int(rank, c_int), -1_c_int]
+  sdid_y = [int(rank, c_int), -1_c_int]
+  sdid_x_ptr = c_loc(sdid_x(1))
+  sdid_y_ptr = c_loc(sdid_y(1))
+  call oh_context_bind_region_ids(context_x, sdid_x_ptr, &
+                                  OH_PARTICLES_BORROWED)
+  call oh_context_bind_region_ids(context_y, sdid_y_ptr, &
+                                  OH_PARTICLES_BORROWED)
 
   particles_x = c_null_ptr
   particles_y = c_null_ptr
@@ -111,9 +130,15 @@ program test_oh_context_lifecycle_fortran
   if (mode /= OH_MODE_NORMAL_PRIMARY) stop 23
   mode = oh_context_transbound3(context_y, OH_MODE_NORMAL_PRIMARY, 0_c_int)
   if (mode /= OH_MODE_NORMAL_PRIMARY) stop 24
+  call oh_context_get_region_ids(context_x, c_loc(copied_sdid(1)))
+  if (any(copied_sdid /= sdid_x)) stop 25
+  call oh_context_get_region_ids(context_y, c_loc(copied_sdid(1)))
+  if (any(copied_sdid /= sdid_y)) stop 26
 
+  call oh_context_unbind_region_ids(context_x)
   call oh_context_unbind_particle_accounting(context_x)
   call oh_context_unbind_particles(context_x)
+  call oh_context_unbind_region_ids(context_y)
   call oh_context_unbind_particle_accounting(context_y)
   call oh_context_unbind_particles(context_y)
   call oh_context_destroy(context_x)

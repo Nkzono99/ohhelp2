@@ -46,8 +46,15 @@ ohhelp2 = { git = "https://github.com/Nkzono99/ohhelp2" }
 This repository contains code derived from the original OhHelp software.
 Some original source files include a non-commercial-use notice.
 
-The MIT License applies only to files or portions explicitly authored by Jin Nakazono,
-unless otherwise stated. It does not override the license terms of the original OhHelp code.
+Repository-level license information is summarized in [LICENSE.md](LICENSE.md).
+The original OhHelp notice is reproduced in
+[`LICENSES/OhHelp-NonCommercial.txt`](LICENSES/OhHelp-NonCommercial.txt), and
+the MIT text for contributions by Jin Nakazono is reproduced in
+[`LICENSES/MIT.txt`](LICENSES/MIT.txt).
+
+The MIT License applies only to files or portions explicitly authored by Jin
+Nakazono, unless otherwise stated. It does not override the license terms of
+the original OhHelp code.
 
 Commercial use of the repository as a whole has not been confirmed.
 Please contact the relevant rights holders before any commercial use.

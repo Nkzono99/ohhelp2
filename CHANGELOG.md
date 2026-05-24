@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.1.3 - 2026-05-24
+
+This patch release publishes the repository with clarified licensing and keeps
+the supported v2 scope at Level 1-3.
+
+### Fixed
+
+- Preserved integer-region `map_to_subdomain` routing when Level 3
+  position-field helpers are attached to a particle adapter.
+- Finalized pending injected particles before `oh_context_set_total_particles()`
+  / `oh2_set_total_particles()` recomputes particle totals and buffer offsets.
+- Documented Level 1-3 `transbound` return modes separately from historical
+  compatibility mode constants.
+
+### License
+
+- Added repository-level license summary in `LICENSE.md`.
+- Renamed `LISENCES/` to `LICENSES/`.
+- Reproduced the original OhHelp non-commercial notice and the MIT text for
+  contributions by Jin Nakazono under `LICENSES/`.
+- Clarified that the repository as a whole should be treated as
+  `LicenseRef-OhHelp-NonCommercial AND MIT`.
+
+### Verification
+
+- `git diff --check`
+- `bash tests/test_particle_contract_audit.sh`
+- Docker `mpicc` / `mpifort` full build and runtime smoke:
+  `scripts/docker-build-test.sh`
+- Docker Intel MPI C lifecycle and POS_AWARE lifecycle smoke tests.
+
 ## v2.1.2 - 2026-05-24
 
 This patch release fixes two downstream migration issues reported from DRIFT

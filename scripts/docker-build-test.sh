@@ -38,6 +38,21 @@ gfortran -cpp -Iinclude -Ibuild/docker -Jbuild/docker \
 
 mpicc -Iinclude tests/test_oh_context_header.c \
   -c -o build/docker/test_oh_context_header.o
+mpicc -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
+  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
+  src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c \
+  -o build/docker/test_oh_context_lifecycle
+mpirun -n 1 build/docker/test_oh_context_lifecycle
+mpirun -n 2 build/docker/test_oh_context_lifecycle
+mpifort -cpp -Iinclude -Ibuild/docker -Jbuild/docker \
+  tests/test_oh_context_lifecycle_fortran.F90 \
+  build/docker/oh_v2.o build/docker/oh_type.o build/docker/oh_context.o \
+  build/docker/oh_fortran_v2.o build/docker/oh_particle_adapter.o \
+  build/docker/oh_load_balance.o build/docker/ohhelp1.o \
+  build/docker/ohhelp2.o build/docker/ohhelp3.o \
+  -o build/docker/test_oh_context_lifecycle_fortran
+mpirun -n 1 build/docker/test_oh_context_lifecycle_fortran
+mpirun -n 2 build/docker/test_oh_context_lifecycle_fortran
 mpicc -Iinclude tests/test_ohhelp_c_header.c \
   -c -o build/docker/test_ohhelp_c_header.o
 mpicc -Iinclude tests/test_ohhelp2_header.c \

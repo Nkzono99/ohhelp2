@@ -31,7 +31,7 @@ v2.0 では Level 1-3 を supported scope とします。Level 4p/4s は v2.x �
 ## Context API
 
 v2.0 では C の `oh_default_context()` で現在の default OhHelp instance を
-`oh_context *` として取得できます。複数 context の独立運用は v2.x 以降の対象ですが、
+`oh_context *` として取得できます。完全な複数 context 独立運用は v2.x 以降の対象ですが、
 Level 1-3 の主要操作には context-facing wrapper を用意しています。
 
 代表例:
@@ -47,11 +47,36 @@ oh_context_exchange_borders(ctx, eb_primary, eb_secondary, field_type_eb,
                             currmode);
 ```
 
+v2.x では process-global default context の解消に向けて、heap-owned context の
+初期 API も追加しています。
+
+```c
+oh_context *owned = NULL;
+int err = oh_context_create(MPI_COMM_WORLD, &owned);
+
+oh_context_configure_particles(owned, nspec, maxfrac);
+oh_context_configure_level3(owned, pcoord, NULL, scoord, nbound, bcond, NULL,
+                            ftypes, cfields, ctypes, fsizes);
+oh_context_set_region_weights(owned, weights);
+oh_context_set_particle_adapter(owned, adapter);
+oh_context_bind_particles(owned, particles, maxlocalp, OH_PARTICLES_BORROWED);
+oh_context_bind_particle_accounting(owned, &nphgram, &totalp, &pbase,
+                                    OH_PARTICLES_BORROWED);
+currmode = oh_context_transbound3(owned, currmode, stats);
+oh_context_destroy(owned);
+```
+
+現時点の non-default context は、species/max-fraction 設定、region weight、particle adapter、
+particle buffer/accounting binding、Level 1/2 work buffer、Level 3 geometry/field
+descriptor、Level 1-3 の `transbound` state を保持できます。Level 1 collective、
+Level 3 mapping/field exchange も context state を使います。複数 context の完全な
+独立運用では、実コードの複数 rank / 複数 context workload での検証がまだ残っています。
+
 Level 1 の collective は `oh_context_broadcast()` /
 `oh_context_all_reduce()` / `oh_context_reduce()`、Level 2 の注入粒子操作は
 `oh_context_inject_particle_get()` /
 `oh_context_remap_injected_particle()` /
-`oh_context_remove_injected_particle()` から同じ default context state を使えます。
+`oh_context_remove_injected_particle()` から context state を使えます。
 Level 3 の座標 mapping は `oh_context_map_particle_to_neighbor()` と
 `oh_context_map_particle_to_subdomain()` から使えます。
 

@@ -26,8 +26,8 @@ Fortran では `ohhelp_f.h` の `oh_*` alias と `ohhelp1` / `ohhelp2` /
 
 ## Context API
 
-Fortran では `ohhelp_v2` の opaque handle を使います。現時点では default context
-に対する facade です。
+Fortran では `ohhelp_v2` の opaque handle を使います。default context facade に加えて、
+non-default context の初期 API も使えます。
 
 ```fortran
 use iso_c_binding
@@ -41,6 +41,35 @@ ctx = oh_default_context()
 call oh_context_set_region_weights(ctx, weights)
 currmode = oh_context_transbound3(ctx, currmode, 0_c_int)
 ```
+
+v2.x では process-global default context の解消に向けて、heap-owned context の
+初期 API も追加しています。
+
+```fortran
+type(oh_context_handle) :: owned
+integer(c_int) :: ierr
+
+call oh_context_create(owned, fortran_comm, ierr)
+call oh_context_configure_particles(owned, nspec, maxfrac)
+call oh_context_configure_level3(owned, c_loc(pcoord(1)), c_null_ptr, &
+                                 c_loc(scoord(1,1)), nbound, &
+                                 c_loc(bcond(1,1)), c_null_ptr, &
+                                 c_loc(ftypes(1,1)), c_loc(cfields(1)), &
+                                 c_loc(ctypes(1,1,1,1)), c_loc(fsizes(1,1,1)))
+call oh_context_set_region_weights(owned, weights)
+call oh_context_bind_particles(owned, particles, maxlocalp, &
+                               OH_PARTICLES_BORROWED)
+call oh_context_bind_particle_accounting(owned, nphgram, totalp, pbase, &
+                                         OH_PARTICLES_BORROWED)
+currmode = oh_context_transbound3(owned, currmode, 0_c_int)
+call oh_context_destroy(owned)
+```
+
+現時点の non-default context は、species/max-fraction 設定、region weight、particle adapter、
+particle buffer/accounting binding、Level 1/2 work buffer、Level 3 geometry/field
+descriptor、Level 1-3 の `transbound` state を保持できます。Level 1 collective、
+Level 3 mapping/field exchange も context state を使います。複数 context の完全な
+独立運用では、実コードの複数 rank / 複数 context workload での検証がまだ残っています。
 
 Level 1 collective、Level 2 injection、Level 3 mapping/field exchange も
 `oh_context_*` から呼べます。field や particle を渡す API では `c_loc()` で

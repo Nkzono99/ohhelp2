@@ -16,7 +16,11 @@ extern "C" {
 
 typedef struct oh_fortran_particle_adapter oh_fortran_particle_adapter;
 
+int oh_fortran_context_create(int fortran_comm, oh_context **context);
+void oh_fortran_context_destroy(oh_context *context);
 oh_context *oh_fortran_default_context(void);
+void oh_fortran_context_configure_particles(oh_context *context, int nspec,
+                                            int maxfrac);
 void oh_fortran_context_set_region_weights(oh_context *context,
                                            const double *weights);
 void oh_fortran_context_set_particle_mpi_type(oh_context *context,
@@ -30,6 +34,10 @@ void oh_fortran_context_bind_particle_accounting(
   oh_context *context, int **nphgram, int **totalp, int **pbase,
   int ownership);
 void oh_fortran_context_unbind_particle_accounting(oh_context *context);
+void oh_fortran_context_configure_level3(
+  oh_context *context, const int *pcoord, const int *sdoms,
+  const int *scoord, int nbound, const int *bcond, const int *bounds,
+  const int *ftypes, const int *cfields, const int *ctypes, int *fsizes);
 int oh_fortran_context_transbound1(oh_context *context, int currmode,
                                   int stats);
 int oh_fortran_context_transbound2(oh_context *context, int currmode,

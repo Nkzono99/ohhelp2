@@ -15,7 +15,11 @@ extern "C" {
 typedef struct oh_state oh_context;
 typedef struct oh_particle_adapter oh_particle_adapter;
 
+int oh_context_create(MPI_Comm comm, oh_context **context);
+void oh_context_destroy(oh_context *context);
 oh_context *oh_default_context(void);
+void oh_context_configure_particles(oh_context *context, int nspec,
+                                    int maxfrac);
 /* Passing NULL resets all region weights to 1.0 on the default context. */
 void oh_context_set_region_weights(oh_context *context, const double *weights);
 /* Passing MPI_DATATYPE_NULL resets to the default byte datatype. */
@@ -30,6 +34,12 @@ void oh_context_bind_particle_accounting(oh_context *context, int **nphgram,
                                          int **totalp, int **pbase,
                                          int ownership);
 void oh_context_unbind_particle_accounting(oh_context *context);
+void oh_context_configure_level3(oh_context *context, const int *pcoord,
+                                 const int *sdoms, const int *scoord,
+                                 int nbound, const int *bcond,
+                                 const int *bounds, const int *ftypes,
+                                 const int *cfields, const int *ctypes,
+                                 int *fsizes);
 
 int oh_context_transbound1(oh_context *context, int currmode, int stats);
 int oh_context_transbound2(oh_context *context, int currmode, int stats);

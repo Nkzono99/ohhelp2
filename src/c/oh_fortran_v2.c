@@ -37,6 +37,22 @@ oh_fortran_default_context(void) {
   return oh_default_context();
 }
 
+int
+oh_fortran_context_create(int fortran_comm, oh_context **context) {
+  return oh_context_create(MPI_Comm_f2c(fortran_comm), context);
+}
+
+void
+oh_fortran_context_destroy(oh_context *context) {
+  oh_context_destroy(context);
+}
+
+void
+oh_fortran_context_configure_particles(oh_context *context, int nspec,
+                                       int maxfrac) {
+  oh_context_configure_particles(context, nspec, maxfrac);
+}
+
 void
 oh_fortran_context_set_region_weights(oh_context *context,
                                       const double *weights) {
@@ -77,6 +93,15 @@ oh_fortran_context_bind_particle_accounting(
 void
 oh_fortran_context_unbind_particle_accounting(oh_context *context) {
   oh_context_unbind_particle_accounting(context);
+}
+
+void
+oh_fortran_context_configure_level3(
+  oh_context *context, const int *pcoord, const int *sdoms,
+  const int *scoord, int nbound, const int *bcond, const int *bounds,
+  const int *ftypes, const int *cfields, const int *ctypes, int *fsizes) {
+  oh_context_configure_level3(context, pcoord, sdoms, scoord, nbound, bcond,
+                              bounds, ftypes, cfields, ctypes, fsizes);
 }
 
 int

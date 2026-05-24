@@ -16,6 +16,7 @@ program test_oh_v2_fortran
   end type
 
   type(oh_context_handle) :: context
+  type(oh_context_handle) :: owned_context
   type(oh_particle_adapter_handle) :: adapter
   type(pic_particle), target :: particle
   type(pic_particle), target :: particle_buffer(4)
@@ -40,6 +41,13 @@ program test_oh_v2_fortran
 
   context = oh_default_context()
   if (.not. oh_context_associated(context)) stop 1
+  call oh_context_create(owned_context, 0_c_int, ierr)
+  call oh_context_configure_particles(owned_context, 1_c_int, 20_c_int)
+  call oh_context_configure_level3(owned_context, c_null_ptr, c_null_ptr, &
+                                   c_null_ptr, 0_c_int, c_null_ptr, &
+                                   c_null_ptr, c_null_ptr, c_null_ptr, &
+                                   c_null_ptr, c_null_ptr)
+  call oh_context_destroy(owned_context)
 
   weights = 1.0_c_double
   call oh_context_set_region_weights(context, weights)

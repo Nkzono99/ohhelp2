@@ -118,8 +118,29 @@ oh2_set_particle_mpi_type(MPI_Datatype type) {
 void
 oh2_set_particle_mpi_type_state(struct oh_state *state, MPI_Datatype type) {
   if (!state) state = &OhDefaultState;
-  if (state != &OhDefaultState)
-    local_errstop("only the default oh_context is implemented yet");
+  if (state != &OhDefaultState) {
+    int err;
+
+    if (state->owns_particle_mpi_type &&
+        state->owned_particle_adapter.mpi_type != MPI_DATATYPE_NULL)
+      MPI_Type_free(&state->owned_particle_adapter.mpi_type);
+    if (type == MPI_DATATYPE_NULL) {
+      err = oh_particle_adapter_make_byte_type(sizeof(struct S_particle),
+                                               &type);
+      if (err != MPI_SUCCESS)
+        local_errstop("failed to create default particle MPI datatype");
+      state->owns_particle_mpi_type = 1;
+    } else {
+      state->owns_particle_mpi_type = 0;
+    }
+    state->owned_particle_adapter = oh_default_particle_adapter(type);
+    state->particle_adapter = &state->owned_particle_adapter;
+    state->particle_mpi_type = type;
+    state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
+    state->use_custom_particle_mpi_type = 0;
+    state->use_custom_particle_adapter = 0;
+    return;
+  }
   if (type == MPI_DATATYPE_NULL) {
     state->use_custom_particle_mpi_type = 0;
     state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
@@ -138,8 +159,41 @@ void
 oh2_set_particle_adapter_state(struct oh_state *state,
                                const oh_particle_adapter *adapter) {
   if (!state) state = &OhDefaultState;
-  if (state != &OhDefaultState)
-    local_errstop("only the default oh_context is implemented yet");
+  if (state != &OhDefaultState) {
+    int err;
+
+    if (state->owns_particle_mpi_type &&
+        state->owned_particle_adapter.mpi_type != MPI_DATATYPE_NULL) {
+      MPI_Type_free(&state->owned_particle_adapter.mpi_type);
+      state->owned_particle_adapter.mpi_type = MPI_DATATYPE_NULL;
+      state->owns_particle_mpi_type = 0;
+    }
+    if (!adapter) {
+      MPI_Datatype type = MPI_DATATYPE_NULL;
+      err = oh_particle_adapter_make_byte_type(sizeof(struct S_particle),
+                                               &type);
+      if (err != MPI_SUCCESS)
+        local_errstop("failed to create default particle MPI datatype");
+      state->owned_particle_adapter = oh_default_particle_adapter(type);
+      state->particle_adapter = &state->owned_particle_adapter;
+      state->particle_mpi_type = type;
+      state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
+      state->use_custom_particle_mpi_type = 0;
+      state->use_custom_particle_adapter = 0;
+      state->owns_particle_mpi_type = 1;
+      return;
+    }
+    if (!oh_particle_adapter_validate(adapter))
+      local_errstop("invalid oh_particle_adapter");
+    state->owned_custom_particle_adapter = *adapter;
+    state->custom_particle_adapter = &state->owned_custom_particle_adapter;
+    state->particle_adapter = &state->owned_custom_particle_adapter;
+    state->particle_mpi_type = adapter->mpi_type;
+    state->custom_particle_mpi_type = adapter->mpi_type;
+    state->use_custom_particle_mpi_type = 1;
+    state->use_custom_particle_adapter = 1;
+    return;
+  }
   if (!adapter) {
     state->use_custom_particle_adapter = 0;
     state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
@@ -224,8 +278,6 @@ void *
 oh2_bind_particle_buffer_state(struct oh_state *state, void *particles,
                                int maxlocalp, int ownership) {
   if (!state) state = &OhDefaultState;
-  if (state != &OhDefaultState)
-    local_errstop("only the default oh_context is implemented yet");
   if (maxlocalp<0)
     local_errstop("negative maxlocalp for particle buffer binding");
   if (!particle_buffer_ownership_is_valid(ownership))
@@ -242,9 +294,11 @@ oh2_bind_particle_buffer_state(struct oh_state *state, void *particles,
     particles = mem_alloc(particle_stride_state(state), maxlocalp,
                           "Particles");
 
-  Particles = (struct S_particle*)particles;
-  nOfLocalPLimit = maxlocalp;
-  totalParts = maxlocalp;
+  if (state == &OhDefaultState) {
+    Particles = (struct S_particle*)particles;
+    nOfLocalPLimit = maxlocalp;
+    totalParts = maxlocalp;
+  }
   state->particles = particles;
   state->n_of_local_particles_limit = maxlocalp;
   state->total_parts = maxlocalp;
@@ -255,14 +309,14 @@ oh2_bind_particle_buffer_state(struct oh_state *state, void *particles,
 void
 oh2_unbind_particle_buffer_state(struct oh_state *state) {
   if (!state) state = &OhDefaultState;
-  if (state != &OhDefaultState)
-    local_errstop("only the default oh_context is implemented yet");
   if (state->particle_buffer_ownership==OH_PARTICLES_OWNED &&
       state->particles)
     free(state->particles);
-  Particles = NULL;
-  nOfLocalPLimit = 0;
-  totalParts = 0;
+  if (state == &OhDefaultState) {
+    Particles = NULL;
+    nOfLocalPLimit = 0;
+    totalParts = 0;
+  }
   state->particles = NULL;
   state->n_of_local_particles_limit = 0;
   state->total_parts = 0;
@@ -330,8 +384,9 @@ transbound2_state(struct oh_state *state, int currmode, int stats, int level) {
   stats = stats && state->stats_mode;
   currmode = transbound1_state(state, currmode, stats, level);
 
-  if (try_primary2_state(state, currmode, level, stats))  ret = MODE_NORM_PRI;
-  else if (!Mode_PS(currmode) ||
+  if (try_primary2_state(state, currmode, level, stats)) {
+    ret = MODE_NORM_PRI;
+  } else if (!Mode_PS(currmode) ||
            !try_stable2_state(state, currmode, level, stats)) {
     rebalance2_state(state, currmode, level, stats);  ret = MODE_REB_SEC;
   }
@@ -353,12 +408,14 @@ finish_transbound2_state(struct oh_state *state, int ret) {
   }
   for (s=0; s<ns*2; s++)  injected_particles[s] = 0;
   state->total_parts = tp;
-  totalParts = tp;
   *state->total_local_particles = tp;
   state->n_of_injections = 0;
-  nOfInjections = 0;
   state->curr_mode = ret;
-  currMode = ret;
+  if (oh_context_is_default_state(state)) {
+    totalParts = tp;
+    nOfInjections = 0;
+    currMode = ret;
+  }
   return ret;
 }
 static int
@@ -368,7 +425,7 @@ try_primary2_state(struct oh_state *state, int currmode, int level, int stats) {
   move_to_sendbuf_primary_state(state, Mode_PS(currmode), stats);
   exchange_primary_particles_state(state, currmode, stats);
   state->primary_parts = state->total_particles_global[state->my_rank];
-  primaryParts = state->primary_parts;
+  if (oh_context_is_default_state(state)) primaryParts = state->primary_parts;
   *state->secondary_base = state->primary_parts;
   return(TRUE);
 }
@@ -587,7 +644,7 @@ move_to_sendbuf_secondary_state(struct oh_state *state, int secondary,
                                  state->recv_buffer_bases+ns);
   }
   state->primary_parts = pnext[0];
-  primaryParts = pnext[0];
+  if (oh_context_is_default_state(state)) primaryParts = pnext[0];
   *state->secondary_base = pnext[0];
 }
 void
@@ -899,7 +956,8 @@ void *
 oh2_inject_particle_state(struct oh_state *state, struct S_particle *part) {
   int inj = state->total_parts + state->n_of_injections++;
   struct S_particle *copy;
-  nOfInjections = state->n_of_injections;
+  if (oh_context_is_default_state(state))
+    nOfInjections = state->n_of_injections;
 
 #ifndef OH_HAS_SPEC
   if (!state->use_custom_particle_adapter && state->n_of_species!=1)

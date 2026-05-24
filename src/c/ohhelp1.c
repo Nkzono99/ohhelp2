@@ -423,11 +423,13 @@ transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
     oh1_stats_time_state(state, STATS_TRANSBOUND, 0);
   if (!totalp) {
     set_total_particles_state(state);
-    TotalP = state->total_particles;
-    primaryParts = state->primary_parts;
-    totalParts = state->total_parts;
-    oh1_sync_default_state();
-    state = oh1_state();
+    if (oh_context_is_default_state(state)) {
+      TotalP = state->total_particles;
+      primaryParts = state->primary_parts;
+      totalParts = state->total_parts;
+      oh1_sync_default_state();
+      state = oh1_state();
+    }
     totalp = state->total_particles;
     totalp_next = state->total_particles_next;
     nofplocal = state->n_of_particles_local;
@@ -465,8 +467,8 @@ transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
   }
   totalp_global[nn] = (tp==tpn && Mode_Is_Norm(state->curr_mode)) ? 0 : 1;
 
-  MPI_Alltoall(nofplocal, 1, T_Histogram, nofprimaries, 1, T_Histogram,
-               state->comm);
+  MPI_Alltoall(nofplocal, 1, state->histogram_type, nofprimaries, 1,
+               state->histogram_type, state->comm);
 #ifndef INTEL_MPI_BUG_FIXED
   for (p=0,k=state->my_rank; p<2; p++)  for (s=0; s<ns; s++,k+=nn)
     nofprimaries[k] = nofplocal[k];
@@ -486,20 +488,21 @@ transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
   state->n_of_local_load_max =
     oh_load_limit(state->total_load, state->max_fraction, nn);
   state->acc_mode = Mode_Is_Any(currmode) ? 1 : 0;
-  nOfLoad = state->total_load;
-  nOfParticles = state->n_of_particles;
-  nOfLocalPMax = state->n_of_local_particles_max;
-  nOfLocalLoadMax = state->n_of_local_load_max;
-  accMode = state->acc_mode;
-
-  oh1_sync_default_state();
+  if (oh_context_is_default_state(state)) {
+    nOfLoad = state->total_load;
+    nOfParticles = state->n_of_particles;
+    nOfLocalPMax = state->n_of_local_particles_max;
+    nOfLocalLoadMax = state->n_of_local_load_max;
+    accMode = state->acc_mode;
+    oh1_sync_default_state();
+  }
   if (level>1) return(currmode);
-  state = oh1_state();
+  if (oh_context_is_default_state(state)) state = oh1_state();
   if (try_primary1_state(state, currmode, 1, stats))  ret = MODE_NORM_PRI;
   else if (!Mode_PS(currmode) || !try_stable1_state(state, currmode, 1, stats)) {
     rebalance1_state(state, currmode, 1, stats);  ret = MODE_REB_SEC;
   }
-  state = oh1_state();
+  if (oh_context_is_default_state(state)) state = oh1_state();
   nofplocal = state->n_of_particles_local;
   nofrecv = state->n_of_recv;
   nofsend = state->n_of_send;
@@ -509,8 +512,11 @@ transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
     nofplocal[i] = 0;  recvcounts[i] = nofrecv[i];  sendcounts[i] = nofsend[i];
   }
   for (s=0; s<ns*2; s++) totalp[s] = totalp_next[s];
-  currMode = state->curr_mode = ret;
-  oh1_sync_default_state();
+  state->curr_mode = ret;
+  if (oh_context_is_default_state(state)) {
+    currMode = ret;
+    oh1_sync_default_state();
+  }
   return(state->curr_mode);
 }
 int
@@ -541,7 +547,7 @@ try_primary1_state(struct oh_state *state, int currmode, int level, int stats) {
   Verbose(2,vprint("try_primary=TRUE"));
 
   subdomain_id[1] = region_id[1] = -1;
-  oh1_sync_default_state();
+  if (oh_context_is_default_state(state)) oh1_sync_default_state();
   if (Mode_PS(currmode) && FamIndex) {
     int *fidx = FamIndex,  *fmem = FamMembers;
     for (i=0; i<nn; i++)  fidx[i] = fmem[i] = i;
@@ -797,18 +803,18 @@ schedule_particle_exchange_state(struct oh_state *state, int reb) {
     if (src>=0) {
       if (dst>=0)
         MPI_Sendrecv(comm_list+rl_index[i], rl_index[i+1]-rl_index[i],
-                     T_Commlist,
+                     state->comm_list_type,
                      dst, 0,
-                     comm_list+slidx, nn+nnns, T_Commlist, src, 0,
+                     comm_list+slidx, nn+nnns, state->comm_list_type, src, 0,
                      state->comm, &st);
       else
-        MPI_Recv(comm_list+slidx, nn+nnns, T_Commlist, src, 0,
+        MPI_Recv(comm_list+slidx, nn+nnns, state->comm_list_type, src, 0,
                  state->comm, &st);
-      MPI_Get_count(&st, T_Commlist, &rc);
+      MPI_Get_count(&st, state->comm_list_type, &rc);
       slidx += rc;
     } else if (dst>=0)
-      MPI_Send(comm_list+rl_index[i], rl_index[i+1]-rl_index[i], T_Commlist,
-               dst, 0, state->comm);
+      MPI_Send(comm_list+rl_index[i], rl_index[i+1]-rl_index[i],
+               state->comm_list_type, dst, 0, state->comm);
   }
   sl_head_tail[1] = slidx;
   if (reb==2) return;
@@ -817,7 +823,8 @@ schedule_particle_exchange_state(struct oh_state *state, int reb) {
   oh1_broadcast_state(state, sl_head_tail, sec_sl_head_tail, 2, 2,
                       MPI_INT, MPI_INT);
   oh1_broadcast_state(state, comm_list, comm_list+slidx, slidx,
-                      sec_sl_head_tail[1], T_Commlist, T_Commlist);
+                      sec_sl_head_tail[1], state->comm_list_type,
+                      state->comm_list_type);
 }
 static int
 count_real_stay_state(struct oh_state *state, int *np) {
@@ -950,13 +957,14 @@ make_comm_count_state(struct oh_state *state, int currmode, int level, int reb,
     else
       sec_recv_list = comm_list + sl_head_tail[0];
     oh1_broadcast_state(state, comm_list, sec_recv_list, sl_head_tail[0],
-                        *sec_rl_size, T_Commlist, T_Commlist);
+                        *sec_rl_size, state->comm_list_type,
+                        state->comm_list_type);
   } else {
     sec_recv_list = comm_list + sl_head_tail[1];
     *sec_rl_size = sec_sl_head_tail[0];
   }
   state->sec_recv_list = sec_recv_list;
-  SecRList = sec_recv_list;
+  if (oh_context_is_default_state(state)) SecRList = sec_recv_list;
   for (s=0; s<ns*2; s++) totalp_next[s] = 0;            /* TotalPNext[p][s] */
   if (level==1 || Mode_Is_Any(currmode) || stats) {
     for (i=0; i<nnns2; i++)  nofrecv[i] = nofsend[i] = 0;
@@ -967,8 +975,8 @@ make_comm_count_state(struct oh_state *state, int currmode, int level, int reb,
       make_recv_count_state(state, comm_list+sl_head_tail[1],
                             sec_sl_head_tail[0]);
     if (Mode_Is_Any(currmode)) {
-      MPI_Alltoall(nofrecv, 1, T_Histogram, nofsend, 1, T_Histogram,
-                   state->comm);
+      MPI_Alltoall(nofrecv, 1, state->histogram_type, nofsend, 1,
+                   state->histogram_type, state->comm);
 #ifndef INTEL_MPI_BUG_FIXED
       for (ps=0,i=me; ps<2; ps++)  for (s=0; s<ns; s++,i+=nn)
         nofsend[i] = nofrecv[i];
@@ -1093,6 +1101,8 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   struct S_heap_key heap_key = {
     totalp_global, total_load_global, weighted
   };
+  struct S_heap *less_heap=&state->less_heap;
+  struct S_heap *greater_heap=&state->greater_heap;
   struct S_node *node, *mynode=nodes_next+me, *root;
 
   if (stats) oh1_stats_time(STATS_REBALANCE, 0);
@@ -1101,29 +1111,29 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   if (weighted) {
     double target = total_load / nn;
 
-    LessHeap.n = GreaterHeap.n = 0;
-    for (i=0; i<nn; i++) GreaterHeap.index[i] = 0;
+    less_heap->n = greater_heap->n = 0;
+    for (i=0; i<nn; i++) greater_heap->index[i] = 0;
 
     for (i=0,bot=0,node=nodes_next; i<nn; i++,node++) {
       if (total_load_global[i]<target) {
-        push_heap(i, &LessHeap, 0, &heap_key);
+        push_heap(i, less_heap, 0, &heap_key);
         node_queue[bot++] = node;
       } else {
-        push_heap(i, &GreaterHeap, 1, &heap_key);
+        push_heap(i, greater_heap, 1, &heap_key);
       }
       *node = nodes[i];
       node->child = NULL;
       if (pm) node->parentid = -1;
     }
-    while (LessHeap.n) {
+    while (less_heap->n) {
       struct S_node *parent;
       int get, h;
-      j = pop_heap(&LessHeap, 0, &heap_key);
+      j = pop_heap(less_heap, 0, &heap_key);
       node = nodes_next + j;
-      if ((k=node->parentid)>=0 && (h=GreaterHeap.index[k]))
-        remove_heap(&GreaterHeap, 1, h, &heap_key);
+      if ((k=node->parentid)>=0 && (h=greater_heap->index[k]))
+        remove_heap(greater_heap, 1, h, &heap_key);
       else
-        k = pop_heap(&GreaterHeap, 1, &heap_key);
+        k = pop_heap(greater_heap, 1, &heap_key);
       get = oh_weighted_transfer_count(target, total_load_global[j],
                                        region_weights[k], totalp_global[k]);
       node->get.sec = get;
@@ -1134,18 +1144,18 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
       totalp_global[k] -= get;
       total_load_global[k] = oh_load_after_transfer(total_load_global[k],
                                                     get, region_weights[k]);
-      if (total_load_global[k]<target && GreaterHeap.n>0) {
-        push_heap(k, &LessHeap, 0, &heap_key);  node_queue[bot++] = parent;
+      if (total_load_global[k]<target && greater_heap->n>0) {
+        push_heap(k, less_heap, 0, &heap_key);  node_queue[bot++] = parent;
       } else {
-        push_heap(k, &GreaterHeap, 1, &heap_key);
+        push_heap(k, greater_heap, 1, &heap_key);
       }
     }
-    root = nodes_next + GreaterHeap.node[1];
+    root = nodes_next + greater_heap->node[1];
     root->parentid = -1;  root->parent = root->sibling = NULL;
     root->get.sec = 0;
     k = root->id;
-    for (i=2; i<=GreaterHeap.n; i++) {
-      j = GreaterHeap.node[i];
+    for (i=2; i<=greater_heap->n; i++) {
+      j = greater_heap->node[i];
       node = nodes_next + j;
       node->get.sec = 0;
       node->parentid = k;  node->parent = root;
@@ -1164,34 +1174,34 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     return;
   }
 
-  LessHeap.n = GreaterHeap.n = 0;
-  for (i=0; i<nn; i++) GreaterHeap.index[i] = 0;
+  less_heap->n = greater_heap->n = 0;
+  for (i=0; i<nn; i++) greater_heap->index[i] = 0;
 
   for (i=0,bot=0,node=nodes_next; i<nn; i++,node++) {
     dint npg=totalp_global[i];
     if (npg<npavein) {
       if (--npfracin==0) npavein--;
-      push_heap(i, &LessHeap, 0, &heap_key);
+      push_heap(i, less_heap, 0, &heap_key);
       node_queue[bot++] = node;
     } else {
-      push_heap(i, &GreaterHeap, 1, &heap_key);
+      push_heap(i, greater_heap, 1, &heap_key);
     }
     *node = nodes[i];
     node->child = NULL;
     if (pm) node->parentid = -1;
   }
-  while (LessHeap.n) {
+  while (less_heap->n) {
     struct S_node *parent;
     dint npg;
     int get, h;
-    j = pop_heap(&LessHeap, 0, &heap_key);
+    j = pop_heap(less_heap, 0, &heap_key);
     node = nodes_next + j;
     get = npaveout - totalp_global[j];
     if (--npfracout==0) npaveout--;
-    if ((k=node->parentid)>=0 && (h=GreaterHeap.index[k]))
-      remove_heap(&GreaterHeap, 1, h, &heap_key);
+    if ((k=node->parentid)>=0 && (h=greater_heap->index[k]))
+      remove_heap(greater_heap, 1, h, &heap_key);
     else
-      k = pop_heap(&GreaterHeap, 1, &heap_key);
+      k = pop_heap(greater_heap, 1, &heap_key);
     node->get.sec = get;
     parent = nodes_next + k;
     node->parentid = k;  node->parent = parent;
@@ -1200,17 +1210,17 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     npg = (totalp_global[k] -= get);
     if (npg<npavein) {
       if (--npfracin==0) npavein--;
-      push_heap(k, &LessHeap, 0, &heap_key);  node_queue[bot++] = parent;
+      push_heap(k, less_heap, 0, &heap_key);  node_queue[bot++] = parent;
     } else {
-      push_heap(k, &GreaterHeap, 1, &heap_key);
+      push_heap(k, greater_heap, 1, &heap_key);
     }
   }
-  root = nodes_next + GreaterHeap.node[1];
+  root = nodes_next + greater_heap->node[1];
   root->parentid = -1;  root->parent = root->sibling = NULL;
   root->get.sec = 0;
   k = root->id;
-  for (i=2; i<=GreaterHeap.n; i++) {
-    j = GreaterHeap.node[i];
+  for (i=2; i<=greater_heap->n; i++) {
+    j = greater_heap->node[i];
     node = nodes_next + j;
     node->get.sec = 0;
     node->parentid = k;  node->parent = root;
@@ -1246,10 +1256,12 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
   MPI_Group grpw=state->world_group, grp;
 
   node = nodes;
-  Nodes = nodes_next;
-  NodesNext = node;
-  state->nodes = Nodes;
-  state->nodes_next = NodesNext;
+  state->nodes = nodes_next;
+  state->nodes_next = node;
+  if (oh_context_is_default_state(state)) {
+    Nodes = state->nodes;
+    NodesNext = state->nodes_next;
+  }
   nodes = state->nodes;
   nodes_next = state->nodes_next;
 
@@ -1306,7 +1318,7 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
     mycommf->root  = mycomm->root;
     mycommf->black = mycomm->black;
   }
-  oh1_broadcast_state(state, Neighbors[0], Neighbors[nbridx],
+  oh1_broadcast_state(state, state->neighbors[0], state->neighbors[nbridx],
                       OH_NEIGHBORS, OH_NEIGHBORS, MPI_INT, MPI_INT);
   if (NeighborsShadow) {
     int (*nb)[OH_NEIGHBORS] = NeighborsShadow;
@@ -1315,7 +1327,7 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
                         MPI_INT, MPI_INT);
   }
   subdomain_id[1] = region_id[1] = mynode->parentid;
-  oh1_sync_default_state();
+  if (oh_context_is_default_state(state)) oh1_sync_default_state();
 
   if (!Special_Pexc_Sched(level))
     make_comm_count_state(state, currmode, level, 1,

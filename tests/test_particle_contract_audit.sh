@@ -134,6 +134,7 @@ check_present 'sample/sample\.F90' scripts/docker-build-test.sh
 check_present 'src/c/oh_fortran_v2\.c' scripts/docker-build-test.sh
 check_present 'src/fortran/oh_v2\.F90' scripts/docker-build-test.sh
 check_present 'tests/test_oh_v2_fortran\.F90' scripts/docker-build-test.sh
+check_present 'tests/test_oh_context_lifecycle\.c' scripts/docker-build-test.sh
 check_present 'ffree-line-length-none' scripts/docker-build-test.sh
 check_present 'EPSILON=1\.0d0,MU=1\.0d0' sample/sample.F90
 check_present 'particle adapter handles' README.md
@@ -179,17 +180,29 @@ check_present 'before full multiple-context independence' \
 check_present 'OH_PARTICLES_BORROWED' include/oh_particle_ownership.h
 check_present 'OH_PARTICLES_OWNED' include/oh_particle_ownership.h
 check_present 'oh_context_bind_particles' include/oh_context.h
+check_present 'oh_context_create' include/oh_context.h
+check_present 'oh_context_configure_particles' include/oh_context.h
 check_present 'oh_context_bind_particle_accounting' include/oh_context.h
 check_present 'oh_context_bind_particles' src/c/oh_context.c
+check_present 'oh_context_create' src/c/oh_context.c
+check_present 'oh_context_configure_particles' src/c/oh_context.c
 check_present 'oh_context_bind_particle_accounting' src/c/oh_context.c
+check_present 'heap-owned context' doc/usage/api-by-level.md
+check_present 'heap-owned context' doc/usage/api-by-level-fortran.md
 check_present 'oh_context_bind_particles' src/fortran/oh_v2.F90
+check_present 'oh_context_create' src/fortran/oh_v2.F90
+check_present 'oh_context_configure_particles' src/fortran/oh_v2.F90
 check_present 'oh_context_bind_particle_accounting' src/fortran/oh_v2.F90
 check_present 'oh_context_unbind_particles' src/fortran/oh_v2.F90
 check_present 'oh_context_unbind_particle_accounting' src/fortran/oh_v2.F90
 check_present 'oh_fortran_context_bind_particles' include/oh_fortran_v2.h
+check_present 'oh_fortran_context_create' include/oh_fortran_v2.h
+check_present 'oh_fortran_context_configure_particles' include/oh_fortran_v2.h
 check_present 'oh_fortran_context_bind_particle_accounting' \
   include/oh_fortran_v2.h
 check_present 'oh_fortran_context_bind_particles' src/c/oh_fortran_v2.c
+check_present 'oh_fortran_context_create' src/c/oh_fortran_v2.c
+check_present 'oh_fortran_context_configure_particles' src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_bind_particle_accounting' \
   src/c/oh_fortran_v2.c
 check_present 'particle_buffer_bound' src/c/oh_context_internal.h
@@ -219,9 +232,17 @@ check_present 'oh_particle_adapter_use_integer_fields' \
   sample/level3_custom_particle.c
 check_present 'oh_context_set_region_weights' tests/test_oh_context_header.c
 check_present 'oh_context_bind_particles' tests/test_oh_context_header.c
+check_present 'oh_context_create' tests/test_oh_context_header.c
+check_present 'oh_context_configure_particles' tests/test_oh_context_header.c
+check_present 'oh_context_create' tests/test_oh_context_lifecycle.c
+check_present 'oh_context_configure_particles' tests/test_oh_context_lifecycle.c
+check_present 'oh_context_destroy' tests/test_oh_context_lifecycle.c
+check_present 'oh_context_bind_particles' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_bind_particle_accounting' \
   tests/test_oh_context_header.c
 check_present 'oh_context_bind_particles' tests/test_oh_v2_fortran.F90
+check_present 'oh_context_create' tests/test_oh_v2_fortran.F90
+check_present 'oh_context_configure_particles' tests/test_oh_v2_fortran.F90
 check_present 'oh_context_bind_particle_accounting' \
   tests/test_oh_v2_fortran.F90
 check_present 'oh_context_transbound3' tests/test_oh_context_header.c

@@ -83,6 +83,14 @@ void state_set_field_descriptors(struct oh_state *state,
                                  int (*ft)[OH_FTYPE_N],
                                  int sd[OH_DIMENSION][2], int ps);
 void state_clear_border_exchange(struct oh_state *state);
+void oh3_configure_context_state(struct oh_state *state, const int *pcoord,
+                                 const int *sdoms, const int *scoord,
+                                 int nbound, const int *bcond,
+                                 const int *bounds, const int *ftypes,
+                                 const int *cfields, const int *ctypes,
+                                 int *fsizes);
+void oh3_bind_context_particle_adapter(struct oh_state *state);
+void oh3_free_context_state(struct oh_state *state);
 void oh3_grid_size_state(struct oh_state *state, double size[OH_DIMENSION]);
 int  oh3_transbound_state(struct oh_state *state, int currmode, int stats);
 int  oh3_map_particle_to_neighbor_state(struct oh_state *state, double *x,

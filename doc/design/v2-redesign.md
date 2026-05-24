@@ -47,6 +47,13 @@ The current code now has this first migration layer:
   `src/c/oh_context_internal.h`; public headers keep `oh_context` opaque and
   do not expose the default context layout.
 - `oh_context_set_region_weights()` provides the first context-shaped setter.
+- `oh_context_create()` / `oh_context_destroy()` provide the first heap-owned
+  non-default context handle. The initial non-default support covers context
+  creation, destruction, species/max-fraction configuration, region-weight
+  state, particle adapter state, particle/accounting binding state, Level-1/2
+  work buffers, Level-3 geometry/field descriptors, field/mapping wrappers, and
+  Level-1/2/3 transbound execution. Multi-rank multi-context workload
+  verification remains migration work.
 - `src/c/oh_context.c` owns the default context facade, while Level-1 code calls
   the internal sync hook during the migration away from process globals.
 - Region-weight mutation now has a state-backed internal implementation
@@ -227,8 +234,8 @@ The current code now has this first migration layer:
   `oh_context_transbound1()`, `oh_context_transbound2()`,
   `oh_context_transbound3()`, Level-1 collective wrappers, Level-2 injected
   particle accounting wrappers, and Level-3 mapping/field/border exchange
-  wrappers. These still accept only the default context, but they make the
-  Level 1-3 state-backed boundary explicit for v2.0 callers.
+  wrappers. The transbound, collective, mapping, field, and border exchange
+  wrappers now accept heap-owned non-default contexts.
 - Level-3 geometry, field, boundary, and border-exchange globals are now
   mirrored into `oh_state`. Fields that depend on Level-3-only array constants
   are stored as opaque `int *`/struct pointers for now so `ohhelp1.h` does not
@@ -700,11 +707,13 @@ The ownership flag currently distinguishes:
 
 This landed before full multiple-context independence because it separates the
 most important side effect from the global-state migration. The current
-implementation is still default-context backed; once the remaining global
-tables are migrated, a non-default context can own its particle-buffer binding
-without also solving every process-global table in the same change. If later
-APIs need a stricter contract, a read-only or externally synchronized ownership
-mode can be added without changing the borrowed/owned meanings.
+implementation lets a non-default context own or borrow particle storage and run
+Level 1-3 `transbound` with its own accounting, Level-1/2 work buffers, and
+Level-3 geometry/field descriptors. The remaining work is to harden this under
+larger multi-rank multi-context workloads and to expand coverage beyond the
+current 1-rank/2-rank runtime tests. If later APIs need a stricter contract, a
+read-only or externally synchronized ownership mode can be added without
+changing the borrowed/owned meanings.
 
 The same lifecycle boundary also applies to accounting state:
 

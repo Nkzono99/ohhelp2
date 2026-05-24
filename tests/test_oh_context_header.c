@@ -3,6 +3,8 @@
 int
 main(void) {
   oh_context *context = 0;
+  oh_context *owned_context = 0;
+  int ierr;
   double *weights = 0;
   double size[3] = {0.0, 0.0, 0.0};
   void *particle = 0;
@@ -46,5 +48,13 @@ main(void) {
   oh_context_reduce_field(context, primary, secondary, 0);
   oh_context_allreduce_field(context, primary, secondary, 0);
   oh_context_exchange_borders(context, primary, secondary, 0, 0);
+  ierr = oh_context_create(MPI_COMM_WORLD, &owned_context);
+  (void)ierr;
+  oh_context_configure_particles(owned_context, 1, 20);
+  oh_context_configure_level3(owned_context, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  oh_context_set_region_weights(owned_context, weights);
+  oh_context_set_particle_mpi_type(owned_context, MPI_DATATYPE_NULL);
+  oh_context_set_particle_adapter(owned_context, 0);
+  oh_context_destroy(owned_context);
   return 0;
 }

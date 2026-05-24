@@ -35,7 +35,8 @@ v2 の `ohhelp_v2` opaque handle API を使う例を載せます。
 | 項目 | C | Fortran |
 | --- | --- | --- |
 | Level 1-3 default API | supported | supported |
-| Level 1-3 context facade | default context のみ supported | `ohhelp_v2` から default context のみ supported |
+| Level 1-3 context transbound | default / non-default context | `ohhelp_v2` から default / non-default context |
+| Level 3 context geometry / field facade | non-default context | `ohhelp_v2` から non-default context |
 | region weight | supported | supported |
 | custom particle adapter | supported | `ohhelp_v2` で設定 API は利用可能 |
 | 任意 layout の粒子配列を init に渡す経路 | supported | `oh2_init_raw()` / `oh3_init_raw()` |
@@ -63,7 +64,9 @@ v2 の context facade と particle adapter 設定 API は `src/fortran/oh_v2.F90
 `type(oh_context_handle)` と `type(oh_particle_adapter_handle)` の opaque handle
 として扱います。raw init bridge では粒子バッファを `type(c_ptr)` として受け渡し、
 custom adapter の stride/datatype で Level 2/3 の粒子移動を行います。複数 context
-の完全な独立運用は引き続き v2.x の対象です。
+の完全な独立運用は引き続き v2.x の対象ですが、heap-owned non-default context での
+Level 3 geometry、mapping、field facade、Level 1-3 `transbound` は C/Fortran の
+Docker runtime test で 1 rank / 2 rank ともに確認しています。
 
 Level 4p/4s は v2.x の継続対応対象です。v2.0 では既存コードの compile
 coverage と移行中の実装境界を維持しますが、custom particle layout を含む
@@ -89,5 +92,6 @@ coverage と移行中の実装境界を維持しますが、custom particle layo
   `OH_LIB_LEVEL` に対応する実体へ展開されます。
 - v2 では、後方互換よりも明示的な context、外部 particle layout、
   region weight を使う負荷分散を優先します。
-- 現在の実装は default context を中心に移行中です。複数 context を完全に
-  独立運用する API はまだ完成形ではありません。
+- 現在の実装は default context を中心に移行中です。non-default context は
+  Level 1-3 `transbound`、Level 3 geometry/mapping/field facade まで実行できますが、
+  複数 context を同時に使う複数 rank 実 workload での検証はまだ残っています。

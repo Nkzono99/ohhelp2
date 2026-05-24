@@ -228,7 +228,8 @@ v2 の context API では、粒子バッファの保持を明示する
 `OH_PARTICLES_BORROWED` は user-owned storage を借用し、
 `OH_PARTICLES_OWNED` は OhHelp が active adapter stride に基づいて確保した
 storage を `unbind` 時に解放します。現時点では default context の binding を
-明示する API で、複数 context の完全な独立運用は後続作業です。
+明示する API と heap-owned non-default context の binding に使えます。完全な
+複数 context 独立運用は後続作業です。
 
 ```fortran
 raw_particles = c_loc(particles(1))
@@ -336,8 +337,10 @@ end do
 
 ## 現在の実装上の制約
 
-- context API は default context facade です。完全な複数 context 独立運用は
-  v2.x の対象です。
+- context API は default context facade に加えて、heap-owned non-default context の
+  Level 1-3 `transbound`、Level 3 geometry/field descriptor、mapping、field facade
+  まで対応しています。複数 context を同時に使う複数 rank 実 workload での検証は
+  v2.x の継続対象です。
 - Fortran custom particle layout の adapter 設定と raw init は `bind(C)` と
   `iso_c_binding` を前提にします。
 - Level 4p/4s は v2.x 対応対象で、v2.0 の supported scope には含めません。

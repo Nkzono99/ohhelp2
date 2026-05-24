@@ -70,7 +70,10 @@ module ohhelp_v2
   public :: oh_particle_set_region_callback
   public :: oh_particle_get_species_callback
   public :: oh_particle_map_callback
+  public :: oh_context_create
+  public :: oh_context_destroy
   public :: oh_default_context
+  public :: oh_context_configure_particles
   public :: oh_context_associated
   public :: oh_particle_adapter_associated
   public :: oh_context_set_region_weights
@@ -80,6 +83,7 @@ module ohhelp_v2
   public :: oh_context_unbind_particles
   public :: oh_context_bind_particle_accounting
   public :: oh_context_unbind_particle_accounting
+  public :: oh_context_configure_level3
   public :: oh_context_transbound1
   public :: oh_context_transbound2
   public :: oh_context_transbound3
@@ -120,6 +124,28 @@ module ohhelp_v2
       import :: c_ptr
       type(c_ptr) :: context
     end function
+
+    function c_oh_context_create(fortran_comm, context) &
+        bind(C, name="oh_fortran_context_create") result(ierr)
+      import :: c_ptr, c_int
+      integer(c_int), value :: fortran_comm
+      type(c_ptr) :: context
+      integer(c_int) :: ierr
+    end function
+
+    subroutine c_oh_context_destroy(context) &
+        bind(C, name="oh_fortran_context_destroy")
+      import :: c_ptr
+      type(c_ptr), value :: context
+    end subroutine
+
+    subroutine c_oh_context_configure_particles(context, nspec, maxfrac) &
+        bind(C, name="oh_fortran_context_configure_particles")
+      import :: c_ptr, c_int
+      type(c_ptr), value :: context
+      integer(c_int), value :: nspec
+      integer(c_int), value :: maxfrac
+    end subroutine
 
     subroutine c_oh_context_set_region_weights(context, weights) &
         bind(C, name="oh_fortran_context_set_region_weights")
@@ -175,6 +201,23 @@ module ohhelp_v2
         bind(C, name="oh_fortran_context_unbind_particle_accounting")
       import :: c_ptr
       type(c_ptr), value :: context
+    end subroutine
+
+    subroutine c_oh_context_configure_level3(context, pcoord, sdoms, &
+        scoord, nbound, bcond, bounds, ftypes, cfields, ctypes, fsizes) &
+        bind(C, name="oh_fortran_context_configure_level3")
+      import :: c_ptr, c_int
+      type(c_ptr), value :: context
+      type(c_ptr), value :: pcoord
+      type(c_ptr), value :: sdoms
+      type(c_ptr), value :: scoord
+      integer(c_int), value :: nbound
+      type(c_ptr), value :: bcond
+      type(c_ptr), value :: bounds
+      type(c_ptr), value :: ftypes
+      type(c_ptr), value :: cfields
+      type(c_ptr), value :: ctypes
+      type(c_ptr), value :: fsizes
     end subroutine
 
     function c_oh_context_transbound1(context, currmode, stats) &
@@ -508,6 +551,30 @@ module ohhelp_v2
 
 contains
 
+  subroutine oh_context_create(context, fortran_comm, ierr)
+    type(oh_context_handle), intent(out) :: context
+    integer(c_int), intent(in) :: fortran_comm
+    integer(c_int), intent(out) :: ierr
+
+    context%ptr = c_null_ptr
+    ierr = c_oh_context_create(fortran_comm, context%ptr)
+  end subroutine
+
+  subroutine oh_context_destroy(context)
+    type(oh_context_handle), intent(inout) :: context
+
+    call c_oh_context_destroy(context%ptr)
+    context%ptr = c_null_ptr
+  end subroutine
+
+  subroutine oh_context_configure_particles(context, nspec, maxfrac)
+    type(oh_context_handle), intent(in) :: context
+    integer(c_int), intent(in) :: nspec
+    integer(c_int), intent(in) :: maxfrac
+
+    call c_oh_context_configure_particles(context%ptr, nspec, maxfrac)
+  end subroutine
+
   function oh_default_context() result(context)
     type(oh_context_handle) :: context
     context%ptr = c_oh_default_context()
@@ -581,6 +648,26 @@ contains
     type(oh_context_handle), intent(in) :: context
 
     call c_oh_context_unbind_particle_accounting(context%ptr)
+  end subroutine
+
+  subroutine oh_context_configure_level3(context, pcoord, sdoms, scoord, &
+                                         nbound, bcond, bounds, ftypes, &
+                                         cfields, ctypes, fsizes)
+    type(oh_context_handle), intent(in) :: context
+    type(c_ptr), intent(in), value :: pcoord
+    type(c_ptr), intent(in), value :: sdoms
+    type(c_ptr), intent(in), value :: scoord
+    integer(c_int), intent(in) :: nbound
+    type(c_ptr), intent(in), value :: bcond
+    type(c_ptr), intent(in), value :: bounds
+    type(c_ptr), intent(in), value :: ftypes
+    type(c_ptr), intent(in), value :: cfields
+    type(c_ptr), intent(in), value :: ctypes
+    type(c_ptr), intent(in), value :: fsizes
+
+    call c_oh_context_configure_level3(context%ptr, pcoord, sdoms, scoord, &
+                                       nbound, bcond, bounds, ftypes, &
+                                       cfields, ctypes, fsizes)
   end subroutine
 
   integer(c_int) function oh_context_transbound1(context, currmode, stats)

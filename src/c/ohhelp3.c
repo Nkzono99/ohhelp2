@@ -30,6 +30,13 @@ static int  comp_xyz(const void* aa, const void* bb);
 static void init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid,
                         int (*ct)[2][OH_CTYPE_N], int nb,
                         int sd[OH_DIMENSION][2], int **fsizes);
+static void state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N],
+                              int *cf, int cfid,
+                              int (*ct)[2][OH_CTYPE_N], int nb,
+                              int sd[OH_DIMENSION][2], int *fsizes);
+static void configure_context_neighbors_from_grid(struct oh_state *state,
+                                                  int pc[3]);
+static void free_border_exchange_types(struct oh_state *state);
 static void state_set_border_exchange(struct oh_state *state, int e, int ps,
                                       MPI_Datatype type);
 static void set_border_comm(int esize, int f, int *xyz, int *wdh,
@@ -54,6 +61,12 @@ static oh_particle_region_t offset_level3_map_particle_to_neighbor(
   const oh_particle_adapter *adapter, void *particle,
   int primary_or_secondary);
 static oh_particle_region_t offset_level3_map_particle_to_subdomain(
+  const oh_particle_adapter *adapter, void *particle,
+  int primary_or_secondary);
+static oh_particle_region_t context_level3_map_particle_to_neighbor(
+  const oh_particle_adapter *adapter, void *particle,
+  int primary_or_secondary);
+static oh_particle_region_t context_level3_map_particle_to_subdomain(
   const oh_particle_adapter *adapter, void *particle,
   int primary_or_secondary);
 static int  state_map_particle_to_neighbor(struct oh_state *state, double *x,
@@ -210,10 +223,18 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
 static void
 install_default_level3_particle_maps(struct oh_state *state) {
   if (state->exclude_level2 || state->use_custom_particle_adapter) return;
-  state->particle_adapter->map_to_neighbor =
-    default_level3_map_particle_to_neighbor;
-  state->particle_adapter->map_to_subdomain =
-    default_level3_map_particle_to_subdomain;
+  if (oh_context_is_default_state(state)) {
+    state->particle_adapter->map_to_neighbor =
+      default_level3_map_particle_to_neighbor;
+    state->particle_adapter->map_to_subdomain =
+      default_level3_map_particle_to_subdomain;
+  } else {
+    state->particle_adapter->user_data = state;
+    state->particle_adapter->map_to_neighbor =
+      context_level3_map_particle_to_neighbor;
+    state->particle_adapter->map_to_subdomain =
+      context_level3_map_particle_to_subdomain;
+  }
 }
 void
 oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
@@ -225,6 +246,108 @@ oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
   adapter->map_to_neighbor = offset_level3_map_particle_to_neighbor;
   adapter->map_to_subdomain = offset_level3_map_particle_to_subdomain;
 }
+
+void
+oh3_bind_context_particle_adapter(struct oh_state *state) {
+  oh_particle_adapter *adapter;
+
+  if (!state || oh_context_is_default_state(state)) return;
+  adapter = state->particle_adapter;
+  if (!adapter) return;
+  if (adapter->map_to_neighbor == offset_level3_map_particle_to_neighbor &&
+      adapter->map_to_subdomain == offset_level3_map_particle_to_subdomain) {
+    adapter->user_data = state;
+    adapter->map_to_neighbor = context_level3_map_particle_to_neighbor;
+    adapter->map_to_subdomain = context_level3_map_particle_to_subdomain;
+  }
+}
+
+void
+oh3_configure_context_state(struct oh_state *state, const int *pcoord,
+                            const int *sdoms, const int *scoord, int nbound,
+                            const int *bcond, const int *bounds,
+                            const int *ftypes, const int *cfields,
+                            const int *ctypes, int *fsizes) {
+  int nn, d, i, n, m;
+  int pc[3] = {1, 1, 1};
+  int sc[OH_DIMENSION][2];
+  int bc[OH_DIMENSION][2];
+  int (*sd)[OH_DIMENSION][2];
+  int (*bd)[OH_DIMENSION][2];
+
+  if (!state) state = oh1_state();
+  if (oh_context_is_default_state(state))
+    local_errstop("oh_context_configure_level3() is for non-default context");
+  if (state->n_of_nodes<=0 || state->n_of_species<=0)
+    local_errstop("Level 3 context configuration requires particles first");
+  if (!state->owns_level1_storage)
+    local_errstop("Level 3 context configuration requires Level 1 storage");
+
+  oh3_free_context_state(state);
+
+  nn = state->n_of_nodes;
+  state->grid = (struct S_grid*)mem_alloc(sizeof(struct S_grid), 3, "Grid");
+  state->subdomains =
+    (int(*)[OH_DIMENSION][2])mem_alloc(sizeof(int), nn*OH_DIMENSION*2,
+                                       "SubDomains");
+  state->subdomains_float =
+    (double(*)[OH_DIMENSION][2])
+      mem_alloc(sizeof(double), nn*OH_DIMENSION*2, "SubDomainsFloat");
+  state->boundaries =
+    (int(*)[OH_DIMENSION][2])mem_alloc(sizeof(int), nn*OH_DIMENSION*2,
+                                       "Boundaries");
+  state->adjacent = (int*)mem_alloc(sizeof(int), OH_DIMENSION*2, "Adjacent");
+
+  for (d=0; d<OH_DIMENSION; d++) {
+    pc[d] = pcoord ? pcoord[d] : 1;
+    sc[d][OH_LOWER] = scoord ? scoord[d*2 + OH_LOWER] : 0;
+    sc[d][OH_UPPER] = scoord ? scoord[d*2 + OH_UPPER] : pc[d];
+    bc[d][OH_LOWER] = bcond ? bcond[d*2 + OH_LOWER] : 0;
+    bc[d][OH_UPPER] = bcond ? bcond[d*2 + OH_UPPER] : 0;
+  }
+  if (nbound<=0) nbound = 1;
+  configure_context_neighbors_from_grid(state, pc);
+
+  for (d=0,n=1,m=OH_NEIGHBORS>>1; d<OH_DIMENSION; d++,n*=3) {
+    int nl=state->dst_neighbors[m-n], nu=state->dst_neighbors[m+n];
+    ((int(*)[2])state->adjacent)[d][OH_LOWER] = nl<0 ? -(nl+1) : nl;
+    ((int(*)[2])state->adjacent)[d][OH_UPPER] = nu<0 ? -(nu+1) : nu;
+  }
+
+  sd = state->subdomains;
+  bd = state->boundaries;
+  if (sdoms) {
+    memcpy(sd, sdoms, sizeof(int)*nn*OH_DIMENSION*2);
+    if (bounds)
+      memcpy(bd, bounds, sizeof(int)*nn*OH_DIMENSION*2);
+    else
+      memset(bd, 0, sizeof(int)*nn*OH_DIMENSION*2);
+    init_subdomain_passively(state, sd, bd, nbound, 0);
+  } else {
+    init_subdomain_actively(state, sd, sc, pc, bc, bd, nbound, 0);
+  }
+
+  for (i=0; i<nn; i++) {
+    for (d=0; d<OH_DIMENSION; d++) {
+      state->subdomains_float[i][d][OH_LOWER] = sd[i][d][OH_LOWER];
+      state->subdomains_float[i][d][OH_UPPER] = sd[i][d][OH_UPPER];
+    }
+  }
+
+  if (ftypes) {
+    int default_cfields[1] = {-1};
+    int (*ft)[OH_FTYPE_N] = (int(*)[OH_FTYPE_N])ftypes;
+    int (*ct)[2][OH_CTYPE_N] = (int(*)[2][OH_CTYPE_N])ctypes;
+    int *cf = cfields ? (int*)cfields : default_cfields;
+    state_init_fields(state, ft, cf, 0, ct, nbound, sd[state->my_rank],
+                      fsizes);
+  }
+
+  state->exclude_level2 = 0;
+  state->owns_level3_storage = 1;
+  install_default_level3_particle_maps(state);
+  oh3_bind_context_particle_adapter(state);
+}
 static void
 init_subdomain_actively(struct oh_state *state,
                         int (*sd)[OH_DIMENSION][2], int sc[OH_DIMENSION][2],
@@ -234,7 +357,7 @@ init_subdomain_actively(struct oh_state *state,
   int nn=state->n_of_nodes, pqr=1;
   int d, lu, i, j, k, x, y, z, n;
 
-  SubDomainDesc = NULL;
+  if (oh_context_is_default_state(state)) SubDomainDesc = NULL;
   state->subdomain_desc = NULL;
   for (d=0; d<OH_DIMENSION; d++) {
     int lo = grid[d].coord[OH_LOWER] = sc[d][OH_LOWER];
@@ -329,13 +452,52 @@ init_subdomain_actively(struct oh_state *state,
   }
 }
 static void
+configure_context_neighbors_from_grid(struct oh_state *state, int pc[3]) {
+  int nn=state->n_of_nodes, me=state->my_rank;
+  int p=pc[0];
+  int q=(OH_DIMENSION>1)?pc[1]:1;
+  int r=(OH_DIMENSION>2)?pc[2]:1;
+  int i, j, k, l;
+  int yplus=(OH_DIMENSION>1)?2:0, zplus=(OH_DIMENSION>2)?2:0;
+  int xoff, yoff, zoff;
+  int *nb=state->neighbors[0];
+  int raw[OH_NEIGHBORS];
+  int *temp=state->temp_array;
+
+  if (p*q*r!=nn || p<=0 || q<=0 || r<=0)
+    local_errstop("context pcoord product must match communicator size");
+
+  i = me % p;
+  j = (me/p) % q;
+  k = me / (p*q);
+  for (l=0,zoff=-1; zoff<zplus; zoff++) {
+    for (yoff=-1; yoff<yplus; yoff++) {
+      for (xoff=-1; xoff<2; xoff++,l++) {
+        raw[l] = (i+xoff+p)%p + (((j+yoff+q)%q) + ((k+zoff+r)%r)*q)*p;
+      }
+    }
+  }
+
+  memcpy(state->neighbors[1], raw, sizeof(int)*OH_NEIGHBORS);
+  memcpy(state->neighbors[2], raw, sizeof(int)*OH_NEIGHBORS);
+  state->dst_neighbors = state->neighbors[0];
+  for (i=0; i<nn; i++) temp[i] = 0;
+  for (i=0; i<OH_NEIGHBORS; i++) {
+    int dst=raw[i], src=raw[(OH_NEIGHBORS-1)-i];
+    state->dst_neighbors[i] = (temp[dst]&1) ? -(dst+1) : dst;
+    temp[dst] |= 1;
+    state->src_neighbors[i] = (temp[src]&2) ? -(src+1) : src;
+    temp[src] |= 2;
+  }
+}
+static void
 init_subdomain_passively(struct oh_state *state,
                          int (*sd)[OH_DIMENSION][2],
                          int (*bd)[OH_DIMENSION][2], int nb, int bbase) {
   struct S_grid *grid=state->grid;
   int (*adjacent)[2]=(int(*)[2])state->adjacent;
   int nn=state->n_of_nodes;
-  struct S_subdomdesc *sdd = SubDomainDesc =
+  struct S_subdomdesc *sdd =
     (struct S_subdomdesc*)mem_alloc(sizeof(struct S_subdomdesc), nn,
                                     "SubDomainDesc");
   int min[OH_DIMENSION], max[OH_DIMENSION];
@@ -345,6 +507,7 @@ init_subdomain_passively(struct oh_state *state,
   int lo[OH_DIMENSION-1], up[OH_DIMENSION-1], h[OH_DIMENSION-1];
 
   state->subdomain_desc = sdd;
+  if (oh_context_is_default_state(state)) SubDomainDesc = sdd;
   for (d=0; d<OH_DIMENSION; d++) {
     min[d] = sd[0][d][OH_LOWER];  max[d] = sd[0][d][OH_UPPER];
     smin[d] = smax[d] = max[d] - min[d];
@@ -475,45 +638,70 @@ comp_xyz(const void* aa, const void* bb) {
 static void
 init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
             int nb, int sd[OH_DIMENSION][2], int **fsizes) {
+  struct oh_state *state = oh1_state();
+  int nf;
+
+  for (nf=0; ft[nf][OH_FTYPE_ES]>0; nf++);
+  if (!*fsizes)
+    *fsizes = (int*)mem_alloc(sizeof(int), nf*OH_DIMENSION*2,
+                              "FieldSizes");
+  state_init_fields(state, ft, cf, cfid, ct, nb, sd, *fsizes);
+  oh1_sync_default_state();
+}
+static void
+state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N], int *cf,
+                  int cfid, int (*ct)[2][OH_CTYPE_N], int nb,
+                  int sd[OH_DIMENSION][2], int *fsizes) {
   struct S_flddesc *fd;
   struct S_borderexc (*bx)[2][OH_DIMENSION][2];
-  struct oh_state *state;
-  int (*fs)[OH_DIMENSION][2]=(int(*)[OH_DIMENSION][2])*fsizes;
+  int *owned_fsizes = NULL;
+  int (*fs)[OH_DIMENSION][2];
   int nf, ne;
   int f, e, b, d, lu, i, *tmp;
 
-  nOfBoundaries = nb;
+  state->n_of_boundaries = nb;
+  if (oh_context_is_default_state(state)) nOfBoundaries = nb;
   for (nf=0; ft[nf][OH_FTYPE_ES]>0; nf++);
-  nOfFields = nf;
+  if (!fsizes)
+    owned_fsizes = (int*)mem_alloc(sizeof(int), nf*OH_DIMENSION*2,
+                                   "FieldSizes");
+  fs = (int(*)[OH_DIMENSION][2])(fsizes ? fsizes : owned_fsizes);
+  state->n_of_fields = nf;
+  if (oh_context_is_default_state(state)) nOfFields = nf;
 #ifdef OH_POS_AWARE
   for (ne=0; cf[ne]>=0; ne++);
 #else
   for (ne=0; cf[ne]+cfid>=0; ne++);
 #endif
-  nOfExc = ne;
+  state->n_of_exchanges = ne;
+  if (oh_context_is_default_state(state)) nOfExc = ne;
 
-  FieldDesc = fd = (struct S_flddesc*)mem_alloc(sizeof(struct S_flddesc), nf,
-                                                "FieldDesc");
+  fd = (struct S_flddesc*)mem_alloc(sizeof(struct S_flddesc), nf,
+                                    "FieldDesc");
+  state->field_desc = fd;
+  if (oh_context_is_default_state(state)) FieldDesc = fd;
 #ifndef OH_POS_AWARE
-  FieldTypes = (int(*)[OH_FTYPE_N])
-               mem_alloc(sizeof(int), nf*OH_FTYPE_N, "FieldTypes");
-  BoundaryCommTypes  = (int(*)[2][OH_CTYPE_N])
-                       mem_alloc(sizeof(int), ne*nb*2*OH_CTYPE_N,
-                                 "BoundaryCommTypes");
-  memcpy(FieldTypes, ft, sizeof(int)*nf*OH_FTYPE_N);
-  memcpy(BoundaryCommTypes, ct, sizeof(int)*ne*nb*2*OH_CTYPE_N);
-  ft = FieldTypes;  ct = BoundaryCommTypes;
+  state->field_types =
+    (int*)mem_alloc(sizeof(int), nf*OH_FTYPE_N, "FieldTypes");
+  state->boundary_comm_types =
+    ne ? (int*)mem_alloc(sizeof(int), ne*nb*2*OH_CTYPE_N,
+                         "BoundaryCommTypes") : NULL;
+  memcpy(state->field_types, ft, sizeof(int)*nf*OH_FTYPE_N);
+  if (ne) memcpy(state->boundary_comm_types, ct,
+                 sizeof(int)*ne*nb*2*OH_CTYPE_N);
+  ft = (int(*)[OH_FTYPE_N])state->field_types;
+  ct = (int(*)[2][OH_CTYPE_N])state->boundary_comm_types;
+  if (oh_context_is_default_state(state)) {
+    FieldTypes = ft;
+    BoundaryCommTypes = ct;
+  }
 
-  tmp = (int*)mem_alloc(sizeof(int), ne, "BoundaryCommFields");
-  for (e=0; e<nOfExc; e++)  tmp[e] = cf[e] + cfid;
-  BoundaryCommFields = cf = tmp;
+  tmp = ne ? (int*)mem_alloc(sizeof(int), ne, "BoundaryCommFields") : NULL;
+  for (e=0; e<ne; e++)  tmp[e] = cf[e] + cfid;
+  state->boundary_comm_fields = cf = tmp;
+  if (oh_context_is_default_state(state)) BoundaryCommFields = cf;
 #endif
 
-  state = oh1_state();
-  if (!fs)
-    fs = (int(*)[OH_DIMENSION][2])
-         (*fsizes = (int*)mem_alloc(sizeof(int), nf*OH_DIMENSION*2,
-                                    "FieldSizes"));
   for (f=0; f<nf; f++) {
     int lo=ft[f][OH_FTYPE_LO], up=ft[f][OH_FTYPE_UP];
     fd[f].esize = ft[f][OH_FTYPE_ES];
@@ -561,10 +749,11 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
   }
   state_set_field_descriptors(state, ft, sd, 0);
 
-  BorderExc = bx =
+  bx =
     (struct S_borderexc(*)[2][OH_DIMENSION][2])
     mem_alloc(sizeof(struct S_borderexc), ne*2*OH_DIMENSION*2, "BorderExc");
-  state = oh1_state();
+  state->border_exchange = (struct S_borderexc*)bx;
+  if (oh_context_is_default_state(state)) BorderExc = bx;
 
   for (e=0; e<ne; e++) {
     for (d=0; d<OH_DIMENSION; d++) {
@@ -579,6 +768,7 @@ init_fields(int (*ft)[OH_FTYPE_N], int *cf, int cfid, int (*ct)[2][OH_CTYPE_N],
 #endif
   }
   state_clear_border_exchange(state);
+  if (owned_fsizes) free(owned_fsizes);
 }
 void
 state_set_field_descriptors(struct oh_state *state, int (*ft)[OH_FTYPE_N],
@@ -791,6 +981,7 @@ state_clear_border_exchange(struct oh_state *state) {
   struct S_borderexc (*bx)[2][OH_DIMENSION][2] =
     (struct S_borderexc(*)[2][OH_DIMENSION][2])state->border_exchange;
 
+  if (!bx) return;
   for (e=0; e<ne; e++) {
     for (d=0; d<OH_DIMENSION; d++) {
       for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
@@ -806,6 +997,62 @@ state_clear_border_exchange(struct oh_state *state) {
       }
     }
   }
+}
+
+static void
+free_border_exchange_types(struct oh_state *state) {
+  int ne=state->n_of_exchanges, e, ps, d, lu;
+  struct S_borderexc (*bx)[2][OH_DIMENSION][2] =
+    (struct S_borderexc(*)[2][OH_DIMENSION][2])state->border_exchange;
+
+  if (!bx) return;
+  for (e=0; e<ne; e++) {
+    for (ps=0; ps<2; ps++) {
+      for (d=0; d<OH_DIMENSION; d++) {
+        for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
+          if (bx[e][ps][d][lu].send.deriv)
+            MPI_Type_free(&bx[e][ps][d][lu].send.type);
+          if (bx[e][ps][d][lu].recv.deriv)
+            MPI_Type_free(&bx[e][ps][d][lu].recv.type);
+        }
+      }
+    }
+  }
+}
+
+void
+oh3_free_context_state(struct oh_state *state) {
+  if (!state || oh_context_is_default_state(state) || !state->owns_level3_storage)
+    return;
+
+  free_border_exchange_types(state);
+  free(state->subdomains);
+  free(state->subdomains_float);
+  free(state->grid);
+  free(state->subdomain_desc);
+  free(state->boundaries);
+  free(state->adjacent);
+  free(state->field_types);
+  free(state->field_desc);
+  free(state->boundary_comm_fields);
+  free(state->boundary_comm_types);
+  free(state->border_exchange);
+
+  state->subdomains = NULL;
+  state->subdomains_float = NULL;
+  state->grid = NULL;
+  state->subdomain_desc = NULL;
+  state->boundaries = NULL;
+  state->adjacent = NULL;
+  state->n_of_fields = 0;
+  state->field_types = NULL;
+  state->field_desc = NULL;
+  state->n_of_exchanges = 0;
+  state->boundary_comm_fields = NULL;
+  state->boundary_comm_types = NULL;
+  state->border_exchange = NULL;
+  state->n_of_boundaries = 0;
+  state->owns_level3_storage = 0;
 }
 void
 oh3_grid_size_(double size[OH_DIMENSION]) {
@@ -1114,6 +1361,46 @@ offset_level3_map_particle_to_subdomain(const oh_particle_adapter *adapter,
   double *y = oh_particle_adapter_position(adapter, particle, OH_DIM_Y);
   double *z = oh_particle_adapter_position(adapter, particle, OH_DIM_Z);
   return state_map_particle_to_subdomain(oh1_state(), *x, *y, *z);
+#endif
+}
+static oh_particle_region_t
+context_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
+                                        void *particle,
+                                        int primary_or_secondary) {
+  struct oh_state *state = (struct oh_state*)adapter->user_data;
+  double *x = oh_particle_adapter_position(adapter, particle, OH_DIM_X);
+
+#if OH_DIMENSION==1
+  return state_map_particle_to_neighbor(state, x, NULL, NULL,
+                                        primary_or_secondary);
+#elif OH_DIMENSION==2
+  double *y = oh_particle_adapter_position(adapter, particle, OH_DIM_Y);
+  return state_map_particle_to_neighbor(state, x, y, NULL,
+                                        primary_or_secondary);
+#else
+  double *y = oh_particle_adapter_position(adapter, particle, OH_DIM_Y);
+  double *z = oh_particle_adapter_position(adapter, particle, OH_DIM_Z);
+  return state_map_particle_to_neighbor(state, x, y, z,
+                                        primary_or_secondary);
+#endif
+}
+static oh_particle_region_t
+context_level3_map_particle_to_subdomain(const oh_particle_adapter *adapter,
+                                         void *particle,
+                                         int primary_or_secondary) {
+  struct oh_state *state = (struct oh_state*)adapter->user_data;
+  double *x = oh_particle_adapter_position(adapter, particle, OH_DIM_X);
+
+  (void)primary_or_secondary;
+#if OH_DIMENSION==1
+  return state_map_particle_to_subdomain(state, *x, 0.0, 0.0);
+#elif OH_DIMENSION==2
+  double *y = oh_particle_adapter_position(adapter, particle, OH_DIM_Y);
+  return state_map_particle_to_subdomain(state, *x, *y, 0.0);
+#else
+  double *y = oh_particle_adapter_position(adapter, particle, OH_DIM_Y);
+  double *z = oh_particle_adapter_position(adapter, particle, OH_DIM_Z);
+  return state_map_particle_to_subdomain(state, *x, *y, *z);
 #endif
 }
 int

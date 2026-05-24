@@ -5,6 +5,7 @@
 #define OH_CONTEXT_INTERNAL_H
 
 #include "ohhelp1.h"
+#include "oh_particle_adapter.h"
 
 struct oh_state {
   MPI_Comm comm;
@@ -12,6 +13,8 @@ struct oh_state {
   int my_rank;
   int *region_id;
   int *subdomain_id;
+  int owns_region_id;
+  int owns_subdomain_id;
   int curr_mode;
   int acc_mode;
   int n_of_species;
@@ -37,11 +40,14 @@ struct oh_state {
   int *n_of_send;
   int *recv_counts;
   int *send_counts;
+  int owns_level1_storage;
   int primary_parts;
   int total_parts;
   struct S_node *nodes;
   struct S_node *nodes_next;
   struct S_node **node_queue;
+  struct S_heap less_heap;
+  struct S_heap greater_heap;
   int *temp_array;
   int (*neighbors)[OH_NEIGHBORS];
   int *dst_neighbors;
@@ -63,6 +69,7 @@ struct oh_state {
   int particle_buffer_ownership;
   void *send_buffer;
   void **recv_buffer_bases;
+  int owns_level2_storage;
   int *secondary_base;
   int *total_local_particles;
   int particle_base_bound;
@@ -72,14 +79,20 @@ struct oh_state {
   int n_of_injections;
   int spec_base;
   MPI_Datatype particle_mpi_type;
+  MPI_Datatype histogram_type;
+  MPI_Datatype comm_list_type;
   MPI_Datatype custom_particle_mpi_type;
   int use_custom_particle_mpi_type;
   oh_particle_adapter *particle_adapter;
   oh_particle_adapter *custom_particle_adapter;
+  oh_particle_adapter owned_particle_adapter;
+  oh_particle_adapter owned_custom_particle_adapter;
+  int owns_particle_mpi_type;
   int use_custom_particle_adapter;
   MPI_Request *requests;
   MPI_Status *statuses;
   int exclude_level2;
+  int owns_level3_storage;
   int (*abs_neighbors)[OH_NEIGHBORS];
   int (*subdomains)[OH_DIMENSION][2];
   double (*subdomains_float)[OH_DIMENSION][2];
@@ -143,6 +156,7 @@ struct oh_state {
 extern struct oh_state OhDefaultState;
 
 void oh1_sync_default_state(void);
+int oh_context_is_default_state(const struct oh_state *state);
 void oh1_set_region_weights_state(struct oh_state *state,
                                   const double *weights);
 void oh_context_bind_particle_accounting_state(struct oh_state *state,

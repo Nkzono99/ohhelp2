@@ -6,6 +6,11 @@ Fortran では `ohhelp_v2` の opaque handle を使います。v2 guide の Fort
 examples は `use ohhelp_v2` だけを前提にします。v1 style module については
 [`../../v1/`](../../v1/) を参照してください。
 
+Index conventions are summarized in
+[`../design/index-conventions.md`](../design/index-conventions.md). In short,
+`ohhelp_v2` context APIs keep C-style zero-based ids unless a helper is
+explicitly named `legacy` or `raw`.
+
 ```fortran
 use iso_c_binding
 use ohhelp_v2
@@ -90,12 +95,20 @@ call oh_context_configure_level3(ctx, pcoord_ptr, sdoms_ptr, scoord_ptr, &
 
 mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats)
 call oh_context_get_region_ids(ctx, c_loc(sdid(1)))
+call oh_context_bcast_field(ctx, pfld_ptr, sfld_ptr, 0_c_int)
+call oh_context_exchange_borders(ctx, pfld_ptr, sfld_ptr, 0_c_int, bcast)
 ```
 
 After transbound, `sdid(1)` is the active primary region and `sdid(2)` is the
 active secondary region (`-1` if inactive). `pbase(2)` is the secondary split
 offset and `pbase(3)` is the total local particle count / end offset; they are
 particle-buffer offsets, not Fortran lower-bound indices.
+
+`oh_context_bcast_field()`, `oh_context_reduce_field()`,
+`oh_context_allreduce_field()`, and `oh_context_exchange_borders()` take
+zero-based `ftype` / `ctype` ids. If you are implementing a v1-style Fortran
+wrapper that accepts one-based field type ids, subtract one before calling the
+v2 context API and reject non-positive ids.
 
 任意 layout の既存 init argument list を使いたい場合は、`ohhelp_v2` の
 raw init bridge を使います。`oh2_init_raw()` / `oh3_init_raw()` は
@@ -104,4 +117,6 @@ raw init bridge を使います。`oh2_init_raw()` / `oh3_init_raw()` は
 既存 Fortran code が Level 3 の active-decomposition sentinel と 1-based
 boundary IDs を持っている場合は、`oh_context_configure_level3_legacy()` を
 使えます。この helper は sentinel を active decomposition として扱い、
-boundary IDs を context API の 0-based 表現へ変換します。
+boundary IDs を context API の 0-based 表現へ変換します。field operation
+の `ftype` / `ctype` は別の call-site 引数なので、この legacy helper では
+変換されません。

@@ -8,6 +8,8 @@ adapter contract, and weighted-load behavior.
 
 - [`usage/`](usage/README.md) is the user-facing guide for C and Fortran.
 - [`design/`](design/README.md) is the v2 design specification.
+- [`design/index-conventions.md`](design/index-conventions.md) summarizes
+  zero-based context API indices and v1-style Fortran conversion points.
 
 The supported v2 surface currently focuses on Level 1-3. Level 4p/4s source
 files remain under compile coverage while full v2 support continues separately.

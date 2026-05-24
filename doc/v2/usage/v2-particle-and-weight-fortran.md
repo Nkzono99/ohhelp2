@@ -10,6 +10,8 @@ use ohhelp_v2
 ```
 
 For v1 particle layout references, see [`../../v1/`](../../v1/).
+For v2/v1 indexing boundaries, see
+[`../design/index-conventions.md`](../design/index-conventions.md).
 
 ## Adapter Handle
 

@@ -20,6 +20,11 @@ Fortran からも Level 1-3 は利用対象です。v2 の Fortran 利用では
    - [C](v2-particle-and-weight.md)
    - [Fortran](v2-particle-and-weight-fortran.md)
 
+Fortran migration code should also read
+[`../design/index-conventions.md`](../design/index-conventions.md). The v2
+context API uses zero-based field and border type ids even when called through
+`ohhelp_v2`.
+
 `sample/sample.F90` は Fortran 側の compile-check 対象です。
 任意の Fortran 粒子 layout は `ohhelp_v2` の adapter handle と raw init bridge で扱います。
 raw init bridge には `oh2_init_raw()` / `oh3_init_raw()` があります。

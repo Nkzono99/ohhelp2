@@ -5,6 +5,10 @@ C mirror: [pic-lifecycle.md](pic-lifecycle.md)
 v2 の Fortran code は `ohhelp_v2` だけを使います。v1 style module については
 [`../../v1/`](../../v1/) を参照してください。
 
+For index conventions, especially where v1-style Fortran wrappers must convert
+one-based ids to v2 context ids, see
+[`../design/index-conventions.md`](../design/index-conventions.md).
+
 ```fortran
 use iso_c_binding
 use ohhelp_v2
@@ -74,6 +78,10 @@ call oh_context_configure_level3(ctx, pcoord_ptr, sdoms_ptr, scoord_ptr, &
                                  cfields_ptr, ctypes_ptr, fsizes_ptr)
 ```
 
+`oh_context_configure_level3()` expects the C/v2 descriptor representation.
+Use `oh_context_configure_level3_legacy()` only when passing historical Fortran
+geometry arrays with one-based boundary ids.
+
 既存 Fortran initializer と同じ active-decomposition sentinel と 1-based
 boundary IDs を渡したい場合は、`oh_context_configure_level3_legacy()` を
 使います。
@@ -88,6 +96,12 @@ mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats)
 call oh_context_get_region_ids(ctx, c_loc(sdid(1)))
 call oh_context_exchange_borders(ctx, pfld_ptr, sfld_ptr, ctype, bcast)
 ```
+
+`ctype` and field-operation `ftype` values are zero-based for the v2 context
+API. A v1-compatible application wrapper should subtract one from one-based
+Fortran field ids before calling `oh_context_bcast_field()`,
+`oh_context_reduce_field()`, `oh_context_allreduce_field()`, or
+`oh_context_exchange_borders()`.
 
 After `oh_context_transbound3()`, use the bound `sdid` or
 `oh_context_get_region_ids()` before refreshing primary/secondary field,

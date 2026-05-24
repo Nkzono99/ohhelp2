@@ -161,6 +161,9 @@ check_present 'Fortran からも Level 1-3 は利用対象' doc/v2/usage/README.
 check_present 'ohhelp_v2` module' doc/v2/usage/README.md
 check_present '任意の Fortran 粒子 layout' doc/v2/usage/README.md
 check_present 'oh2_init_raw\(\).*oh3_init_raw\(\)' doc/v2/usage/README.md
+check_present 'index-conventions\.md' doc/v2/README.md
+check_present 'index-conventions\.md' doc/v2/usage/README.md
+check_present 'Index Conventions' doc/v2/design/README.md
 check_present 'pic-lifecycle-fortran\.md' doc/v2/usage/README.md
 check_present 'api-by-level-fortran\.md' doc/v2/usage/README.md
 check_present 'v2-particle-and-weight-fortran\.md' doc/v2/usage/README.md
@@ -174,6 +177,10 @@ check_present 'Fortran では `ohhelp_v2` の opaque handle' \
   doc/v2/usage/api-by-level-fortran.md
 check_present 'oh2_init_raw\(\).*oh3_init_raw\(\)' \
   doc/v2/usage/api-by-level-fortran.md
+check_present 'zero-based `ftype` / `ctype` ids' \
+  doc/v2/usage/api-by-level-fortran.md
+check_present 'この legacy helper では' doc/v2/usage/api-by-level-fortran.md
+check_present '変換されません' doc/v2/usage/api-by-level-fortran.md
 check_present 'sample/sample\.F90' \
   doc/v2/usage/README.md
 check_present 'oh_particle_adapter_create_byte' \
@@ -472,6 +479,12 @@ check_present 'no current `original` particle field' doc/v2/design/particle-adap
 check_absent '\boriginal\b' include/*.h src/c/*.c src/c/*.h src/fortran/*.F90
 check_present '粒子ポインタを `void \*`' doc/v2/usage/v2-particle-and-weight.md
 check_present 'oh_context_bind_region_ids' doc/v2/design/context.md
+check_present 'zero-based field descriptor index' \
+  doc/v2/design/index-conventions.md
+check_present 'context_ftype = ftype - 1_c_int' \
+  doc/v2/design/index-conventions.md
+check_present 'oh_context_configure_level3_legacy' \
+  doc/v2/design/index-conventions.md
 check_present 'pbase\(2\).*secondary split' doc/v2/usage/api-by-level-fortran.md
 check_present 'pbase\(3\).*total local particle count' \
   doc/v2/usage/api-by-level-fortran.md
@@ -480,6 +493,8 @@ check_present 'oh_context_max_local_particles_for_capacity' \
   doc/v2/usage/api-by-level.md
 check_present 'oh_context_bind_region_ids' doc/v2/usage/api-by-level.md
 check_present 'oh_context_max_local_particles_for_capacity' \
+  doc/v2/usage/pic-lifecycle-fortran.md
+check_present 'ctype.*field-operation `ftype` values are zero-based' \
   doc/v2/usage/pic-lifecycle-fortran.md
 check_present 'oh_context_get_region_ids' doc/v2/usage/pic-lifecycle.md
 check_absent '\bp\.nid\s*=' doc/v2/usage/api-by-level.md doc/v2/usage/pic-lifecycle.md

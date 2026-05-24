@@ -6,6 +6,7 @@ v1 only when a migration boundary matters.
 
 - [Architecture](architecture.md)
 - [Context API](context.md)
+- [Index Conventions](index-conventions.md)
 - [Particle Adapter](particle-adapter.md)
 - [Weighted Load Balancing](load-balancing.md)
 - [Level Scope](level-scope.md)

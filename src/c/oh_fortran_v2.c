@@ -69,12 +69,6 @@ void
 oh_fortran_context_configure_particles(oh_context *context, int nspec,
                                        int maxfrac) {
   oh_context_configure_particles(context, nspec, maxfrac);
-  if (!context) context = oh_default_context();
-  context->spec_base = 1;
-  if (oh_context_is_default_state(context)) {
-    specBase = 1;
-    oh1_sync_default_state();
-  }
 }
 
 void
@@ -382,11 +376,18 @@ oh_fortran_particle_adapter_set_mpi_type(oh_fortran_particle_adapter *adapter,
 }
 
 void
+oh_fortran_particle_adapter_set_species_base(
+  oh_fortran_particle_adapter *adapter, int species_base) {
+  oh_particle_adapter_set_species_base(unwrap_adapter(adapter), species_base);
+}
+
+void
 oh_fortran_particle_adapter_use_int_fields(
   oh_fortran_particle_adapter *adapter, size_t region_offset,
   size_t species_offset) {
   oh_particle_adapter_use_int_fields(unwrap_adapter(adapter), region_offset,
                                      species_offset);
+  oh_particle_adapter_set_species_base(unwrap_adapter(adapter), 1);
 }
 
 void
@@ -403,6 +404,7 @@ oh_fortran_particle_adapter_use_integer_fields(
   oh_particle_adapter_use_integer_fields(unwrap_adapter(adapter),
                                          region_offset, region_size,
                                          species_offset, species_size);
+  oh_particle_adapter_set_species_base(unwrap_adapter(adapter), 1);
 }
 
 void

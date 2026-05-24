@@ -239,11 +239,19 @@ oh_particle_adapter_use_single_species_integer_region(
   adapter->species_offset = 0;
   adapter->species_size = 0;
   adapter->single_species = 1;
+  adapter->species_base = 0;
   adapter->get_region = int_field_get_region;
   adapter->set_region = int_field_set_region;
   adapter->get_species = int_field_get_species;
   adapter->map_to_neighbor = int_field_map_to_region;
   adapter->map_to_subdomain = int_field_map_to_region;
+}
+
+void
+oh_particle_adapter_set_species_base(oh_particle_adapter *adapter,
+                                     int species_base) {
+  if (!adapter) return;
+  adapter->species_base = species_base;
 }
 
 oh_particle_adapter
@@ -261,6 +269,7 @@ oh_default_particle_adapter(MPI_Datatype mpi_type) {
   adapter.position_offset[1] = offsetof(struct S_particle, y);
   adapter.position_offset[2] = offsetof(struct S_particle, z);
   adapter.single_species = 0;
+  adapter.species_base = 0;
   adapter.get_region = default_get_region;
   adapter.set_region = default_set_region;
   adapter.get_species = default_get_species;

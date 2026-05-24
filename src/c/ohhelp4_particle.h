@@ -42,9 +42,11 @@ level4_particle_position(struct oh_state* state, struct S_particle* part,
 
 static inline int
 level4_particle_species(struct oh_state* state, const struct S_particle* part) {
-    return Particle_Spec(
-        state->particle_adapter->get_species(state->particle_adapter, part) -
-        state->spec_base);
+    int species =
+        state->particle_adapter->get_species(state->particle_adapter, part);
+    if (!state->particle_adapter->single_species)
+        species -= state->particle_adapter->species_base;
+    return Particle_Spec(species);
 }
 
 static inline void

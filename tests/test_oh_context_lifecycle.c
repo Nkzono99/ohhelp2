@@ -172,6 +172,7 @@ main(int argc, char **argv) {
   oh_particle_adapter_use_int_fields(&adapter,
                                      offsetof(struct pic_particle, region),
                                      offsetof(struct pic_particle, species));
+  oh_particle_adapter_set_species_base(&adapter, 1);
   oh3_particle_adapter_use_position_fields(&adapter,
                                            offsetof(struct pic_particle, x),
                                            offsetof(struct pic_particle, y),
@@ -226,7 +227,6 @@ main(int argc, char **argv) {
     injected_particle.z = 0.5;
     injected_particle.region = 0;
     injected_particle.species = 1;
-    context_x->spec_base = 1;
     for (int i=0; rank==0 && i<8; i++)
       oh_context_inject_particle(context_x, &injected_particle);
     oh_context_set_total_particles(context_x);

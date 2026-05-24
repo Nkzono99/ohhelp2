@@ -41,6 +41,10 @@ call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
 call oh_context_set_particle_adapter(ctx, adapter)
 ```
 
+The Fortran field helpers assume the particle `species` field is 1-based and
+normalize it inside OhHelp. If callbacks return species ids instead, set the
+base explicitly with `oh_particle_adapter_set_species_base()`.
+
 For callback adapter layouts, pass `c_funloc()` values to
 `oh_particle_adapter_set_callbacks()`.
 

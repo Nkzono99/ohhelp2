@@ -105,6 +105,8 @@ int oh_fortran_particle_adapter_validate(
   const oh_fortran_particle_adapter *adapter);
 void oh_fortran_particle_adapter_set_mpi_type(
   oh_fortran_particle_adapter *adapter, int fortran_type);
+void oh_fortran_particle_adapter_set_species_base(
+  oh_fortran_particle_adapter *adapter, int species_base);
 void oh_fortran_particle_adapter_use_int_fields(
   oh_fortran_particle_adapter *adapter, size_t region_offset,
   size_t species_offset);

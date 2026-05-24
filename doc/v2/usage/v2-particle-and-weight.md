@@ -21,6 +21,9 @@ oh_context_set_particle_adapter(ctx, &adapter);
 ```
 
 Use `OH_BIG_SPACE`-capable integer fields when region ids may exceed `int`.
+C adapters use 0-based species ids by default. If an application stores
+1-based species ids, set `oh_particle_adapter_set_species_base(&adapter, 1)`
+before binding the adapter to a context.
 
 ## Borrowed Buffer
 

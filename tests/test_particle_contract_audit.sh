@@ -147,6 +147,7 @@ check_present 'src/c/oh_fortran_v2\.c' scripts/docker-build-test.sh
 check_present 'src/fortran/oh_v2\.F90' scripts/docker-build-test.sh
 check_present 'tests/test_oh_v2_fortran\.F90' scripts/docker-build-test.sh
 check_present 'tests/test_oh_context_lifecycle\.c' scripts/docker-build-test.sh
+check_present 'test_oh_context_lifecycle_posaware' scripts/docker-build-test.sh
 check_present 'ffree-line-length-none' scripts/docker-build-test.sh
 check_present 'EPSILON=1\.0d0,MU=1\.0d0' sample/sample.F90
 check_present 'particle adapter handles' README.md
@@ -239,7 +240,14 @@ check_present 'oh_fortran_context_max_local_particles_for_capacity' \
 check_present 'oh_fortran_context_bind_particles' src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_create' src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_configure_particles' src/c/oh_fortran_v2.c
-check_present 'context->spec_base = 1' src/c/oh_fortran_v2.c
+check_present 'oh_particle_adapter_set_species_base' include/oh_particle_adapter.h
+check_present 'oh_fortran_particle_adapter_set_species_base' \
+  include/oh_fortran_v2.h
+check_present 'oh_particle_adapter_set_species_base\(unwrap_adapter\(adapter\), 1\)' \
+  src/c/oh_fortran_v2.c
+check_absent 'context->spec_base = 1' src/c/oh_fortran_v2.c
+check_present 'single_species' src/c/ohhelp2.c
+check_present 'species -= species_base' src/c/ohhelp2.c
 check_present 'oh_fortran_context_bind_particle_accounting' \
   src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_bind_region_ids' src/c/oh_fortran_v2.c
@@ -449,6 +457,9 @@ check_present 'Neighbor_Id' doc/v2/design/particle-adapter.md
 check_present 'AbsNeighbors' doc/v2/design/particle-adapter.md
 check_present 'specBase = 1' doc/v2/design/particle-adapter.md
 check_present 'outside configured range' src/c/ohhelp2.c
+check_present 'single_species' src/c/ohhelp4_particle.h
+check_present 'species -= state->particle_adapter->species_base' \
+  src/c/ohhelp4_particle.h
 check_present 'InjectedParticles' doc/v2/design/particle-adapter.md
 check_present 'OH_BIG_SPACE' doc/v2/design/particle-adapter.md
 check_present 'boundary plane thickness' doc/v2/design/particle-adapter.md
@@ -468,6 +479,8 @@ check_present 'oh_context_max_local_particles_for_capacity' \
 check_present 'oh_context_get_region_ids' doc/v2/usage/pic-lifecycle.md
 check_absent '\bp\.nid\s*=' doc/v2/usage/api-by-level.md doc/v2/usage/pic-lifecycle.md
 check_present 'level4_secondary_injected' src/c/ohhelp4_particle.h
+check_present 'state->field_types =' src/c/ohhelp3.c
+check_present 'FieldTypes = ft' src/c/ohhelp3.c
 
 if [ "$failures" -ne 0 ]; then
   exit 1

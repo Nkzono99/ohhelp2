@@ -126,6 +126,7 @@ module ohhelp_v2
   public :: oh_particle_adapter_destroy
   public :: oh_particle_adapter_validate
   public :: oh_particle_adapter_set_mpi_type
+  public :: oh_particle_adapter_set_species_base
   public :: oh_particle_adapter_use_int_fields
   public :: oh_particle_adapter_use_single_species_int_region
   public :: oh_particle_adapter_use_integer_fields
@@ -537,6 +538,13 @@ module ohhelp_v2
       import :: c_ptr, c_int
       type(c_ptr), value :: adapter
       integer(c_int), value :: fortran_type
+    end subroutine
+
+    subroutine c_oh_particle_adapter_set_species_base(adapter, species_base) &
+        bind(C, name="oh_fortran_particle_adapter_set_species_base")
+      import :: c_ptr, c_int
+      type(c_ptr), value :: adapter
+      integer(c_int), value :: species_base
     end subroutine
 
     subroutine c_oh_particle_adapter_use_int_fields(adapter, region_offset, &
@@ -1028,6 +1036,12 @@ contains
     type(oh_particle_adapter_handle), intent(inout) :: adapter
     integer(c_int), intent(in) :: fortran_type
     call c_oh_particle_adapter_set_mpi_type(adapter%ptr, fortran_type)
+  end subroutine
+
+  subroutine oh_particle_adapter_set_species_base(adapter, species_base)
+    type(oh_particle_adapter_handle), intent(inout) :: adapter
+    integer(c_int), intent(in) :: species_base
+    call c_oh_particle_adapter_set_species_base(adapter%ptr, species_base)
   end subroutine
 
   subroutine oh_particle_adapter_use_int_fields(adapter, region_offset, &

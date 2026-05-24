@@ -26,6 +26,7 @@ oh_particle_adapter_use_integer_fields(&adapter, region_offset, region_size,
                                        species_offset, species_size);
 oh_particle_adapter_use_single_species_integer_region(&adapter, region_offset,
                                                       region_size);
+oh_particle_adapter_set_species_base(&adapter, species_base);
 ```
 
 Use `oh_particle_adapter_use_integer_fields()` when the region field may need to
@@ -55,11 +56,22 @@ For custom layouts, the same meanings apply to the value returned by
 
 ## Species Semantics
 
-C-facing adapter callbacks use zero-based species ids. Fortran-compatible
-context configuration normalizes with `specBase = 1` before indexing internal
-arrays, matching raw Fortran init behavior. v2 Fortran users should still
-express particle layout through `ohhelp_v2`; the module handles the C bridge and
-opaque handles.
+OhHelp normalizes species to zero-based internal indices before indexing
+species arrays. The base of an application particle field is an adapter
+property:
+
+- C adapters default to `species_base = 0`.
+- Fortran `ohhelp_v2` integer-field helpers set `species_base = 1`, matching
+  normal Fortran/PIC species numbering.
+- single-species adapters ignore the species base and always map to internal
+  species `0`.
+- callback adapters keep the adapter default unless the application calls
+  `oh_particle_adapter_set_species_base()`.
+
+The old raw Fortran init bridge still applies `specBase = 1` to the default
+`S_particle` adapter for migration compatibility. New v2 context code should
+prefer adapter-level species-base configuration over changing context-wide
+state.
 
 ## Mapping Callbacks
 

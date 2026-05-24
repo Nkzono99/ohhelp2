@@ -262,6 +262,8 @@ init_particle_adapter(void) {
       local_errstop("failed to create default particle MPI datatype");
     ParticleAdapter = oh_default_particle_adapter(T_Particle);
   }
+  if (!useCustomParticleAdapter)
+    ParticleAdapter.species_base = specBase;
   if (!oh_particle_adapter_validate(&ParticleAdapter))
     local_errstop("particle MPI datatype extent must match particle stride");
 }
@@ -1060,8 +1062,13 @@ state_mark_particle_removed(struct oh_state *state, struct S_particle *part,
 }
 static int
 state_particle_species(struct oh_state *state, const struct S_particle *part) {
-  int species = state->particle_adapter->get_species(state->particle_adapter,
-                                                     part) - state->spec_base;
+  int raw_species = state->particle_adapter->get_species(
+    state->particle_adapter, part);
+  int species = raw_species;
+  int species_base = state->particle_adapter->species_base;
+
+  if (!state->particle_adapter->single_species)
+    species -= species_base;
 
 #ifdef OH_HAS_SPEC
   species = Particle_Spec(species);
@@ -1069,8 +1076,9 @@ state_particle_species(struct oh_state *state, const struct S_particle *part) {
   if (!state->use_custom_particle_adapter) return 0;
 #endif
   if (species<0 || species>=state->n_of_species)
-    local_errstop("particle species %d is outside configured range [0,%d)",
-                  species + state->spec_base, state->n_of_species);
+    local_errstop("particle species %d is outside configured range [%d,%d)",
+                  raw_species, species_base,
+                  species_base + state->n_of_species);
   return species;
 }
 static int

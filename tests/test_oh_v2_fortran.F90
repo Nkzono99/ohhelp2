@@ -70,6 +70,7 @@ program test_oh_v2_fortran
   call oh_particle_adapter_use_integer_fields( &
     adapter, region_offset, c_sizeof(particle%region), &
     species_offset, c_sizeof(particle%species))
+  call oh_particle_adapter_set_species_base(adapter, 1_c_int)
   call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
                                                       y_offset, z_offset)
   call oh_context_set_particle_adapter(context, adapter)

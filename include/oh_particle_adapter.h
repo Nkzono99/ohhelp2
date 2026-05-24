@@ -37,6 +37,7 @@ struct oh_particle_adapter {
   size_t species_size;
   size_t position_offset[3];
   int single_species;
+  int species_base;
   oh_particle_get_region_fn get_region;
   oh_particle_set_region_fn set_region;
   oh_particle_get_species_fn get_species;
@@ -134,6 +135,8 @@ void oh_particle_adapter_use_integer_fields(oh_particle_adapter *adapter,
                                             size_t species_size);
 void oh_particle_adapter_use_single_species_integer_region(
   oh_particle_adapter *adapter, size_t region_offset, size_t region_size);
+void oh_particle_adapter_set_species_base(oh_particle_adapter *adapter,
+                                          int species_base);
 oh_particle_adapter oh_default_particle_adapter(MPI_Datatype mpi_type);
 
 #ifdef __cplusplus

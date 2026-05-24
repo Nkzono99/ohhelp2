@@ -28,6 +28,11 @@ call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
 call oh_context_set_particle_adapter(ctx, adapter)
 ```
 
+Fortran integer-field helpers treat the particle species field as 1-based.
+OhHelp converts it to the internal 0-based species index through the adapter.
+For callback adapters, call `oh_particle_adapter_set_species_base(adapter, 1)`
+if the callback returns 1-based species ids.
+
 ## Callback Adapter
 
 For layouts that cannot be described by offsets, define `bind(C)` callbacks and

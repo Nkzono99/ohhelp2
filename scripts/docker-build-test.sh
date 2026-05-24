@@ -44,6 +44,11 @@ mpicc -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
   -o build/docker/test_oh_context_lifecycle
 mpirun -n 1 build/docker/test_oh_context_lifecycle
 mpirun -n 2 build/docker/test_oh_context_lifecycle
+mpicc -DOH_POS_AWARE -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
+  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
+  src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c \
+  -o build/docker/test_oh_context_lifecycle_posaware
+mpirun -n 2 build/docker/test_oh_context_lifecycle_posaware
 mpifort -cpp -Iinclude -Ibuild/docker -Jbuild/docker \
   tests/test_oh_context_lifecycle_fortran.F90 \
   build/docker/oh_v2.o build/docker/oh_type.o build/docker/oh_context.o \

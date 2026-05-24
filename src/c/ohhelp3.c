@@ -681,18 +681,13 @@ state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N], int *cf,
   state->field_desc = fd;
   if (oh_context_is_default_state(state)) FieldDesc = fd;
 #ifndef OH_POS_AWARE
-  state->field_types =
-    (int*)mem_alloc(sizeof(int), nf*OH_FTYPE_N, "FieldTypes");
   state->boundary_comm_types =
     ne ? (int*)mem_alloc(sizeof(int), ne*nb*2*OH_CTYPE_N,
                          "BoundaryCommTypes") : NULL;
-  memcpy(state->field_types, ft, sizeof(int)*nf*OH_FTYPE_N);
   if (ne) memcpy(state->boundary_comm_types, ct,
                  sizeof(int)*ne*nb*2*OH_CTYPE_N);
-  ft = (int(*)[OH_FTYPE_N])state->field_types;
   ct = (int(*)[2][OH_CTYPE_N])state->boundary_comm_types;
   if (oh_context_is_default_state(state)) {
-    FieldTypes = ft;
     BoundaryCommTypes = ct;
   }
 
@@ -712,6 +707,13 @@ state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N], int *cf,
     }
     fd[f].ext[OH_LOWER] = lo;  fd[f].ext[OH_UPPER] = up;
   }
+  state->field_types =
+    (int*)mem_alloc(sizeof(int), nf*OH_FTYPE_N, "FieldTypes");
+  memcpy(state->field_types, ft, sizeof(int)*nf*OH_FTYPE_N);
+  ft = (int(*)[OH_FTYPE_N])state->field_types;
+  if (oh_context_is_default_state(state)) FieldTypes = ft;
+
+#ifndef OH_POS_AWARE
   for (e=0,i=0; e<ne; e++) {
     int f=cf[e];
     int lo, up;
@@ -733,6 +735,7 @@ state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N], int *cf,
     }
     fd[f].ext[OH_LOWER] = lo;  fd[f].ext[OH_UPPER] = up;
   }
+#endif
   for (f=0; f<nf; f++) {
     int lo=fd[f].ext[OH_LOWER], up=fd[f].ext[OH_UPPER];
     for (d=0; d<OH_DIMENSION; d++) {

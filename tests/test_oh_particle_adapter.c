@@ -30,6 +30,7 @@ main(int argc, char **argv) {
   assert(adapter.position_offset[0] == offsetof(struct S_particle, x));
   assert(adapter.position_offset[1] == offsetof(struct S_particle, y));
   assert(adapter.position_offset[2] == offsetof(struct S_particle, z));
+  assert(adapter.species_base == 0);
   assert(oh_particle_adapter_position(&adapter, &particle, 0) == &particle.x);
   assert(oh_particle_adapter_position(&adapter, &particle, 1) == &particle.y);
   assert(oh_particle_adapter_position(&adapter, &particle, 2) == &particle.z);
@@ -73,6 +74,8 @@ main(int argc, char **argv) {
   assert(oh_particle_adapter_validate(&adapter));
   assert(adapter.get_region(&adapter, &wide_particle, 0) == 4000000000LL);
   assert(adapter.get_species(&adapter, &wide_particle) == 2);
+  oh_particle_adapter_set_species_base(&adapter, 1);
+  assert(adapter.species_base == 1);
   adapter.set_region(&adapter, &wide_particle, 5000000000LL, 0);
   assert(wide_particle.region == 5000000000LL);
 

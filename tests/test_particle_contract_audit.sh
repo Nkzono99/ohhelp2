@@ -103,7 +103,12 @@ check_present 'oh2_set_particle_adapter_state\(context, adapter\)' \
   src/c/oh_context.c
 check_present 'oh2_set_particle_mpi_type_state\(context, type\)' \
   src/c/oh_context.c
-check_present 'default_context_or_stop' src/c/oh_context.c
+check_absent 'default_context_or_stop' src/c/oh_context.c
+check_absent 'only the default oh_context is implemented yet' src/c/oh_context.c
+check_present 'void \*oh2_inject_particle_state\(struct oh_state \*state, void \*part\)' \
+  src/c/ohhelp2_internal.h
+check_absent 'oh2_inject_particle_state\(context, \(struct S_particle\*\)part\)' \
+  src/c/oh_context.c
 check_present 'state-backed internal entry points' doc/design/v2-redesign.md
 check_absent '\b(Decl_Grid_Info|Subdomain_Id|Primarize_Id)\b' include/ohhelp2.h
 check_absent '\b(nidelement|subdomid|gridmask|loggrid)\b' include/ohhelp2.h

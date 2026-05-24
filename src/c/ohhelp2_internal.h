@@ -42,12 +42,9 @@ void oh2_set_particle_mpi_type_state(struct oh_state *state,
                                      MPI_Datatype type);
 void oh2_set_particle_adapter_state(struct oh_state *state,
                                     const oh_particle_adapter *adapter);
-void *oh2_inject_particle_state(struct oh_state *state,
-                                struct S_particle *part);
-void oh2_remap_injected_particle_state(struct oh_state *state,
-                                       struct S_particle *part);
-void oh2_remove_injected_particle_state(struct oh_state *state,
-                                        struct S_particle *part);
+void *oh2_inject_particle_state(struct oh_state *state, void *part);
+void oh2_remap_injected_particle_state(struct oh_state *state, void *part);
+void oh2_remove_injected_particle_state(struct oh_state *state, void *part);
 void exchange_primary_particles_state(struct oh_state *state, int currmode,
                                       int stats);
 void move_to_sendbuf_primary_state(struct oh_state *state, int secondary,

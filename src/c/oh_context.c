@@ -34,14 +34,6 @@ context_or_default(struct oh_state *context) {
   return context;
 }
 
-static struct oh_state*
-default_context_or_stop(struct oh_state *context) {
-  context = context_or_default(context);
-  if (context != &OhDefaultState)
-    local_errstop("only the default oh_context is implemented yet");
-  return context;
-}
-
 static int
 context_is_default(const struct oh_state *context) {
   return context == &OhDefaultState;
@@ -810,7 +802,7 @@ oh_context_set_total_particles(struct oh_state *context) {
 void
 oh_context_inject_particle(struct oh_state *context, void *part) {
   context = context_or_default(context);
-  (void)oh2_inject_particle_state(context, (struct S_particle*)part);
+  (void)oh2_inject_particle_state(context, part);
   if (context_is_default(context)) oh1_sync_default_state();
 }
 
@@ -818,7 +810,7 @@ void *
 oh_context_inject_particle_get(struct oh_state *context, void *part) {
   void *copy;
   context = context_or_default(context);
-  copy = oh2_inject_particle_state(context, (struct S_particle*)part);
+  copy = oh2_inject_particle_state(context, part);
   if (context_is_default(context)) oh1_sync_default_state();
   return copy;
 }
@@ -826,14 +818,14 @@ oh_context_inject_particle_get(struct oh_state *context, void *part) {
 void
 oh_context_remap_injected_particle(struct oh_state *context, void *part) {
   context = context_or_default(context);
-  oh2_remap_injected_particle_state(context, (struct S_particle*)part);
+  oh2_remap_injected_particle_state(context, part);
   if (context_is_default(context)) oh1_sync_default_state();
 }
 
 void
 oh_context_remove_injected_particle(struct oh_state *context, void *part) {
   context = context_or_default(context);
-  oh2_remove_injected_particle_state(context, (struct S_particle*)part);
+  oh2_remove_injected_particle_state(context, part);
   if (context_is_default(context)) oh1_sync_default_state();
 }
 

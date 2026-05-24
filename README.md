@@ -36,10 +36,10 @@ ohhelp2 = { git = "https://github.com/Nkzono99/ohhelp2" }
 
 ## Usage documentation
 
-- [OhHelp v2 Usage Guide](doc/usage/README.md)
-- PIC integration lifecycle: [C](doc/usage/pic-lifecycle.md), [Fortran](doc/usage/pic-lifecycle-fortran.md)
-- API by OhHelp level: [C](doc/usage/api-by-level.md), [Fortran](doc/usage/api-by-level-fortran.md)
-- v2 particle layout and weighted load: [C](doc/usage/v2-particle-and-weight.md), [Fortran](doc/usage/v2-particle-and-weight-fortran.md)
+- [OhHelp v2 Usage Guide](doc/v2/usage/README.md)
+- PIC integration lifecycle: [C](doc/v2/usage/pic-lifecycle.md), [Fortran](doc/v2/usage/pic-lifecycle-fortran.md)
+- API by OhHelp level: [C](doc/v2/usage/api-by-level.md), [Fortran](doc/v2/usage/api-by-level-fortran.md)
+- v2 particle layout and weighted load: [C](doc/v2/usage/v2-particle-and-weight.md), [Fortran](doc/v2/usage/v2-particle-and-weight-fortran.md)
 
 ## License notice
 

@@ -79,13 +79,13 @@ check_present 'oh1_comm' include/ohhelp1.h
 check_absent 'return\(accMode\)' src/c/ohhelp1.c
 check_absent '\bif \(myRank==0\)' src/c/ohhelp1.c
 check_absent 'collective wrappers still need to read from the context' \
-  doc/design/v2-redesign.md
+  doc/v2/design/v2-redesign.md
 check_absent '->(nid|spec)\b' src/c/ohhelp2.c
 check_present 'OH_nid_t region' src/c/ohhelp2.c
 check_present 'state_mark_particle_removed' src/c/ohhelp2.c
 check_present 'state_update_injected_particle_count' src/c/ohhelp2.c
 check_present 'state_update_injected_particle_count\(\)' \
-  doc/design/v2-particle-contracts.md
+  doc/v2/design/v2-particle-contracts.md
 check_present 'type == MPI_DATATYPE_NULL' src/c/ohhelp2.c
 check_present 'oh_context_set_particle_mpi_type' include/oh_context.h
 check_present 'oh_context_transbound1' include/oh_context.h
@@ -109,7 +109,7 @@ check_present 'void \*oh2_inject_particle_state\(struct oh_state \*state, void \
   src/c/ohhelp2_internal.h
 check_absent 'oh2_inject_particle_state\(context, \(struct S_particle\*\)part\)' \
   src/c/oh_context.c
-check_present 'state-backed internal entry points' doc/design/v2-redesign.md
+check_present 'state-backed internal entry points' doc/v2/design/v2-redesign.md
 check_absent '\b(Decl_Grid_Info|Subdomain_Id|Primarize_Id)\b' include/ohhelp2.h
 check_absent '\b(nidelement|subdomid|gridmask|loggrid)\b' include/ohhelp2.h
 check_absent '\b(init2|transbound2|exchange_primary_particles|move_to_sendbuf_primary|set_sendbuf_disps|exchange_particles)\s*\(' include/ohhelp2.h
@@ -126,7 +126,7 @@ check_present 'oh1_set_region_weights' src/fortran/oh_mod1.F90
 check_present 'real\*8,intent\(in\) :: weights\(\*\)' src/fortran/oh_mod1.F90
 check_present 'oh_context_set_region_weights' include/oh_context.h
 check_present '1\.0_c_double' \
-  doc/usage/v2-particle-and-weight-fortran.md
+  doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'oh_inject_particle_get' tests/test_ohhelp2_header.c
 check_present 'oh_inject_particle_get' tests/test_ohhelp_c_header.c
 check_present 'oh_set_region_weights' tests/test_ohhelp2_header.c
@@ -149,44 +149,44 @@ check_present 'ffree-line-length-none' scripts/docker-build-test.sh
 check_present 'EPSILON=1\.0d0,MU=1\.0d0' sample/sample.F90
 check_present 'particle adapter handles' README.md
 check_present 'oh2_init_raw\(\).*oh3_init_raw\(\)' README.md
-check_present 'Fortran からも Level 1-3 は利用対象' doc/usage/README.md
-check_present 'ohhelp_v2` module' doc/usage/README.md
-check_present '任意の Fortran 粒子 layout' doc/usage/README.md
-check_present 'oh2_init_raw\(\).*oh3_init_raw\(\)' doc/usage/README.md
-check_present 'pic-lifecycle-fortran\.md' doc/usage/README.md
-check_present 'api-by-level-fortran\.md' doc/usage/README.md
-check_present 'v2-particle-and-weight-fortran\.md' doc/usage/README.md
-check_present 'Fortran mirror' doc/usage/pic-lifecycle.md
-check_present 'C mirror' doc/usage/pic-lifecycle-fortran.md
-check_present 'Fortran mirror' doc/usage/api-by-level.md
-check_present 'C mirror' doc/usage/api-by-level-fortran.md
-check_present 'Fortran mirror' doc/usage/v2-particle-and-weight.md
-check_present 'C mirror' doc/usage/v2-particle-and-weight-fortran.md
+check_present 'Fortran からも Level 1-3 は利用対象' doc/v2/usage/README.md
+check_present 'ohhelp_v2` module' doc/v2/usage/README.md
+check_present '任意の Fortran 粒子 layout' doc/v2/usage/README.md
+check_present 'oh2_init_raw\(\).*oh3_init_raw\(\)' doc/v2/usage/README.md
+check_present 'pic-lifecycle-fortran\.md' doc/v2/usage/README.md
+check_present 'api-by-level-fortran\.md' doc/v2/usage/README.md
+check_present 'v2-particle-and-weight-fortran\.md' doc/v2/usage/README.md
+check_present 'Fortran mirror' doc/v2/usage/pic-lifecycle.md
+check_present 'C mirror' doc/v2/usage/pic-lifecycle-fortran.md
+check_present 'Fortran mirror' doc/v2/usage/api-by-level.md
+check_present 'C mirror' doc/v2/usage/api-by-level-fortran.md
+check_present 'Fortran mirror' doc/v2/usage/v2-particle-and-weight.md
+check_present 'C mirror' doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'Fortran では `ohhelp_v2` の opaque handle' \
-  doc/usage/api-by-level-fortran.md
+  doc/v2/usage/api-by-level-fortran.md
 check_present 'oh2_init_raw\(\).*oh3_init_raw\(\)' \
-  doc/usage/api-by-level-fortran.md
+  doc/v2/usage/api-by-level-fortran.md
 check_present 'sample/sample\.F90' \
-  doc/usage/README.md
+  doc/v2/usage/README.md
 check_present 'oh_particle_adapter_create_byte' \
-  doc/usage/api-by-level-fortran.md
+  doc/v2/usage/api-by-level-fortran.md
 check_present 'oh_context_inject_particle_get' \
-  doc/usage/pic-lifecycle-fortran.md
+  doc/v2/usage/pic-lifecycle-fortran.md
 check_present 'callback adapter' \
-  doc/usage/v2-particle-and-weight-fortran.md
+  doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'custom particle layout の raw init' \
-  doc/usage/v2-particle-and-weight-fortran.md
+  doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'raw init の lifetime / ownership contract' \
-  doc/usage/v2-particle-and-weight-fortran.md
+  doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'mutable accounting state' \
-  doc/usage/v2-particle-and-weight-fortran.md
-check_present 'borrowed buffer' doc/usage/v2-particle-and-weight.md
-check_present 'accounting arrays' doc/usage/v2-particle-and-weight.md
-check_present 'Particle Buffer Ownership' doc/design/v2-redesign.md
-check_present 'nphgram.*totalp.*pbase' doc/design/v2-redesign.md
-check_present 'bind/unbind' doc/design/v2-redesign.md
+  doc/v2/usage/v2-particle-and-weight-fortran.md
+check_present 'borrowed buffer' doc/v2/usage/v2-particle-and-weight.md
+check_present 'accounting arrays' doc/v2/usage/v2-particle-and-weight.md
+check_present 'Particle Buffer Ownership' doc/v2/design/v2-redesign.md
+check_present 'nphgram.*totalp.*pbase' doc/v2/design/v2-redesign.md
+check_present 'bind/unbind' doc/v2/design/v2-redesign.md
 check_present 'before full multiple-context independence' \
-  doc/design/v2-redesign.md
+  doc/v2/design/v2-redesign.md
 check_present 'OH_PARTICLES_BORROWED' include/oh_particle_ownership.h
 check_present 'OH_PARTICLES_OWNED' include/oh_particle_ownership.h
 check_present 'oh_context_bind_particles' include/oh_context.h
@@ -197,8 +197,8 @@ check_present 'oh_context_bind_particles' src/c/oh_context.c
 check_present 'oh_context_create' src/c/oh_context.c
 check_present 'oh_context_configure_particles' src/c/oh_context.c
 check_present 'oh_context_bind_particle_accounting' src/c/oh_context.c
-check_present 'heap-owned context' doc/usage/api-by-level.md
-check_present 'heap-owned context' doc/usage/api-by-level-fortran.md
+check_present 'heap-owned context' doc/v2/usage/api-by-level.md
+check_present 'heap-owned context' doc/v2/usage/api-by-level-fortran.md
 check_present 'oh_context_bind_particles' src/fortran/oh_v2.F90
 check_present 'oh_context_create' src/fortran/oh_v2.F90
 check_present 'oh_context_configure_particles' src/fortran/oh_v2.F90
@@ -224,11 +224,11 @@ check_present 'oh3_init_raw' src/fortran/oh_v2.F90
 check_present 'oh_fortran_oh3_init_raw' src/c/oh_fortran_v2.c
 check_present 'oh3_init_raw' tests/test_oh_v2_fortran.F90
 check_present 'oh_particle_adapter_use_level3_position_fields' \
-  doc/usage/api-by-level-fortran.md
+  doc/v2/usage/api-by-level-fortran.md
 check_present 'oh_particle_adapter_set_callbacks' \
-  doc/usage/v2-particle-and-weight-fortran.md
+  doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'oh_context_inject_particle_get\(\)` が' \
-  doc/usage/v2-particle-and-weight-fortran.md
+  doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'module ohhelp_v2' src/fortran/oh_v2.F90
 check_present 'type :: oh_context_handle' src/fortran/oh_v2.F90
 check_present 'type :: oh_particle_adapter_handle' src/fortran/oh_v2.F90
@@ -263,12 +263,12 @@ check_present 'oh_particle_adapter_use_integer_fields' include/oh_particle_adapt
 check_present 'oh_particle_adapter_use_single_species_integer_region' \
   include/oh_particle_adapter.h
 check_present 'oh_particle_adapter_use_integer_fields' \
-  doc/design/v2-particle-contracts.md
+  doc/v2/design/v2-particle-contracts.md
 check_present 'oh_particle_adapter_use_integer_fields' \
   tests/test_oh_particle_adapter.c
 check_present 'oh_particle_adapter_use_integer_fields' \
-  doc/usage/api-by-level.md
-check_present 'OH_BIG_SPACE' doc/usage/v2-particle-and-weight.md
+  doc/v2/usage/api-by-level.md
+check_present 'OH_BIG_SPACE' doc/v2/usage/v2-particle-and-weight.md
 check_present 'int \*\*totalp, void \*\*pbuf' include/ohhelp2.h
 
 # Level 3 may touch S_particle.x/y/z only inside the default S_particle mapping
@@ -375,18 +375,18 @@ fi
 
 # Keep the hidden Level-4 and injection semantics explicitly documented until
 # they are replaced by a v2 adapter contract.
-check_present 'nid < 0' doc/design/v2-particle-contracts.md
-check_present 'nid == -2' doc/design/v2-particle-contracts.md
-check_present 'oh_remove_injected_particle\(\)' doc/design/v2-particle-contracts.md
-check_present 'oh_inject_particle_get\(\)' doc/design/v2-particle-contracts.md
-check_present 'C 専用の helper' doc/usage/pic-lifecycle.md
+check_present 'nid < 0' doc/v2/design/v2-particle-contracts.md
+check_present 'nid == -2' doc/v2/design/v2-particle-contracts.md
+check_present 'oh_remove_injected_particle\(\)' doc/v2/design/v2-particle-contracts.md
+check_present 'oh_inject_particle_get\(\)' doc/v2/design/v2-particle-contracts.md
+check_present 'C 専用の helper' doc/v2/usage/pic-lifecycle.md
 check_present 'Fortran には pointer-return helper はなく' \
-  doc/usage/v2-particle-and-weight-fortran.md
+  doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'remap_injected_particle\(\)` is additive' \
-  doc/design/v2-particle-contracts.md
-check_present '二重計上' doc/usage/v2-particle-and-weight.md
+  doc/v2/design/v2-particle-contracts.md
+check_present '二重計上' doc/v2/usage/v2-particle-and-weight.md
 check_present 'remap is additive' AGENTS.md
-check_present 'packed-grid id operations' doc/design/v2-particle-contracts.md
+check_present 'packed-grid id operations' doc/v2/design/v2-particle-contracts.md
 check_present 'level4_secondary_region_offset' src/c/ohhelp4_particle.h
 check_present 'OH_LEVEL4_PARTICLE_REMOVED' src/c/ohhelp4_particle.h
 check_present 'OH_LEVEL4_BOUNDARY_EXCHANGE_MARKER' src/c/ohhelp4_particle.h
@@ -397,20 +397,20 @@ check_absent 'level4_set_particle_region\(.*,[[:space:]]*-[12][[:space:]]*,' \
 check_present 'level4_bind_common_state' src/c/ohhelp4_state.h
 check_present 'level4p_bind_state' src/c/ohhelp4p_state.h
 check_present 'level4s_bind_state' src/c/ohhelp4s_state.h
-check_present 'default context layout' doc/design/v2-particle-contracts.md
-check_present 'primary_or_secondary' doc/design/v2-particle-contracts.md
-check_present 'negative-id convention' doc/design/v2-particle-contracts.md
-check_present '-\(node \+ 1\)' doc/design/v2-particle-contracts.md
-check_present 'Neighbor_Id' doc/design/v2-particle-contracts.md
-check_present 'AbsNeighbors' doc/design/v2-particle-contracts.md
-check_present 'specBase = 1' doc/design/v2-particle-contracts.md
-check_present 'InjectedParticles' doc/design/v2-particle-contracts.md
-check_present 'OH_BIG_SPACE' doc/design/v2-particle-contracts.md
-check_present 'boundary plane thickness' doc/design/v2-particle-contracts.md
-check_present 'no current `original` particle field' doc/design/v2-particle-contracts.md
+check_present 'default context layout' doc/v2/design/v2-particle-contracts.md
+check_present 'primary_or_secondary' doc/v2/design/v2-particle-contracts.md
+check_present 'negative-id convention' doc/v2/design/v2-particle-contracts.md
+check_present '-\(node \+ 1\)' doc/v2/design/v2-particle-contracts.md
+check_present 'Neighbor_Id' doc/v2/design/v2-particle-contracts.md
+check_present 'AbsNeighbors' doc/v2/design/v2-particle-contracts.md
+check_present 'specBase = 1' doc/v2/design/v2-particle-contracts.md
+check_present 'InjectedParticles' doc/v2/design/v2-particle-contracts.md
+check_present 'OH_BIG_SPACE' doc/v2/design/v2-particle-contracts.md
+check_present 'boundary plane thickness' doc/v2/design/v2-particle-contracts.md
+check_present 'no current `original` particle field' doc/v2/design/v2-particle-contracts.md
 check_absent '\boriginal\b' include/*.h src/c/*.c src/c/*.h src/fortran/*.F90
-check_present '粒子ポインタを `void \*`' doc/usage/v2-particle-and-weight.md
-check_absent '\bp\.nid\s*=' doc/usage/api-by-level.md doc/usage/pic-lifecycle.md
+check_present '粒子ポインタを `void \*`' doc/v2/usage/v2-particle-and-weight.md
+check_absent '\bp\.nid\s*=' doc/v2/usage/api-by-level.md doc/v2/usage/pic-lifecycle.md
 check_present 'level4_secondary_injected' src/c/ohhelp4_particle.h
 
 if [ "$failures" -ne 0 ]; then

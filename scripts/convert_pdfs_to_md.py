@@ -9,8 +9,8 @@ import fitz
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_DIR = ROOT / "doc" / "original"
-OUT_DIR = ROOT / "doc" / "markdown"
+SOURCE_DIR = ROOT / "doc" / "v1" / "original"
+OUT_DIR = ROOT / "doc" / "v1" / "markdown"
 
 PDFS = {
     "ohhelp-man.pdf": {
@@ -38,6 +38,11 @@ LIGATURES = str.maketrans(
         "ﬄ": "ffl",
     }
 )
+
+
+def write_text_lf(path: Path, text: str) -> None:
+    with path.open("w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
 
 
 @dataclass(frozen=True)
@@ -442,7 +447,7 @@ def write_document(pdf_name: str, spec: dict[str, object]) -> list[tuple[str, Se
         body = [
             f"# {title}",
             "",
-            f"Source: `doc/original/{pdf_name}`, pages {segment.start}-{segment.end}.",
+            f"Source: `doc/v1/original/{pdf_name}`, pages {segment.start}-{segment.end}.",
             "",
         ]
         for page_no in range(segment.start, segment.end + 1):
@@ -456,7 +461,7 @@ def write_document(pdf_name: str, spec: dict[str, object]) -> list[tuple[str, Se
             )
             body.append("")
 
-        (doc_dir / filename).write_text("\n".join(body).rstrip() + "\n", encoding="utf-8")
+        write_text_lf(doc_dir / filename, "\n".join(body).rstrip() + "\n")
         written.append((filename, segment))
 
     readme_lines = [
@@ -483,7 +488,7 @@ def write_document(pdf_name: str, spec: dict[str, object]) -> list[tuple[str, Se
             f"- [{title}]({filename}) - pages {segment.start}-{segment.end}"
         )
 
-    (doc_dir / "README.md").write_text("\n".join(readme_lines) + "\n", encoding="utf-8")
+    write_text_lf(doc_dir / "README.md", "\n".join(readme_lines) + "\n")
     return [(str(doc_dir.relative_to(OUT_DIR) / filename), segment) for filename, segment in written]
 
 
@@ -491,7 +496,7 @@ def write_root_readme(all_written: dict[str, list[tuple[str, Segment]]]) -> None
     lines = [
         "# OhHelp PDF Markdown Documentation",
         "",
-        "Markdown conversions of the PDF documents in `doc/original/`.",
+        "Markdown conversions of the PDF documents in `doc/v1/original/`.",
         "",
         "The documents are split by chapter or section. Long sections are further split on subsection boundaries where possible.",
         "",
@@ -516,7 +521,7 @@ def write_root_readme(all_written: dict[str, list[tuple[str, Segment]]]) -> None
         ]
     )
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    (OUT_DIR / "README.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_lf(OUT_DIR / "README.md", "\n".join(lines) + "\n")
 
 
 def main() -> None:

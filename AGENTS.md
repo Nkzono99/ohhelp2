@@ -28,8 +28,8 @@ binary layout, or behavior is not a constraint unless a task explicitly says so.
    - region load = local particle count in that region times region weight,
    - balancing target = total weighted load divided by node count,
    - transfer schedules still move integer particle counts.
-4. Keep generated Markdown documentation under `doc/markdown/` reproducible from
-   `scripts/convert_pdfs_to_md.py`.
+4. Keep generated Markdown documentation under `doc/v1/markdown/` reproducible
+   from `scripts/convert_pdfs_to_md.py`.
 
 ## Engineering Notes
 
@@ -42,8 +42,8 @@ binary layout, or behavior is not a constraint unless a task explicitly says so.
   compile-level coverage and add a focused sample or test when practical.
 - Treat `tests/test_particle_contract_audit.sh` as the guardrail for hidden
   particle-layout contracts. If a new direct `nid`/`spec`/coordinate access is
-  intentional, update `doc/design/v2-particle-contracts.md` in the same change
-  and keep the access inside the documented migration boundary.
+  intentional, update `doc/v2/design/v2-particle-contracts.md` in the same
+  change and keep the access inside the documented migration boundary.
 - Treat injected-particle accounting as part of the particle contract. In
   Level 2/3, remap/remove APIs operate on the injected copy inside OhHelp's
   particle buffer, and remap is additive; avoid examples or code paths that

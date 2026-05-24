@@ -1163,6 +1163,7 @@ oh2_set_total_particles() {
   TotalP = state->total_particles;
   primaryParts = state->primary_parts;
   totalParts = state->total_parts;
+  nOfInjections = state->n_of_injections;
   oh1_sync_default_state();
 }
 int

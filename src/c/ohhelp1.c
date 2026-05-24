@@ -390,6 +390,10 @@ set_total_particles_state(struct oh_state *state) {
     state->total_parts += tps;
   }
   state->total_parts += state->primary_parts;
+  if (state->n_of_injections) {
+    for (s=0; s<ns*2; s++) state->injected_particles[s] = 0;
+    state->n_of_injections = 0;
+  }
 }
 int
 oh1_transbound_(int *currmode, int *stats) {

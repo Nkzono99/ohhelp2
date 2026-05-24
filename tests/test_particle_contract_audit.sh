@@ -427,6 +427,8 @@ check_present 'remap_injected_particle\(\)` is additive' \
   doc/v2/design/particle-adapter.md
 check_present '二重計上' doc/v2/usage/v2-particle-and-weight.md
 check_present 'remap is additive' AGENTS.md
+check_present 'set_total_particles_state\(\).*finalizes pending' \
+  doc/v2/design/particle-adapter.md
 check_present 'packed-grid id operations' doc/v2/design/particle-adapter.md
 check_present 'level4_secondary_region_offset' src/c/ohhelp4_particle.h
 check_present 'OH_LEVEL4_PARTICLE_REMOVED' src/c/ohhelp4_particle.h

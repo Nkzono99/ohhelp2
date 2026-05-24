@@ -97,6 +97,14 @@ Injected copies are recognized by buffer index. Indices from `totalParts` to
 the internal primary/secondary/species counter array that tracks those copies.
 Level 2 centralizes those updates in `state_update_injected_particle_count()`
 so inject, remap, and remove paths use the same accounting rule.
+
+Calling `set_total_particles_state()` after injection finalizes pending
+injected copies as ordinary local particles by clearing `nOfInjections` and
+`InjectedParticles` after their counts are included in `totalParts`. This keeps
+post-injection `oh_context_set_total_particles()` compatible with the next
+Level 2/3 transbound while avoiding a second injected-particle pass over stale
+buffer indices.
+
 There is no current `original` particle field or hidden original-particle flag.
 
 ## Level 4 Boundary

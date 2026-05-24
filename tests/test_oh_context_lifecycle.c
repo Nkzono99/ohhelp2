@@ -76,8 +76,9 @@ main(int argc, char **argv) {
   oh_particle_adapter adapter;
   MPI_Datatype pic_type = MPI_DATATYPE_NULL;
   double *weights = 0;
-  struct pic_particle particles_x[4] = {{0}};
-  struct pic_particle particles_y[4] = {{0}};
+  struct pic_particle particles_x[16] = {{0}};
+  struct pic_particle particles_y[16] = {{0}};
+  struct pic_particle injected_particle = {0};
   int *nphgram_x = 0;
   int *totalp_x = 0;
   int *pbase_x = 0;
@@ -185,10 +186,10 @@ main(int argc, char **argv) {
 
   oh_context_bind_region_ids(context_x, sdid_x, OH_PARTICLES_BORROWED);
   oh_context_bind_region_ids(context_y, sdid_y, OH_PARTICLES_BORROWED);
-  oh_context_bind_particles(context_x, particles_x, 4, OH_PARTICLES_BORROWED);
+  oh_context_bind_particles(context_x, particles_x, 16, OH_PARTICLES_BORROWED);
   oh_context_bind_particle_accounting(context_x, &nphgram_x, &totalp_x,
                                       &pbase_x, OH_PARTICLES_OWNED);
-  oh_context_bind_particles(context_y, particles_y, 4, OH_PARTICLES_BORROWED);
+  oh_context_bind_particles(context_y, particles_y, 16, OH_PARTICLES_BORROWED);
   oh_context_bind_particle_accounting(context_y, &nphgram_y, &totalp_y,
                                       &pbase_y, OH_PARTICLES_OWNED);
   assert(nphgram_x);
@@ -218,6 +219,26 @@ main(int argc, char **argv) {
   oh_context_get_region_ids(context_y, copied_sdid);
   assert(copied_sdid[0] == sdid_y[0]);
   assert(copied_sdid[1] == sdid_y[1]);
+
+  if (n == 2) {
+    injected_particle.x = 0.25;
+    injected_particle.y = 0.5;
+    injected_particle.z = 0.5;
+    injected_particle.region = 0;
+    injected_particle.species = 0;
+    for (int i=0; rank==0 && i<8; i++)
+      oh_context_inject_particle(context_x, &injected_particle);
+    oh_context_set_total_particles(context_x);
+    assert(oh_context_transbound3(context_x, OH_MODE_NORMAL_PRIMARY, 0) ==
+           OH_MODE_REBALANCE_SECONDARY);
+    oh_context_get_region_ids(context_x, copied_sdid);
+    if (rank == 0) {
+      assert(copied_sdid[1] == -1);
+    } else {
+      assert(copied_sdid[1] == 0);
+      assert(pbase_x[2] > 0);
+    }
+  }
 
   oh_context_unbind_region_ids(context_x);
   oh_context_unbind_particle_accounting(context_x);

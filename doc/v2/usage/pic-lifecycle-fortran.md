@@ -106,6 +106,11 @@ injected_copy = oh_context_inject_particle_get(ctx, particle_ptr)
 `oh_context_inject_particle_get` returns the injected copy as `type(c_ptr)`.
 Remove counted injected particles with `oh_context_remove_injected_particle()`.
 
+`oh_context_set_total_particles()` may be called after injection. In that case
+OhHelp finalizes the pending injected copies as ordinary local particles for
+the next transbound, so `oh_context_remove_injected_particle()` no longer
+applies to those copies.
+
 ## Raw Init Bridge
 
 Existing code that already has v1-style init argument arrays can still stay on

@@ -104,6 +104,10 @@ returns a raw pointer to the injected copy. If a counted injected copy must be
 removed, call `oh_context_remove_injected_particle()` instead of only changing
 its region value.
 
+Calling `oh_context_set_total_particles()` after injection finalizes pending
+injected copies as ordinary local particles for the next transbound. After that
+point, remove/remap injected-particle helpers no longer apply to those copies.
+
 ## Shutdown
 
 ```c

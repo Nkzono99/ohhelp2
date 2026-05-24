@@ -1030,7 +1030,7 @@ state_update_injected_particle_count(struct oh_state *state,
   int s, n;
 
   s = state_particle_species(state, part);
-  n = state_particle_region(state, part, 0);
+  n = state_map_injected_particle_to_subdomain(state, part);
   if (n<0)  return;
   if (n==state->region_id[1]) {
     state->n_of_particles_local[(ns+s)*nn+n] += delta;

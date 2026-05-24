@@ -70,6 +70,58 @@ assert_region(const char *label, int actual, int expected, int rank) {
 }
 
 static void
+run_injected_position_routing_test(int rank, int n, MPI_Datatype pic_type,
+                                   const oh_particle_adapter *adapter) {
+  oh_context *context = 0;
+  struct pic_particle particles[16] = {{0}};
+  struct pic_particle injected_particle = {0};
+  int nphgram[4] = {0, 0, 0, 0};
+  int totalp[2] = {0, 0};
+  int pbase[3] = {0, 0, 0};
+  int sdid[2] = {rank, -1};
+  int *nphgram_ptr = nphgram;
+  int *totalp_ptr = totalp;
+  int *pbase_ptr = pbase;
+  int err;
+
+  if (n != 2) return;
+
+  err = oh_context_create(MPI_COMM_WORLD, &context);
+  assert(err == MPI_SUCCESS);
+  configure_level3_context(context, n, OH_DIM_X);
+  oh_context_configure_particles(context, 1, 10000);
+  set_custom_adapter(context, adapter);
+
+  oh_context_bind_region_ids(context, sdid, OH_PARTICLES_BORROWED);
+  oh_context_bind_particles(context, particles, 16, OH_PARTICLES_BORROWED);
+  oh_context_bind_particle_accounting(context, &nphgram_ptr, &totalp_ptr,
+                                      &pbase_ptr, OH_PARTICLES_BORROWED);
+  oh_context_set_total_particles(context);
+
+  injected_particle.x = 0.75;
+  injected_particle.y = 0.5;
+  injected_particle.z = 0.5;
+  injected_particle.region = 0;
+  injected_particle.species = 1;
+  if (rank == 0)
+    oh_context_inject_particle(context, &injected_particle);
+
+  (void)oh_context_transbound3(context, OH_MODE_NORMAL_PRIMARY, 0);
+  if (rank == 0) {
+    assert(pbase[2] == 0);
+  } else {
+    assert(pbase[2] == 1);
+    assert(particles[0].x == injected_particle.x);
+  }
+
+  oh_context_unbind_region_ids(context);
+  oh_context_unbind_particle_accounting(context);
+  oh_context_unbind_particles(context);
+  oh_context_destroy(context);
+  (void)pic_type;
+}
+
+static void
 run_localized_secondary_test(int rank, int n, MPI_Datatype pic_type,
                              const oh_particle_adapter *adapter) {
   oh_context *context = 0;
@@ -241,6 +293,7 @@ main(int argc, char **argv) {
            context_y->particle_adapter, &particles_y[0], 0) == rank);
 
   run_localized_secondary_test(rank, n, pic_type, &adapter);
+  run_injected_position_routing_test(rank, n, pic_type, &adapter);
 
   oh_context_bind_region_ids(context_x, sdid_x, OH_PARTICLES_BORROWED);
   oh_context_bind_region_ids(context_y, sdid_y, OH_PARTICLES_BORROWED);

@@ -225,7 +225,8 @@ main(int argc, char **argv) {
     injected_particle.y = 0.5;
     injected_particle.z = 0.5;
     injected_particle.region = 0;
-    injected_particle.species = 0;
+    injected_particle.species = 1;
+    context_x->spec_base = 1;
     for (int i=0; rank==0 && i<8; i++)
       oh_context_inject_particle(context_x, &injected_particle);
     oh_context_set_total_particles(context_x);

@@ -69,6 +69,12 @@ void
 oh_fortran_context_configure_particles(oh_context *context, int nspec,
                                        int maxfrac) {
   oh_context_configure_particles(context, nspec, maxfrac);
+  if (!context) context = oh_default_context();
+  context->spec_base = 1;
+  if (oh_context_is_default_state(context)) {
+    specBase = 1;
+    oh1_sync_default_state();
+  }
 }
 
 void

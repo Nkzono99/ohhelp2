@@ -239,6 +239,7 @@ check_present 'oh_fortran_context_max_local_particles_for_capacity' \
 check_present 'oh_fortran_context_bind_particles' src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_create' src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_configure_particles' src/c/oh_fortran_v2.c
+check_present 'context->spec_base = 1' src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_bind_particle_accounting' \
   src/c/oh_fortran_v2.c
 check_present 'oh_fortran_context_bind_region_ids' src/c/oh_fortran_v2.c
@@ -447,6 +448,7 @@ check_present '-\(node \+ 1\)' doc/v2/design/particle-adapter.md
 check_present 'Neighbor_Id' doc/v2/design/particle-adapter.md
 check_present 'AbsNeighbors' doc/v2/design/particle-adapter.md
 check_present 'specBase = 1' doc/v2/design/particle-adapter.md
+check_present 'outside configured range' src/c/ohhelp2.c
 check_present 'InjectedParticles' doc/v2/design/particle-adapter.md
 check_present 'OH_BIG_SPACE' doc/v2/design/particle-adapter.md
 check_present 'boundary plane thickness' doc/v2/design/particle-adapter.md

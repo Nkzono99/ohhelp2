@@ -1064,10 +1064,14 @@ state_particle_species(struct oh_state *state, const struct S_particle *part) {
                                                      part) - state->spec_base;
 
 #ifdef OH_HAS_SPEC
-  return Particle_Spec(species);
+  species = Particle_Spec(species);
 #else
-  return state->use_custom_particle_adapter ? species : 0;
+  if (!state->use_custom_particle_adapter) return 0;
 #endif
+  if (species<0 || species>=state->n_of_species)
+    local_errstop("particle species %d is outside configured range [0,%d)",
+                  species + state->spec_base, state->n_of_species);
+  return species;
 }
 static int
 state_particle_subdomain(struct oh_state *state, const struct S_particle *part,

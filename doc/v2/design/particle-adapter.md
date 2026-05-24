@@ -55,10 +55,11 @@ For custom layouts, the same meanings apply to the value returned by
 
 ## Species Semantics
 
-C-facing adapter callbacks use zero-based species ids. Some Fortran-compatible
-paths normalize with `specBase = 1` before indexing internal arrays. v2
-Fortran users should still express particle layout through `ohhelp_v2`; the
-module handles the C bridge and opaque handles.
+C-facing adapter callbacks use zero-based species ids. Fortran-compatible
+context configuration normalizes with `specBase = 1` before indexing internal
+arrays, matching raw Fortran init behavior. v2 Fortran users should still
+express particle layout through `ohhelp_v2`; the module handles the C bridge and
+opaque handles.
 
 ## Mapping Callbacks
 

@@ -44,6 +44,8 @@ check_present '#include "ohhelp3.h"' include/ohhelp_c.h
 check_absent '^(void|int)\s+oh[0-9]' include/ohhelp_c.h
 check_present '#include "ohhelp1.h"' include/ohhelp2.h
 check_present '#include "ohhelp2.h"' include/ohhelp3.h
+check_absent '\b(MPI_UB|MPI_Type_struct)\b' src/c/oh_context.c src/c/ohhelp1.c \
+  src/c/ohhelp3.c
 
 # Level 2 must stay layout-agnostic in the implementation.  Region/species
 # semantics are provided by oh_particle_adapter.

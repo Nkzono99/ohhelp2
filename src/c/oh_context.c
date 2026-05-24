@@ -243,10 +243,8 @@ ensure_context_level1_storage(struct oh_state *context) {
   int nnns = nn * ns;
   int clsize;
   int i;
-  int bl[2] = {1, 1};
   MPI_Datatype vector_type = MPI_DATATYPE_NULL;
-  MPI_Datatype tmptype[2] = {MPI_DATATYPE_NULL, MPI_UB};
-  MPI_Aint disp[2] = {0, sizeof(int)};
+  MPI_Aint int_extent = (MPI_Aint)sizeof(int);
 
   if (context_is_default(context)) return;
   if (context->owns_level1_storage) return;
@@ -335,8 +333,8 @@ ensure_context_level1_storage(struct oh_state *context) {
   MPI_Comm_group(context->comm, &context->world_group);
 
   MPI_Type_vector(2*ns, 1, nn, MPI_INT, &vector_type);
-  tmptype[0] = vector_type;
-  MPI_Type_struct(2, bl, disp, tmptype, &context->histogram_type);
+  MPI_Type_create_resized(vector_type, 0, int_extent,
+                          &context->histogram_type);
   MPI_Type_commit(&context->histogram_type);
   MPI_Type_free(&vector_type);
 

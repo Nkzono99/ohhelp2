@@ -851,11 +851,10 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
                 int off[OH_DIMENSION][2], int size[OH_DIMENSION][2],
                 int lu, int sr, MPI_Datatype basetype,
                 struct S_borderexc bx[OH_DIMENSION][2]) {
-  int bl[2]={1,1};
-  MPI_Datatype tmptype[2]={MPI_DATATYPE_NULL,MPI_UB};
+  MPI_Datatype vector_type = MPI_DATATYPE_NULL;
   int w=wdh[OH_DIM_X], wd=w*esize;
   int dp=OH_DIMENSION==1 ? 1 : wdh[OH_DIM_Y];
-  MPI_Aint dispz[2]={0, wd*dp*sizeof(double)};
+  MPI_Aint z_extent = (MPI_Aint)wd * (MPI_Aint)dp * (MPI_Aint)sizeof(double);
   struct S_bcomm *bcx, *bcy, *bcz;
   int xexto, yexti, yexto, zexti;
   int s;
@@ -921,8 +920,9 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
     if ((s=size[OH_DIM_X][lu])==0) {
       bcx->buf = bcx->count = 0;  bcx->type = MPI_DATATYPE_NULL;
     } else {
-      MPI_Type_vector(yexti, s*esize, wd, basetype, tmptype);
-      MPI_Type_struct(2, bl, dispz, tmptype, &(bcx->type));
+      MPI_Type_vector(yexti, s*esize, wd, basetype, &vector_type);
+      MPI_Type_create_resized(vector_type, 0, z_extent, &(bcx->type));
+      MPI_Type_free(&vector_type);
       MPI_Type_commit(&(bcx->type));  bcx->deriv = 1;
       bcx->count = zexti;
       bcx->buf =
@@ -937,8 +937,9 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
         MPI_Type_vector(zexti, s*wd, wd*dp, basetype, &(bcy->type));
         bcy->count = 1;
       } else {
-        MPI_Type_vector(s, xexto*esize, wd, basetype, tmptype);
-        MPI_Type_struct(2, bl, dispz, tmptype, &(bcy->type));
+        MPI_Type_vector(s, xexto*esize, wd, basetype, &vector_type);
+        MPI_Type_create_resized(vector_type, 0, z_extent, &(bcy->type));
+        MPI_Type_free(&vector_type);
         bcy->count = zexti;
       }
       MPI_Type_commit(&(bcy->type));  bcy->deriv = 1;
@@ -961,8 +962,9 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
           MPI_Type_vector(s*yexto, xexto*esize, wd, basetype, &(bcz->type));
           bcz->count = 1;
         } else {
-          MPI_Type_vector(yexto, xexto*esize, wd, basetype, tmptype);
-          MPI_Type_struct(2, bl, dispz, tmptype, &(bcz->type));
+          MPI_Type_vector(yexto, xexto*esize, wd, basetype, &vector_type);
+          MPI_Type_create_resized(vector_type, 0, z_extent, &(bcz->type));
+          MPI_Type_free(&vector_type);
           bcz->count = s;
         }
         MPI_Type_commit(&(bcz->type));  bcz->deriv = 1;

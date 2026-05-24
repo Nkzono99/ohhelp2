@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "oh_context.h"
@@ -34,7 +35,7 @@ configure_level3_context(oh_context *context, int nranks, int axis) {
     pcoord[i] = (i==axis) ? nranks : 1;
     scoord[i][OH_LOWER] = 0;
     scoord[i][OH_UPPER] = pcoord[i];
-    gsize[i] = 1.0;
+    gsize[i] = 1.0 / (double)pcoord[i];
   }
   ftypes[0][OH_FTYPE_ES] = 1;
   ftypes[0][OH_FTYPE_LO] = 0;
@@ -56,6 +57,16 @@ set_custom_adapter(oh_context *context, const oh_particle_adapter *adapter) {
   assert(context->particle_adapter->user_data == context);
   assert(context->particle_adapter->map_to_subdomain);
   assert(context->particle_adapter->map_to_neighbor);
+}
+
+static void
+assert_region(const char *label, int actual, int expected, int rank) {
+  if (actual != expected) {
+    fprintf(stderr, "%s: rank %d expected %d got %d\n",
+            label, rank, expected, actual);
+    fflush(stderr);
+    assert(actual == expected);
+  }
 }
 
 int
@@ -122,14 +133,22 @@ main(int argc, char **argv) {
 #else
   coord_y[OH_DIM_X] = ((double)rank + 0.5) / (double)n;
 #endif
-  assert(oh_context_map_particle_to_subdomain(
-           context_x, coord_x[0], coord_x[1], coord_x[2]) == rank);
-  assert(oh_context_map_particle_to_subdomain(
-           context_y, coord_y[0], coord_y[1], coord_y[2]) == rank);
-  assert(oh_context_map_particle_to_neighbor(
-           context_x, coord_x, coord_x+1, coord_x+2, 0) == rank);
-  assert(oh_context_map_particle_to_neighbor(
-           context_y, coord_y, coord_y+1, coord_y+2, 0) == rank);
+  assert_region("context_x map subdomain",
+                oh_context_map_particle_to_subdomain(
+                  context_x, coord_x[0], coord_x[1], coord_x[2]),
+                rank, rank);
+  assert_region("context_y map subdomain",
+                oh_context_map_particle_to_subdomain(
+                  context_y, coord_y[0], coord_y[1], coord_y[2]),
+                rank, rank);
+  assert_region("context_x map neighbor",
+                oh_context_map_particle_to_neighbor(
+                  context_x, coord_x, coord_x+1, coord_x+2, 0),
+                rank, rank);
+  assert_region("context_y map neighbor",
+                oh_context_map_particle_to_neighbor(
+                  context_y, coord_y, coord_y+1, coord_y+2, 0),
+                rank, rank);
   oh_context_bcast_field(context_x, field, field, 0);
   oh_context_reduce_field(context_x, field, field, 0);
   oh_context_allreduce_field(context_x, field, field, 0);

@@ -102,9 +102,8 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
   int nn, ns, me, i, s, clsize;
   int *nb = *nbor;
   int nphgram_ownership, totalp_ownership;
-  int bl[2]={1,1};
-  MPI_Datatype tmptype[2]={MPI_DATATYPE_NULL, MPI_UB};
-  MPI_Aint disp[2]={0, sizeof(int)};
+  MPI_Datatype vector_type = MPI_DATATYPE_NULL;
+  MPI_Aint int_extent = (MPI_Aint)sizeof(int);
 
   MPI_Comm_size(MCW, &nn);  nOfNodes = nn;
   MPI_Comm_rank(MCW, &me);  myRank = me;
@@ -158,9 +157,10 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
   TempArray    = (int*) mem_alloc(sizeof(int),  nn, "TempArray");
 #endif
 
-  MPI_Type_vector(2*ns, 1, nn, MPI_INT, tmptype);
-  MPI_Type_struct(2, bl, disp, tmptype, &T_Histogram);
+  MPI_Type_vector(2*ns, 1, nn, MPI_INT, &vector_type);
+  MPI_Type_create_resized(vector_type, 0, int_extent, &T_Histogram);
   MPI_Type_commit(&T_Histogram);
+  MPI_Type_free(&vector_type);
 
   Nodes = (struct S_node*)mem_alloc(sizeof(struct S_node), nn, "Nodes");
   NodesNext = (struct S_node*)mem_alloc(sizeof(struct S_node), nn,

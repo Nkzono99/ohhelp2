@@ -173,7 +173,7 @@ contains
     sdoms(2, 1, 1) = -1_c_int
     do i = 1, 3
       scoord(2, i) = pcoord(i)
-      gsize(i) = 1.0_c_double
+      gsize(i) = 1.0_c_double / real(pcoord(i), c_double)
     end do
     if (legacy_level3) bcond = 1_c_int
     ftypes = 0_c_int

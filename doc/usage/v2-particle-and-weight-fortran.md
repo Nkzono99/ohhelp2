@@ -20,6 +20,11 @@ context / adapter / raw init bridge だけなら、`use ohhelp3` は不要です
 配列の Level 3 API も同じ translation unit で使う場合だけ、`use ohhelp3`
 を併用します。
 
+v2 facade 側の transbound は `oh_transbound()` ではなく、
+`oh_context_transbound1()` / `oh_context_transbound2()` /
+`oh_context_transbound3()` です。`oh_transbound()` は `ohhelp_f.h` が選択した
+legacy level module の alias として残しています。
+
 ```fortran
 use iso_c_binding
 use ohhelp_v2

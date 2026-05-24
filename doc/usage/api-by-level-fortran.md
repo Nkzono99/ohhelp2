@@ -54,6 +54,12 @@ module が公開する定数を使います。
 Fortran では `ohhelp_v2` の opaque handle を使います。default context facade に加えて、
 non-default context の初期 API も使えます。
 
+`ohhelp_v2` 側には legacy alias の `oh_transbound()` はありません。v2 facade では
+対象 context と level を明示して、`oh_context_transbound1()` /
+`oh_context_transbound2()` / `oh_context_transbound3()` を呼びます。
+従来の `oh_transbound()` を使う場合は `ohhelp_f.h` と対象 level の
+`ohhelp*` module 経由です。
+
 ```fortran
 use iso_c_binding
 use ohhelp_v2

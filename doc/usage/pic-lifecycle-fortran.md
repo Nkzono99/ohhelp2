@@ -23,6 +23,8 @@ end module
 v2 の context/adapter API だけを使う場合は `ohhelp_v2` だけで足ります。
 従来の `oh_init()` / `oh_transbound()` alias や `type(oh_particle)` の
 Level 3 API も同じコードで使う場合は、`ohhelp3` と `ohhelp_v2` を併用します。
+`ohhelp_v2` で transbound する場合は `oh_context_transbound3(ctx, ...)` のように
+context 付き API を呼び、`oh_transbound()` は使いません。
 
 ```fortran
 use iso_c_binding

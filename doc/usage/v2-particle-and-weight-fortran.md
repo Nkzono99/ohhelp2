@@ -193,6 +193,75 @@ adapter stride に基づいて粒子バッファを確保し、返された poin
 `c_loc(particles(1))` を渡す場合は、その配列がそのまま OhHelp の粒子バッファに
 なります。
 
+### raw init の lifetime / ownership contract
+
+現状の `oh2_init_raw()` / `oh3_init_raw()` は、粒子バッファ pointer を
+default context state に保持します。そのため、後続の `oh_transbound()` /
+`oh_context_transbound2()` / `oh_context_transbound3()` は、init 時に登録された
+粒子バッファを読み書きします。
+
+同じく、`nphgram`、`totalp`、`pbase` も OhHelp が pointer を保持する
+mutable accounting state です。`nphgram` は region/species histogram として
+`oh_transbound()` の入力になり、transfer 後に OhHelp 側でクリア・再構成されます。
+`totalp` は primary/secondary の species 別粒子数として更新され、`pbase` は
+primary / secondary / total local particles の境界値として更新されます。
+これらも borrowed storage なので、次の init または accounting unbind まで
+deallocate、再確保、shape 変更してはいけません。
+
+`c_loc(particles(1))` を渡す場合、その配列は user-owned / borrowed buffer です。
+OhHelp は pointer を借りるだけで、配列の lifetime は利用側が管理します。
+`oh_transbound()` を呼ぶ可能性がある間は、対象配列を `deallocate`、
+`move_alloc`、再確保、または shape 変更してはいけません。粒子の並び、region
+field、injection 領域、primary/secondary の境界は OhHelp が更新します。
+
+`c_null_ptr` を渡す場合は、OhHelp-owned buffer として OhHelp が粒子バッファを
+確保し、`raw_particles` に pointer を返します。この場合も pointer は
+`oh_transbound()` が使い続けるため、利用側で勝手に解放してはいけません。
+
+adapter handle、adapter に渡した MPI datatype、callback、callback が参照する
+`user_data` 相当の状態も、粒子バッファを OhHelp に登録している間は有効である
+必要があります。active な adapter を破棄する前に
+`oh_context_unbind_particles()` で粒子バッファとの対応を解除してください。
+
+v2 の context API では、粒子バッファの保持を明示する
+`oh_context_bind_particles()` / `oh_context_unbind_particles()` を使えます。
+`OH_PARTICLES_BORROWED` は user-owned storage を借用し、
+`OH_PARTICLES_OWNED` は OhHelp が active adapter stride に基づいて確保した
+storage を `unbind` 時に解放します。現時点では default context の binding を
+明示する API で、複数 context の完全な独立運用は後続作業です。
+
+```fortran
+raw_particles = c_loc(particles(1))
+call oh_context_bind_particles(ctx, raw_particles, maxlocalp, &
+                               OH_PARTICLES_BORROWED)
+currmode = oh_context_transbound3(ctx, currmode, stats)
+call oh_context_unbind_particles(ctx)
+```
+
+OhHelp-owned storage を使う場合は `raw_particles = c_null_ptr` と
+`OH_PARTICLES_OWNED` を渡します。戻り値は `raw_particles` に書き戻されるため、
+必要なら `c_f_pointer()` で Fortran pointer に戻します。
+
+`oh_context_unbind_particles()` が解除するのは粒子バッファ binding です。
+`nphgram`、`totalp`、`pbase` は matching API の
+`oh_context_bind_particle_accounting()` /
+`oh_context_unbind_particle_accounting()` で明示できます。
+
+```fortran
+raw_nphgram = c_loc(nphgram(1,1,1))
+raw_totalp = c_loc(totalp(1,1))
+raw_pbase = c_loc(pbase(1))
+call oh_context_bind_particle_accounting(ctx, raw_nphgram, raw_totalp, &
+                                         raw_pbase, OH_PARTICLES_BORROWED)
+currmode = oh_context_transbound3(ctx, currmode, stats)
+call oh_context_unbind_particle_accounting(ctx)
+```
+
+OhHelp-owned accounting storage を使う場合は 3 つの pointer を `c_null_ptr` にして
+`OH_PARTICLES_OWNED` を渡します。戻り値は各 pointer に書き戻されます。
+borrowed accounting array は bind 時には clear されません。従来どおり transfer 前に
+`nphgram` を利用側で初期化・更新してください。
+
 ## `nid` と remove の扱い
 
 default `type(oh_particle)` では `nid` が region id と remove marker を兼ねます。

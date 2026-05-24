@@ -55,6 +55,30 @@ oh_fortran_context_set_particle_adapter(
   oh_context_set_particle_adapter(context, unwrap_const_adapter(adapter));
 }
 
+void *
+oh_fortran_context_bind_particles(oh_context *context, void *particles,
+                                  int maxlocalp, int ownership) {
+  return oh_context_bind_particles(context, particles, maxlocalp, ownership);
+}
+
+void
+oh_fortran_context_unbind_particles(oh_context *context) {
+  oh_context_unbind_particles(context);
+}
+
+void
+oh_fortran_context_bind_particle_accounting(
+  oh_context *context, int **nphgram, int **totalp, int **pbase,
+  int ownership) {
+  oh_context_bind_particle_accounting(context, nphgram, totalp, pbase,
+                                      ownership);
+}
+
+void
+oh_fortran_context_unbind_particle_accounting(oh_context *context) {
+  oh_context_unbind_particle_accounting(context);
+}
+
 int
 oh_fortran_context_transbound1(oh_context *context, int currmode, int stats) {
   return oh_context_transbound1(context, currmode, stats);

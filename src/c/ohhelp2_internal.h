@@ -33,6 +33,9 @@ void init2(int **sdid, int nspec, int maxfrac, int **nphgram,
            int **totalp, struct S_particle **pbuf, int **pbase, int maxlocalp,
            struct S_mycommc *mycommc, struct S_mycommf *mycommf,
            int **nbor, int *pcoord, int stats, int repiter, int verbose);
+void *oh2_bind_particle_buffer_state(struct oh_state *state, void *particles,
+                                     int maxlocalp, int ownership);
+void oh2_unbind_particle_buffer_state(struct oh_state *state);
 int  transbound2_state(struct oh_state *state, int currmode, int stats,
                        int level);
 void oh2_set_particle_mpi_type_state(struct oh_state *state,

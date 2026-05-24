@@ -12,6 +12,7 @@
 #include "ohhelp1.h"
 #include "oh_part.h"
 #include "oh_particle_adapter.h"
+#include "oh_particle_ownership.h"
 
 #ifdef OH_HAS_SPEC
 #define Particle_Spec(S) (S)

@@ -6,6 +6,8 @@
    commercial purpose providing that the copyright notice above remains
    unchanged.
 */
+#include <stdlib.h>
+
 #define EXTERN extern
 #include "ohhelp1.h"
 #include "ohhelp1_internal.h"
@@ -26,6 +28,7 @@ static void  init_particle_adapter(void);
 static void  allocate_particle_storage(struct oh_state *state,
                                        struct S_particle **pbuf,
                                        int maxlocalp);
+static int   particle_buffer_ownership_is_valid(int ownership);
 static void  allocate_particle_base(struct oh_state *state, int **pbase);
 static void  allocate_level2_work_buffers(struct oh_state *state, int ns,
                                           int nn, int nnns,
@@ -212,21 +215,75 @@ init_particle_adapter(void) {
 static void
 allocate_particle_storage(struct oh_state *state, struct S_particle **pbuf,
                           int maxlocalp) {
-  if (*pbuf)
-    Particles = *pbuf;
-  else
-    Particles = *pbuf =
-      (struct S_particle*)mem_alloc(particle_stride_state(state), maxlocalp,
-                                    "Particles");
-  state->particles = Particles;
+  const int ownership = *pbuf ? OH_PARTICLES_BORROWED : OH_PARTICLES_OWNED;
+
+  *pbuf = (struct S_particle*)oh2_bind_particle_buffer_state(
+    state, *pbuf, maxlocalp, ownership);
+}
+void *
+oh2_bind_particle_buffer_state(struct oh_state *state, void *particles,
+                               int maxlocalp, int ownership) {
+  if (!state) state = &OhDefaultState;
+  if (state != &OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
+  if (maxlocalp<0)
+    local_errstop("negative maxlocalp for particle buffer binding");
+  if (!particle_buffer_ownership_is_valid(ownership))
+    local_errstop("invalid particle buffer ownership flag");
+  if (ownership==OH_PARTICLES_BORROWED && !particles && maxlocalp>0)
+    local_errstop("borrowed particle buffer binding requires a non-NULL buffer");
+  if (ownership==OH_PARTICLES_OWNED && particles)
+    local_errstop("owned particle buffer binding requires a NULL buffer");
+  if (state->particle_buffer_bound &&
+      state->particle_buffer_ownership==OH_PARTICLES_OWNED &&
+      state->particles)
+    free(state->particles);
+  if (ownership==OH_PARTICLES_OWNED && maxlocalp>0)
+    particles = mem_alloc(particle_stride_state(state), maxlocalp,
+                          "Particles");
+
+  Particles = (struct S_particle*)particles;
+  nOfLocalPLimit = maxlocalp;
+  totalParts = maxlocalp;
+  state->particles = particles;
+  state->n_of_local_particles_limit = maxlocalp;
+  state->total_parts = maxlocalp;
+  state->particle_buffer_bound = particles!=NULL || maxlocalp==0;
+  state->particle_buffer_ownership = ownership;
+  return particles;
+}
+void
+oh2_unbind_particle_buffer_state(struct oh_state *state) {
+  if (!state) state = &OhDefaultState;
+  if (state != &OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
+  if (state->particle_buffer_ownership==OH_PARTICLES_OWNED &&
+      state->particles)
+    free(state->particles);
+  Particles = NULL;
+  nOfLocalPLimit = 0;
+  totalParts = 0;
+  state->particles = NULL;
+  state->n_of_local_particles_limit = 0;
+  state->total_parts = 0;
+  state->particle_buffer_bound = 0;
+  state->particle_buffer_ownership = OH_PARTICLES_BORROWED;
+}
+static int
+particle_buffer_ownership_is_valid(int ownership) {
+  return ownership==OH_PARTICLES_BORROWED || ownership==OH_PARTICLES_OWNED;
 }
 static void
 allocate_particle_base(struct oh_state *state, int **pbase) {
+  const int ownership = *pbase ? OH_PARTICLES_BORROWED : OH_PARTICLES_OWNED;
+
   if (!*pbase)  *pbase = (int*)mem_alloc(sizeof(int), 3, "ParticleBase");
   (*pbase)[0] = (*pbase)[1] = (*pbase)[2] = 0;
   secondaryBase = *pbase + 1;  totalLocalParticles = *pbase + 2;
   state->secondary_base = secondaryBase;
   state->total_local_particles = totalLocalParticles;
+  state->particle_base_bound = 1;
+  state->particle_base_ownership = ownership;
 }
 static void
 allocate_level2_work_buffers(struct oh_state *state, int ns, int nn, int nnns,
@@ -264,6 +321,11 @@ oh2_transbound(int currmode, int stats) {
 int
 transbound2_state(struct oh_state *state, int currmode, int stats, int level) {
   int ret=MODE_NORM_SEC;
+
+  if (!state->particle_buffer_bound)
+    local_errstop("particle buffer is not bound");
+  if (!state->particle_accounting_bound || !state->particle_base_bound)
+    local_errstop("particle accounting is not bound");
 
   stats = stats && state->stats_mode;
   currmode = transbound1_state(state, currmode, stats, level);

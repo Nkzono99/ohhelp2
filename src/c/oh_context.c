@@ -1,6 +1,8 @@
 /* File: oh_context.c
    v2 context facade for the current default OhHelp instance.
 */
+#include <stdlib.h>
+
 #include "ohhelp1.h"
 #include "ohhelp1_internal.h"
 #include "ohhelp2.h"
@@ -11,6 +13,11 @@
 #include "oh_context.h"
 
 struct oh_state OhDefaultState;
+
+static int
+storage_ownership_is_valid(int ownership) {
+  return ownership==OH_PARTICLES_BORROWED || ownership==OH_PARTICLES_OWNED;
+}
 
 static struct oh_state*
 default_context_or_stop(struct oh_state *context) {
@@ -153,6 +160,149 @@ void
 oh_context_set_particle_mpi_type(struct oh_state *context, MPI_Datatype type) {
   context = default_context_or_stop(context);
   oh2_set_particle_mpi_type_state(context, type);
+  oh1_sync_default_state();
+}
+
+void *
+oh_context_bind_particles(struct oh_state *context, void *particles,
+                          int maxlocalp, int ownership) {
+  void *bound;
+  context = default_context_or_stop(context);
+  bound = oh2_bind_particle_buffer_state(context, particles, maxlocalp,
+                                         ownership);
+  oh1_sync_default_state();
+  return bound;
+}
+
+void
+oh_context_unbind_particles(struct oh_state *context) {
+  context = default_context_or_stop(context);
+  oh2_unbind_particle_buffer_state(context);
+  oh1_sync_default_state();
+}
+
+void
+oh_context_bind_particle_accounting_state(struct oh_state *state,
+                                          int **nphgram, int **totalp,
+                                          int **pbase, int ownership) {
+  int ns, nn;
+  int i;
+
+  if (!state) state = &OhDefaultState;
+  if (state != &OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
+  if (!storage_ownership_is_valid(ownership))
+    local_errstop("invalid particle accounting ownership flag");
+  if (state->n_of_species<=0 || state->n_of_nodes<=0)
+    local_errstop("particle accounting binding requires initialized context");
+  if (!nphgram || !totalp)
+    local_errstop("particle accounting binding requires nphgram and totalp");
+  if (ownership==OH_PARTICLES_BORROWED && (!*nphgram || !*totalp))
+    local_errstop("borrowed particle accounting requires non-NULL arrays");
+  if (ownership==OH_PARTICLES_OWNED && (*nphgram || *totalp))
+    local_errstop("owned particle accounting requires NULL nphgram/totalp");
+  if (pbase && ownership==OH_PARTICLES_BORROWED && !*pbase)
+    local_errstop("borrowed particle accounting requires non-NULL pbase");
+  if (pbase && ownership==OH_PARTICLES_OWNED && *pbase)
+    local_errstop("owned particle accounting requires NULL pbase");
+
+  ns = state->n_of_species;
+  nn = state->n_of_nodes;
+
+  if (state->n_of_particles_local_ownership==OH_PARTICLES_OWNED &&
+      state->n_of_particles_local)
+    free(state->n_of_particles_local);
+  if (state->total_particles_next_ownership==OH_PARTICLES_OWNED &&
+      state->total_particles_next)
+    free(state->total_particles_next);
+  if (state->particle_base_bound &&
+      state->particle_base_ownership==OH_PARTICLES_OWNED &&
+      state->secondary_base)
+    free(state->secondary_base - 1);
+  if (state->total_particles &&
+      state->total_particles != state->total_particles_next)
+    free(state->total_particles);
+
+  if (ownership==OH_PARTICLES_OWNED) {
+    *nphgram = (int*)mem_alloc(sizeof(int), 2*ns*nn, "NOfPLocal");
+    *totalp = (int*)mem_alloc(sizeof(int), 2*ns, "TotalPNext");
+    if (pbase) *pbase = (int*)mem_alloc(sizeof(int), 3, "ParticleBase");
+    for (i=0; i<2*ns*nn; i++) (*nphgram)[i] = 0;
+    for (i=0; i<2*ns; i++) (*totalp)[i] = 0;
+    if (pbase) (*pbase)[0] = (*pbase)[1] = (*pbase)[2] = 0;
+  }
+
+  NOfPLocal = *nphgram;
+  TotalPNext = *totalp;
+  TotalP = NULL;
+  state->n_of_particles_local = NOfPLocal;
+  state->total_particles_next = TotalPNext;
+  state->total_particles = NULL;
+  state->particle_accounting_bound = 1;
+  state->n_of_particles_local_ownership = ownership;
+  state->total_particles_next_ownership = ownership;
+
+  if (pbase) {
+    secondaryBase = *pbase + 1;
+    totalLocalParticles = *pbase + 2;
+    state->secondary_base = secondaryBase;
+    state->total_local_particles = totalLocalParticles;
+    state->particle_base_bound = 1;
+    state->particle_base_ownership = ownership;
+  }
+}
+
+void
+oh_context_unbind_particle_accounting_state(struct oh_state *state) {
+  if (!state) state = &OhDefaultState;
+  if (state != &OhDefaultState)
+    local_errstop("only the default oh_context is implemented yet");
+
+  if (state->n_of_particles_local_ownership==OH_PARTICLES_OWNED &&
+      state->n_of_particles_local)
+    free(state->n_of_particles_local);
+  if (state->total_particles_next_ownership==OH_PARTICLES_OWNED &&
+      state->total_particles_next)
+    free(state->total_particles_next);
+  if (state->particle_base_bound &&
+      state->particle_base_ownership==OH_PARTICLES_OWNED &&
+      state->secondary_base)
+    free(state->secondary_base - 1);
+  if (state->total_particles &&
+      state->total_particles != state->total_particles_next)
+    free(state->total_particles);
+
+  NOfPLocal = NULL;
+  TotalP = NULL;
+  TotalPNext = NULL;
+  secondaryBase = NULL;
+  totalLocalParticles = NULL;
+  state->n_of_particles_local = NULL;
+  state->total_particles = NULL;
+  state->total_particles_next = NULL;
+  state->particle_accounting_bound = 0;
+  state->n_of_particles_local_ownership = OH_PARTICLES_BORROWED;
+  state->total_particles_next_ownership = OH_PARTICLES_BORROWED;
+  state->secondary_base = NULL;
+  state->total_local_particles = NULL;
+  state->particle_base_bound = 0;
+  state->particle_base_ownership = OH_PARTICLES_BORROWED;
+}
+
+void
+oh_context_bind_particle_accounting(struct oh_state *context, int **nphgram,
+                                    int **totalp, int **pbase,
+                                    int ownership) {
+  context = default_context_or_stop(context);
+  oh_context_bind_particle_accounting_state(context, nphgram, totalp, pbase,
+                                            ownership);
+  oh1_sync_default_state();
+}
+
+void
+oh_context_unbind_particle_accounting(struct oh_state *context) {
+  context = default_context_or_stop(context);
+  oh_context_unbind_particle_accounting_state(context);
   oh1_sync_default_state();
 }
 

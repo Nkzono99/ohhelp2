@@ -23,6 +23,13 @@ void oh_fortran_context_set_particle_mpi_type(oh_context *context,
                                              int fortran_type);
 void oh_fortran_context_set_particle_adapter(
   oh_context *context, const oh_fortran_particle_adapter *adapter);
+void *oh_fortran_context_bind_particles(oh_context *context, void *particles,
+                                        int maxlocalp, int ownership);
+void oh_fortran_context_unbind_particles(oh_context *context);
+void oh_fortran_context_bind_particle_accounting(
+  oh_context *context, int **nphgram, int **totalp, int **pbase,
+  int ownership);
+void oh_fortran_context_unbind_particle_accounting(oh_context *context);
 int oh_fortran_context_transbound1(oh_context *context, int currmode,
                                   int stats);
 int oh_fortran_context_transbound2(oh_context *context, int currmode,

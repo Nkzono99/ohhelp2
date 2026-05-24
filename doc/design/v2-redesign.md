@@ -664,6 +664,59 @@ secondary assignment rebuilding. The old stable-secondary check remains
 count-based and is bypassed while custom weights are active, so weighted runs
 rebuild the helper assignment instead of accepting a stale count-balanced tree.
 
+## Particle Buffer Ownership
+
+The current Level 2/3 API binds a particle buffer pointer during initialization
+and later transfer calls mutate that bound buffer. This matches the historical
+OhHelp execution model and keeps the v2.0 migration small, but it leaves the
+side-effect boundary implicit:
+
+- `oh_init()` / `oh2_init_raw()` / `oh3_init_raw()` install the particle buffer
+  pointer into the default context state.
+- `oh_transbound()` and `oh_context_transbound2/3()` read and mutate that
+  installed buffer.
+- `nphgram`, `totalp`, and `pbase` are also retained as borrowed mutable
+  accounting state. `transbound` consumes and rebuilds histogram/count data and
+  updates the primary/secondary boundary values.
+- User-owned buffers are borrowed. OhHelp does not own their lifetime.
+- OhHelp-allocated buffers are owned by the current default context state.
+- The active particle adapter, MPI datatype, callbacks, and callback-owned
+  state must remain valid while a buffer is bound.
+
+v2.x introduces explicit particle-buffer bind/unbind before fully independent
+non-default contexts:
+
+```c
+oh_context_bind_particles(ctx, particles, maxlocalp, OH_PARTICLES_BORROWED);
+oh_context_unbind_particles(ctx);
+```
+
+The ownership flag currently distinguishes:
+
+- `OH_PARTICLES_BORROWED`: borrowed application storage, where the application owns allocation and
+  lifetime;
+- `OH_PARTICLES_OWNED`: OhHelp-owned storage, where OhHelp allocates using the
+  active adapter stride and frees during unbind.
+
+This landed before full multiple-context independence because it separates the
+most important side effect from the global-state migration. The current
+implementation is still default-context backed; once the remaining global
+tables are migrated, a non-default context can own its particle-buffer binding
+without also solving every process-global table in the same change. If later
+APIs need a stricter contract, a read-only or externally synchronized ownership
+mode can be added without changing the borrowed/owned meanings.
+
+The same lifecycle boundary also applies to accounting state:
+
+```c
+oh_context_bind_particle_accounting(ctx, &nphgram, &totalp, &pbase,
+                                    OH_PARTICLES_BORROWED);
+oh_context_unbind_particle_accounting(ctx);
+```
+
+This keeps `nphgram`, `totalp`, and `pbase` visible as explicitly bound mutable
+state instead of another hidden user-storage mutation path.
+
 ## Verification
 
 The current Docker verification path is:

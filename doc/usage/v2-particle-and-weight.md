@@ -87,6 +87,63 @@ oh_particle_buffer(maxlocalp, &raw_particles);
 particles = raw_particles;
 ```
 
+### Particle buffer lifetime / ownership contract
+
+Current Level 2/3 initialization binds the particle buffer pointer into the
+default context state. Later `oh_transbound()` / `oh_context_transbound2()` /
+`oh_context_transbound3()` calls read and mutate that registered buffer.
+
+Initialization also binds the accounting arrays. `nphgram` is the
+region/species histogram used as transfer input and later cleared/rebuilt by
+OhHelp. `totalp` is updated as the primary/secondary particle count by species.
+`pbase` is updated as the primary, secondary, and total-local-particle boundary
+state. These arrays are borrowed mutable storage just like an application-owned
+particle buffer; keep them alive and layout-stable until the next
+initialization or an accounting unbind operation.
+
+If `raw_particles` points to application-owned storage, OhHelp treats it as a
+borrowed buffer. The application must keep that storage alive and stable until
+the next initialization or unbind operation. Do not free, reallocate, or
+move the array while OhHelp may still run a transfer step against it.
+
+If `raw_particles == NULL`, OhHelp allocates the buffer using the active adapter
+stride and writes the resulting pointer back through `void **pbuf`. That buffer
+is OhHelp-owned for the lifetime of the current default context state.
+
+The active adapter, its MPI datatype, callbacks, and any callback-owned user
+state must remain valid while a particle buffer is bound. `oh_transbound()` may
+reorder particles, update region fields through the adapter, move injected
+particles into the registered buffer, and update primary/secondary boundaries.
+
+The context API exposes explicit particle-buffer `bind/unbind` plus an
+ownership flag. This gives the current default-context design a clearer side
+effect boundary while the broader multiple-independent context work continues:
+
+```c
+oh_context_bind_particles(ctx, particles, maxlocalp, OH_PARTICLES_BORROWED);
+currmode = oh_context_transbound3(ctx, currmode, stats);
+oh_context_unbind_particles(ctx);
+```
+
+Use `OH_PARTICLES_OWNED` with a `NULL` pointer when OhHelp should allocate the
+buffer using the active adapter stride and free it during unbind.
+
+`oh_context_unbind_particles()` currently unbinds the particle buffer only. The
+matching accounting API is `oh_context_bind_particle_accounting()` /
+`oh_context_unbind_particle_accounting()`:
+
+```c
+oh_context_bind_particle_accounting(ctx, &nphgram, &totalp, &pbase,
+                                    OH_PARTICLES_BORROWED);
+currmode = oh_context_transbound3(ctx, currmode, stats);
+oh_context_unbind_particle_accounting(ctx);
+```
+
+Use `OH_PARTICLES_OWNED` with `NULL` slots when OhHelp should allocate
+`nphgram`, `totalp`, and `pbase` and free them during accounting unbind.
+Borrowed accounting arrays are not cleared by bind; initialize or update
+`nphgram` before the transfer step as usual.
+
 ## `mpi_type` の標準的な作り方
 
 `adapter.mpi_type` は、粒子 1 要素を MPI で送受信するための datatype です。

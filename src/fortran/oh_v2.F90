@@ -13,6 +13,9 @@ module ohhelp_v2
     type(c_ptr) :: ptr = c_null_ptr
   end type
 
+  integer(c_int), parameter, public :: OH_PARTICLES_BORROWED = 0_c_int
+  integer(c_int), parameter, public :: OH_PARTICLES_OWNED = 1_c_int
+
   type, bind(C) :: oh_mycomm_v2
     integer(c_int) :: prime
     integer(c_int) :: sec
@@ -73,6 +76,10 @@ module ohhelp_v2
   public :: oh_context_set_region_weights
   public :: oh_context_set_particle_mpi_type
   public :: oh_context_set_particle_adapter
+  public :: oh_context_bind_particles
+  public :: oh_context_unbind_particles
+  public :: oh_context_bind_particle_accounting
+  public :: oh_context_unbind_particle_accounting
   public :: oh_context_transbound1
   public :: oh_context_transbound2
   public :: oh_context_transbound3
@@ -133,6 +140,41 @@ module ohhelp_v2
       import :: c_ptr
       type(c_ptr), value :: context
       type(c_ptr), value :: adapter
+    end subroutine
+
+    function c_oh_context_bind_particles(context, particles, maxlocalp, &
+                                         ownership) &
+        bind(C, name="oh_fortran_context_bind_particles") result(bound)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: context
+      type(c_ptr), value :: particles
+      integer(c_int), value :: maxlocalp
+      integer(c_int), value :: ownership
+      type(c_ptr) :: bound
+    end function
+
+    subroutine c_oh_context_unbind_particles(context) &
+        bind(C, name="oh_fortran_context_unbind_particles")
+      import :: c_ptr
+      type(c_ptr), value :: context
+    end subroutine
+
+    subroutine c_oh_context_bind_particle_accounting(context, nphgram, &
+                                                     totalp, pbase, &
+                                                     ownership) &
+        bind(C, name="oh_fortran_context_bind_particle_accounting")
+      import :: c_ptr, c_int
+      type(c_ptr), value :: context
+      type(c_ptr) :: nphgram
+      type(c_ptr) :: totalp
+      type(c_ptr) :: pbase
+      integer(c_int), value :: ownership
+    end subroutine
+
+    subroutine c_oh_context_unbind_particle_accounting(context) &
+        bind(C, name="oh_fortran_context_unbind_particle_accounting")
+      import :: c_ptr
+      type(c_ptr), value :: context
     end subroutine
 
     function c_oh_context_transbound1(context, currmode, stats) &
@@ -505,6 +547,40 @@ contains
     adapter_ptr = c_null_ptr
     if (present(adapter)) adapter_ptr = adapter%ptr
     call c_oh_context_set_particle_adapter(context%ptr, adapter_ptr)
+  end subroutine
+
+  subroutine oh_context_bind_particles(context, particles, maxlocalp, ownership)
+    type(oh_context_handle), intent(in) :: context
+    type(c_ptr), intent(inout) :: particles
+    integer(c_int), intent(in) :: maxlocalp
+    integer(c_int), intent(in) :: ownership
+
+    particles = c_oh_context_bind_particles(context%ptr, particles, &
+                                            maxlocalp, ownership)
+  end subroutine
+
+  subroutine oh_context_unbind_particles(context)
+    type(oh_context_handle), intent(in) :: context
+
+    call c_oh_context_unbind_particles(context%ptr)
+  end subroutine
+
+  subroutine oh_context_bind_particle_accounting(context, nphgram, totalp, &
+                                                 pbase, ownership)
+    type(oh_context_handle), intent(in) :: context
+    type(c_ptr), intent(inout) :: nphgram
+    type(c_ptr), intent(inout) :: totalp
+    type(c_ptr), intent(inout) :: pbase
+    integer(c_int), intent(in) :: ownership
+
+    call c_oh_context_bind_particle_accounting(context%ptr, nphgram, &
+                                               totalp, pbase, ownership)
+  end subroutine
+
+  subroutine oh_context_unbind_particle_accounting(context)
+    type(oh_context_handle), intent(in) :: context
+
+    call c_oh_context_unbind_particle_accounting(context%ptr)
   end subroutine
 
   integer(c_int) function oh_context_transbound1(context, currmode, stats)

@@ -12,6 +12,7 @@
 #include "ohhelp1_internal.h"
 #include "oh_context_internal.h"
 #include "oh_load_balance.h"
+#include "oh_particle_ownership.h"
 
 /* Prototypes for private functions. */
 static void  count_stay_state(struct oh_state *state);
@@ -100,6 +101,7 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
 
   int nn, ns, me, i, s, clsize;
   int *nb = *nbor;
+  int nphgram_ownership, totalp_ownership;
   int bl[2]={1,1};
   MPI_Datatype tmptype[2]={MPI_DATATYPE_NULL, MPI_UB};
   MPI_Aint disp[2]={0, sizeof(int)};
@@ -117,9 +119,11 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
   ns = nOfSpecies = nspec;
   maxFraction = maxfrac;
 
+  nphgram_ownership = *nphgram ? OH_PARTICLES_BORROWED : OH_PARTICLES_OWNED;
   if (!*nphgram)
     *nphgram = (int*)mem_alloc(sizeof(int), 2*ns*nn, "NOfPLocal");
   NOfPLocal = *nphgram;
+  totalp_ownership = *totalp ? OH_PARTICLES_BORROWED : OH_PARTICLES_OWNED;
   if (!*totalp)  *totalp = (int*)mem_alloc(sizeof(int), 2*ns, "TotalP");
   TotalPNext = *totalp;
   TotalP = NULL;
@@ -254,6 +258,11 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
   statsMode = stats;
   reportIteration = repiter;
   oh1_sync_default_state();
+  OhDefaultState.particle_accounting_bound = 1;
+  OhDefaultState.n_of_particles_local_ownership = nphgram_ownership;
+  OhDefaultState.total_particles_next_ownership = totalp_ownership;
+  OhDefaultState.particle_base_bound = 0;
+  OhDefaultState.particle_base_ownership = OH_PARTICLES_BORROWED;
 }
 void
 oh1_set_region_weights_(double *weights) {
@@ -408,6 +417,8 @@ transbound1_state(struct oh_state *state, int currmode, int stats, int level) {
   dint nofp;
 
   Verbose(1,vprint("oh_transbound"));
+  if (!state->particle_accounting_bound)
+    local_errstop("particle accounting is not bound");
   if ((stats=state->stats_mode&&stats))
     oh1_stats_time_state(state, STATS_TRANSBOUND, 0);
   if (!totalp) {

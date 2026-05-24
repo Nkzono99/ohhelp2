@@ -9,12 +9,21 @@ main(void) {
   void *injected;
   void *primary = 0;
   void *secondary = 0;
+  int *nphgram = 0;
+  int *totalp = 0;
+  int *pbase = 0;
   double x = 0.0;
   double y = 0.0;
   double z = 0.0;
 
   oh_context_set_particle_mpi_type(context, MPI_DATATYPE_NULL);
   oh_context_set_particle_adapter(context, 0);
+  particle = oh_context_bind_particles(context, particle, 0,
+                                       OH_PARTICLES_OWNED);
+  oh_context_unbind_particles(context);
+  oh_context_bind_particle_accounting(context, &nphgram, &totalp, &pbase,
+                                      OH_PARTICLES_OWNED);
+  oh_context_unbind_particle_accounting(context);
   oh_context_set_region_weights(context, weights);
   (void)oh_context_transbound1(context, 0, 0);
   (void)oh_context_transbound2(context, 0, 0);

@@ -29,6 +29,9 @@ struct oh_state {
   dint *n_of_particles_to_stay;
   int *total_particles;
   int *total_particles_next;
+  int particle_accounting_bound;
+  int n_of_particles_local_ownership;
+  int total_particles_next_ownership;
   int *injected_particles;
   int *n_of_recv;
   int *n_of_send;
@@ -56,10 +59,14 @@ struct oh_state {
   struct S_mycommf *my_comm_f;
   int n_of_local_particles_limit;
   void *particles;
+  int particle_buffer_bound;
+  int particle_buffer_ownership;
   void *send_buffer;
   void **recv_buffer_bases;
   int *secondary_base;
   int *total_local_particles;
+  int particle_base_bound;
+  int particle_base_ownership;
   int *send_buffer_disps;
   int *recv_buffer_disps;
   int n_of_injections;
@@ -138,5 +145,9 @@ extern struct oh_state OhDefaultState;
 void oh1_sync_default_state(void);
 void oh1_set_region_weights_state(struct oh_state *state,
                                   const double *weights);
+void oh_context_bind_particle_accounting_state(struct oh_state *state,
+                                               int **nphgram, int **totalp,
+                                               int **pbase, int ownership);
+void oh_context_unbind_particle_accounting_state(struct oh_state *state);
 
 #endif

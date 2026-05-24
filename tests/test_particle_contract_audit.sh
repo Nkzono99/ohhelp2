@@ -165,6 +165,38 @@ check_present 'callback adapter' \
   doc/usage/v2-particle-and-weight-fortran.md
 check_present 'custom particle layout の raw init' \
   doc/usage/v2-particle-and-weight-fortran.md
+check_present 'raw init の lifetime / ownership contract' \
+  doc/usage/v2-particle-and-weight-fortran.md
+check_present 'mutable accounting state' \
+  doc/usage/v2-particle-and-weight-fortran.md
+check_present 'borrowed buffer' doc/usage/v2-particle-and-weight.md
+check_present 'accounting arrays' doc/usage/v2-particle-and-weight.md
+check_present 'Particle Buffer Ownership' doc/design/v2-redesign.md
+check_present 'nphgram.*totalp.*pbase' doc/design/v2-redesign.md
+check_present 'bind/unbind' doc/design/v2-redesign.md
+check_present 'before full multiple-context independence' \
+  doc/design/v2-redesign.md
+check_present 'OH_PARTICLES_BORROWED' include/oh_particle_ownership.h
+check_present 'OH_PARTICLES_OWNED' include/oh_particle_ownership.h
+check_present 'oh_context_bind_particles' include/oh_context.h
+check_present 'oh_context_bind_particle_accounting' include/oh_context.h
+check_present 'oh_context_bind_particles' src/c/oh_context.c
+check_present 'oh_context_bind_particle_accounting' src/c/oh_context.c
+check_present 'oh_context_bind_particles' src/fortran/oh_v2.F90
+check_present 'oh_context_bind_particle_accounting' src/fortran/oh_v2.F90
+check_present 'oh_context_unbind_particles' src/fortran/oh_v2.F90
+check_present 'oh_context_unbind_particle_accounting' src/fortran/oh_v2.F90
+check_present 'oh_fortran_context_bind_particles' include/oh_fortran_v2.h
+check_present 'oh_fortran_context_bind_particle_accounting' \
+  include/oh_fortran_v2.h
+check_present 'oh_fortran_context_bind_particles' src/c/oh_fortran_v2.c
+check_present 'oh_fortran_context_bind_particle_accounting' \
+  src/c/oh_fortran_v2.c
+check_present 'particle_buffer_bound' src/c/oh_context_internal.h
+check_present 'particle_accounting_bound' src/c/oh_context_internal.h
+check_present 'oh2_bind_particle_buffer_state' src/c/ohhelp2_internal.h
+check_present 'particle buffer is not bound' src/c/ohhelp2.c
+check_present 'particle accounting is not bound' src/c/ohhelp1.c
 check_present 'oh3_init_raw' src/fortran/oh_v2.F90
 check_present 'oh_fortran_oh3_init_raw' src/c/oh_fortran_v2.c
 check_present 'oh3_init_raw' tests/test_oh_v2_fortran.F90
@@ -186,6 +218,12 @@ check_present 'oh_set_particle_position_fields' sample/level3_custom_particle.c
 check_present 'oh_particle_adapter_use_integer_fields' \
   sample/level3_custom_particle.c
 check_present 'oh_context_set_region_weights' tests/test_oh_context_header.c
+check_present 'oh_context_bind_particles' tests/test_oh_context_header.c
+check_present 'oh_context_bind_particle_accounting' \
+  tests/test_oh_context_header.c
+check_present 'oh_context_bind_particles' tests/test_oh_v2_fortran.F90
+check_present 'oh_context_bind_particle_accounting' \
+  tests/test_oh_v2_fortran.F90
 check_present 'oh_context_transbound3' tests/test_oh_context_header.c
 check_present 'oh_context_inject_particle_get' tests/test_oh_context_header.c
 check_present 'oh_context_map_particle_to_neighbor' tests/test_oh_context_header.c

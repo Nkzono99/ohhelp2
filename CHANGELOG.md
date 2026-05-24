@@ -1,5 +1,40 @@
 # Changelog
 
+## v2.1.1 - 2026-05-24
+
+This patch release keeps the supported scope at Level 1-3 and promotes the
+non-default context path from migration-only smoke coverage to a runtime-covered
+C/Fortran use path.
+
+### Added
+
+- Added named public `currmode` constants for C and Fortran:
+  - `OH_MODE_NORMAL_PRIMARY`
+  - `OH_MODE_NORMAL_SECONDARY`
+  - `OH_MODE_REBALANCE_SECONDARY`
+  - `OH_MODE_ANY_PRIMARY`
+  - `OH_MODE_ANY_SECONDARY`
+- Added C and Fortran runtime smoke coverage for two heap-owned non-default
+  contexts on the same communicator.
+- Added direct runtime coverage for `oh_context_transbound1()`,
+  `oh_context_transbound2()`, and `oh_context_transbound3()` on non-default
+  contexts.
+
+### Changed
+
+- Level-2 injection state entry points now preserve layout opacity by accepting
+  `void *` particle pointers internally instead of forcing context callers back
+  through `struct S_particle *`.
+- Documentation now states that C and Fortran can use non-default Level 1-3
+  contexts, with Level 3 geometry, mapping, field facade, particle/accounting
+  binding, and transbound calls covered by Docker runtime tests.
+
+### Verification
+
+- `bash tests/test_particle_contract_audit.sh`
+- Docker build/runtime smoke using Ubuntu 24.04 with `mpicc`, `gfortran`,
+  `mpich`, and `libmpich-dev`: `scripts/docker-build-test.sh`
+
 ## v2.1.0 - 2026-05-24
 
 This minor release keeps the supported scope at Level 1-3 and adds explicit

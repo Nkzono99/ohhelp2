@@ -14,7 +14,7 @@ The v2 line intentionally changes APIs and implementation boundaries where that
 is useful for cleaner context handling, external particle layouts, and weighted
 load balancing.
 
-v2.0 targets supported use of Level 1-3. Level 4p/4s source files are kept under
+The current v2 line supports Level 1-3. Level 4p/4s source files are kept under
 compile coverage, but the supported v2 API for Level 4 is deferred to v2.x.
 
 Fortran users can use the Level 1-3 modules with the default `type(oh_particle)`
@@ -22,6 +22,11 @@ layout. The `ohhelp_v2` module also exposes the v2 context facade and opaque
 particle adapter handles. Arbitrary Fortran particle layouts can use the
 `ohhelp_v2` raw init bridge (`oh2_init_raw()` / `oh3_init_raw()`) with `c_loc()`
 and a registered particle adapter.
+
+C and Fortran both have runtime-covered non-default context paths for Level 1-3.
+The Docker smoke tests create two heap-owned contexts on the same communicator,
+configure Level 3 geometry, bind independent particle/accounting state, and call
+`oh_context_transbound1/2/3` through C and `ohhelp_v2`.
 
 ## Install
 ``` toml

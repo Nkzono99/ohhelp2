@@ -1,5 +1,48 @@
 # Changelog
 
+## v2.1.0 - 2026-05-24
+
+This minor release keeps the supported scope at Level 1-3 and adds explicit
+lifecycle control for the mutable particle state that OhHelp stores in the
+default context.
+
+### Added
+
+- Added particle-buffer binding APIs:
+  - `oh_context_bind_particles()`
+  - `oh_context_unbind_particles()`
+- Added particle accounting binding APIs for `nphgram`, `totalp`, and `pbase`:
+  - `oh_context_bind_particle_accounting()`
+  - `oh_context_unbind_particle_accounting()`
+- Added storage ownership flags:
+  - `OH_PARTICLES_BORROWED`
+  - `OH_PARTICLES_OWNED`
+- Added matching Fortran `ohhelp_v2` bindings for particle buffer and
+  accounting state binding.
+- Added guards so transfer calls fail clearly when required particle buffer or
+  accounting state is not bound.
+
+### Documentation
+
+- Documented the lifetime and ownership contract for particle buffers,
+  accounting arrays, adapters, MPI datatypes, and callback state.
+- Clarified that explicit binding currently targets the default context, while
+  fully independent non-default contexts remain the next v2.x refactor.
+
+### Release Scope
+
+- Level 1-3 remain the supported API surface.
+- Level 4p/4s remain under compile coverage only; full v2 support is deferred
+  to v2.x.
+- This release is intended as the last checkpoint before continuing the global
+  context migration.
+
+### Verification
+
+- `bash tests/test_particle_contract_audit.sh`
+- Docker build smoke using Ubuntu 24.04 with `mpicc`, `gfortran`, `mpich`, and
+  `libmpich-dev`: `scripts/docker-build-test.sh`
+
 ## v2.0.1 - 2026-05-23
 
 This patch release keeps the v2.0 supported scope at Level 1-3 and adds the

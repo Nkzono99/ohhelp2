@@ -10,8 +10,19 @@ v2.0 では Level 1-3 を supported scope とします。Level 4p/4s は v2.x �
 
 ## 共通 API
 
-Fortran では `ohhelp_f.h` の `oh_*` alias と `ohhelp1` / `ohhelp2` /
-`ohhelp3` module を使います。v2 context/adapter API は `ohhelp_v2` module です。
+Fortran では、従来 API と v2 facade で使う module が分かれます。
+`ohhelp_f.h` の `oh_*` alias、`oh_init()`、`oh_transbound()`、default
+`type(oh_particle)` 配列を使う場合は `ohhelp1` / `ohhelp2` / `ohhelp3`
+module を使います。v2 context/adapter/raw-init API だけを使う場合は
+`ohhelp_v2` module だけで足ります。
+
+| 経路 | 必要な module |
+| --- | --- |
+| Level 1 legacy API | `use ohhelp1` |
+| Level 2 legacy API | `use ohhelp2` |
+| Level 3 legacy API | `use ohhelp3` |
+| v2 context / adapter / raw init bridge | `use iso_c_binding`; `use ohhelp_v2` |
+| legacy API と v2 facade の併用 | 対象 level の `ohhelp*`; `use ohhelp_v2` |
 
 | API | 呼ぶ段階 | 目的 |
 | --- | --- | --- |

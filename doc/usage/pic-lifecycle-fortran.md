@@ -20,12 +20,22 @@ module simulator
 end module
 ```
 
-v2 の context/adapter API を使う場合は `ohhelp_v2` も使います。
+v2 の context/adapter API だけを使う場合は `ohhelp_v2` だけで足ります。
+従来の `oh_init()` / `oh_transbound()` alias や `type(oh_particle)` の
+Level 3 API も同じコードで使う場合は、`ohhelp3` と `ohhelp_v2` を併用します。
 
 ```fortran
 use iso_c_binding
 use ohhelp_v2
 ```
+
+使い分け:
+
+| 経路 | 必要な module |
+| --- | --- |
+| 従来の `oh_init()` / `oh_transbound()` / `type(oh_particle)` | `use ohhelp3` |
+| v2 context / adapter / raw init bridge | `use iso_c_binding`; `use ohhelp_v2` |
+| 従来 API と v2 facade を混ぜる | `use ohhelp3`; `use ohhelp_v2` |
 
 ## 2. 初期化前に利用側のデータ構造を決める
 

@@ -27,8 +27,11 @@
 usage guide は C 版と Fortran 版を別ページとして mirror します。各ページの
 冒頭に相互リンクを置き、章立てと概念の順番はできるだけ揃えます。C 版は
 `ohhelp_c.h`、`oh_context *`、`oh_particle_adapter` を直接使う例を載せます。
-Fortran 版は `ohhelp_f.h` / `ohhelp1` / `ohhelp2` / `ohhelp3` と、
-v2 の `ohhelp_v2` opaque handle API を使う例を載せます。
+Fortran 版は、従来 API 用の `ohhelp_f.h` / `ohhelp1` / `ohhelp2` /
+`ohhelp3` と、v2 context/adapter/raw-init 用の `ohhelp_v2` opaque handle
+API を分けて説明します。`ohhelp_v2` だけで v2 facade は使えますが、
+従来の `oh_init()` / `oh_transbound()` alias や `type(oh_particle)` 経路を
+同じコードで使う場合は対象 level の `ohhelp*` module も併用します。
 
 ## 現在の実装ステータス
 

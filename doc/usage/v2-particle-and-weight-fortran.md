@@ -14,7 +14,11 @@ offset/callback を設定できる低レベル bridge です。任意 Fortran pa
 
 ## Particle adapter
 
-Fortran では `ohhelp_v2` module の opaque handle を使います。
+Fortran では `ohhelp_v2` module の opaque handle を使います。このページで扱う
+context / adapter / raw init bridge だけなら、`use ohhelp3` は不要です。
+従来の `oh_init()` / `oh_transbound()` alias や default `type(oh_particle)`
+配列の Level 3 API も同じ translation unit で使う場合だけ、`use ohhelp3`
+を併用します。
 
 ```fortran
 use iso_c_binding

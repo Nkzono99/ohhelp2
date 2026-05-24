@@ -33,6 +33,10 @@ binary layout, or behavior is not a constraint unless a task explicitly says so.
 
 ## Engineering Notes
 
+- When handling GitHub issues or issue comments, use the repository-local
+  skill at `.agents/skills/ohhelp-issue-response/SKILL.md`. Treat issues as
+  evidence to analyze against the long-term v2 design, not as literal specs to
+  implement blindly.
 - Treat the old PDF manuals as historical references, not binding v2 specs.
 - Prefer small, compilable migration steps over large rewrites that leave the
   library half-converted.

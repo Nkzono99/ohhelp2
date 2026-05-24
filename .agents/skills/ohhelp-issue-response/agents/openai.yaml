@@ -1,0 +1,7 @@
+interface:
+  display_name: "OhHelp Issue Response"
+  short_description: "Evaluate issues against long-term v2 design"
+  default_prompt: "Use $ohhelp-issue-response to handle this OhHelp v2 issue with long-term design fit in mind."
+
+policy:
+  allow_implicit_invocation: true

@@ -2,6 +2,11 @@
 set -eu
 
 mkdir -p build/docker
+mkdir -p build/docker/posaware
+
+run_mpi() {
+  timeout 60s mpirun "$@"
+}
 
 mpicc -Iinclude -c src/c/oh_load_balance.c -o build/docker/oh_load_balance.o
 mpicc -Iinclude -c src/c/oh_particle_adapter.c -o build/docker/oh_particle_adapter.o
@@ -42,13 +47,38 @@ mpicc -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
   src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c \
   -o build/docker/test_oh_context_lifecycle
-mpirun -n 1 build/docker/test_oh_context_lifecycle
-mpirun -n 2 build/docker/test_oh_context_lifecycle
+run_mpi -n 1 build/docker/test_oh_context_lifecycle
+run_mpi -n 2 build/docker/test_oh_context_lifecycle
 mpicc -DOH_POS_AWARE -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
   src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c \
   -o build/docker/test_oh_context_lifecycle_posaware
-mpirun -n 2 build/docker/test_oh_context_lifecycle_posaware
+run_mpi -n 2 build/docker/test_oh_context_lifecycle_posaware
+mpicc -DOH_POS_AWARE -Iinclude -c src/c/oh_load_balance.c \
+  -o build/docker/posaware/oh_load_balance.o
+mpicc -DOH_POS_AWARE -Iinclude -c src/c/oh_particle_adapter.c \
+  -o build/docker/posaware/oh_particle_adapter.o
+mpicc -DOH_POS_AWARE -Iinclude -c src/c/oh_context.c \
+  -o build/docker/posaware/oh_context.o
+mpicc -DOH_POS_AWARE -Iinclude -c src/c/oh_fortran_v2.c \
+  -o build/docker/posaware/oh_fortran_v2.o
+mpicc -DOH_POS_AWARE -Iinclude -c src/c/ohhelp1.c \
+  -o build/docker/posaware/ohhelp1.o
+mpicc -DOH_POS_AWARE -Iinclude -c src/c/ohhelp2.c \
+  -o build/docker/posaware/ohhelp2.o
+mpicc -DOH_POS_AWARE -Iinclude -c src/c/ohhelp3.c \
+  -o build/docker/posaware/ohhelp3.o
+gfortran -cpp -Iinclude -Jbuild/docker/posaware -c src/fortran/oh_v2.F90 \
+  -o build/docker/posaware/oh_v2.o
+mpifort -cpp -Iinclude -Ibuild/docker/posaware -Jbuild/docker/posaware \
+  tests/test_oh_context_lifecycle_fortran.F90 \
+  build/docker/posaware/oh_v2.o build/docker/posaware/oh_context.o \
+  build/docker/posaware/oh_fortran_v2.o \
+  build/docker/posaware/oh_particle_adapter.o \
+  build/docker/posaware/oh_load_balance.o build/docker/posaware/ohhelp1.o \
+  build/docker/posaware/ohhelp2.o build/docker/posaware/ohhelp3.o \
+  -o build/docker/posaware/test_oh_context_lifecycle_fortran
+run_mpi -n 2 build/docker/posaware/test_oh_context_lifecycle_fortran
 mpifort -cpp -Iinclude -Ibuild/docker -Jbuild/docker \
   tests/test_oh_context_lifecycle_fortran.F90 \
   build/docker/oh_v2.o build/docker/oh_type.o build/docker/oh_context.o \
@@ -56,8 +86,8 @@ mpifort -cpp -Iinclude -Ibuild/docker -Jbuild/docker \
   build/docker/oh_load_balance.o build/docker/ohhelp1.o \
   build/docker/ohhelp2.o build/docker/ohhelp3.o \
   -o build/docker/test_oh_context_lifecycle_fortran
-mpirun -n 1 build/docker/test_oh_context_lifecycle_fortran
-mpirun -n 2 build/docker/test_oh_context_lifecycle_fortran
+run_mpi -n 1 build/docker/test_oh_context_lifecycle_fortran
+run_mpi -n 2 build/docker/test_oh_context_lifecycle_fortran
 mpicc -Iinclude tests/test_ohhelp_c_header.c \
   -c -o build/docker/test_ohhelp_c_header.o
 mpicc -Iinclude tests/test_ohhelp2_header.c \
@@ -84,7 +114,7 @@ build/docker/test_oh_load_balance
 
 mpicc -Iinclude tests/test_oh_particle_adapter.c src/c/oh_particle_adapter.c \
   -o build/docker/test_oh_particle_adapter
-mpirun -n 1 build/docker/test_oh_particle_adapter
+run_mpi -n 1 build/docker/test_oh_particle_adapter
 
 mpicc -Iinclude tests/test_oh_particle_adapter_callbacks.c \
   src/c/oh_particle_adapter.c \
@@ -93,6 +123,6 @@ build/docker/test_oh_particle_adapter_callbacks
 
 mpicc -Iinclude -Isrc/c tests/test_oh_particle_buffer.c \
   src/c/oh_particle_adapter.c -o build/docker/test_oh_particle_buffer
-mpirun -n 1 build/docker/test_oh_particle_buffer
+run_mpi -n 1 build/docker/test_oh_particle_buffer
 
 bash tests/test_particle_contract_audit.sh

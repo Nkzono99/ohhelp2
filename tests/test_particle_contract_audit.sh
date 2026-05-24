@@ -147,7 +147,12 @@ check_present 'src/c/oh_fortran_v2\.c' scripts/docker-build-test.sh
 check_present 'src/fortran/oh_v2\.F90' scripts/docker-build-test.sh
 check_present 'tests/test_oh_v2_fortran\.F90' scripts/docker-build-test.sh
 check_present 'tests/test_oh_context_lifecycle\.c' scripts/docker-build-test.sh
+check_present 'run_localized_secondary_test' tests/test_oh_context_lifecycle.c
 check_present 'test_oh_context_lifecycle_posaware' scripts/docker-build-test.sh
+check_present 'posaware/test_oh_context_lifecycle_fortran' \
+  scripts/docker-build-test.sh
+check_present 'run_mpi\(\)' scripts/docker-build-test.sh
+check_present 'timeout 60s mpirun' scripts/docker-build-test.sh
 check_present 'ffree-line-length-none' scripts/docker-build-test.sh
 check_present 'EPSILON=1\.0d0,MU=1\.0d0' sample/sample.F90
 check_present 'particle adapter handles' README.md

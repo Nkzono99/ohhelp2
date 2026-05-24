@@ -63,10 +63,11 @@ v2 の context facade と particle adapter 設定 API は `src/fortran/oh_v2.F90
 `ohhelp_v2` module からも使えます。Fortran 側では C 構造体を直接公開せず、
 `type(oh_context_handle)` と `type(oh_particle_adapter_handle)` の opaque handle
 として扱います。raw init bridge では粒子バッファを `type(c_ptr)` として受け渡し、
-custom adapter の stride/datatype で Level 2/3 の粒子移動を行います。複数 context
-の完全な独立運用は引き続き v2.x の対象ですが、heap-owned non-default context での
-Level 3 geometry、mapping、field facade、Level 1-3 `transbound` は C/Fortran の
-Docker runtime test で 1 rank / 2 rank ともに確認しています。
+custom adapter の stride/datatype で Level 2/3 の粒子移動を行います。heap-owned
+non-default context での Level 3 geometry、mapping、field facade、Level 1-3
+`transbound` は Docker runtime test で 1 rank / 2 rank ともに確認しています。
+C/Fortran ともに同一 communicator 上の 2 つの non-default context を smoke-test
+し、C 側では別々の Level 3 geometry と adapter state を保持できることも確認しています。
 
 Level 4p/4s は v2.x の継続対応対象です。v2.0 では既存コードの compile
 coverage と移行中の実装境界を維持しますが、custom particle layout を含む
@@ -92,6 +93,6 @@ coverage と移行中の実装境界を維持しますが、custom particle layo
   `OH_LIB_LEVEL` に対応する実体へ展開されます。
 - v2 では、後方互換よりも明示的な context、外部 particle layout、
   region weight を使う負荷分散を優先します。
-- 現在の実装は default context を中心に移行中です。non-default context は
-  Level 1-3 `transbound`、Level 3 geometry/mapping/field facade まで実行できますが、
-  複数 context を同時に使う複数 rank 実 workload での検証はまだ残っています。
+- 現在の実装は default context との併存期間です。non-default context は
+  Level 1-3 `transbound`、Level 3 geometry/mapping/field facade まで実行でき、
+  C runtime smoke では複数 context の基本的な独立性も確認しています。

@@ -83,8 +83,10 @@ call oh_context_destroy(owned)
 現時点の non-default context は、species/max-fraction 設定、region weight、particle adapter、
 particle buffer/accounting binding、Level 1/2 work buffer、Level 3 geometry/field
 descriptor、Level 1-3 の `transbound` state を保持できます。Level 1 collective、
-Level 3 mapping/field exchange も context state を使います。複数 context の完全な
-独立運用では、実コードの複数 rank / 複数 context workload での検証がまだ残っています。
+Level 3 mapping/field exchange も context state を使います。Fortran runtime smoke
+では同一 communicator 上の 2 つの non-default context が異なる Level 3 geometry
+を保持できることを 1 rank / 2 rank で確認し、C runtime smoke では context-local
+adapter state の独立性も確認しています。
 
 Level 1 collective、Level 2 injection、Level 3 mapping/field exchange も
 `oh_context_*` から呼べます。field や particle を渡す API では `c_loc()` で

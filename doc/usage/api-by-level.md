@@ -44,7 +44,7 @@ v2.0 では Level 1-3 を supported scope とします。Level 4p/4s は v2.x �
 ## Context API
 
 v2.0 では C の `oh_default_context()` で現在の default OhHelp instance を
-`oh_context *` として取得できます。完全な複数 context 独立運用は v2.x 以降の対象ですが、
+`oh_context *` として取得できます。heap-owned non-default context でも
 Level 1-3 の主要操作には context-facing wrapper を用意しています。
 
 代表例:
@@ -84,8 +84,9 @@ oh_context_destroy(owned);
 現時点の non-default context は、species/max-fraction 設定、region weight、particle adapter、
 particle buffer/accounting binding、Level 1/2 work buffer、Level 3 geometry/field
 descriptor、Level 1-3 の `transbound` state を保持できます。Level 1 collective、
-Level 3 mapping/field exchange も context state を使います。複数 context の完全な
-独立運用では、実コードの複数 rank / 複数 context workload での検証がまだ残っています。
+Level 3 mapping/field exchange も context state を使います。C runtime smoke では、
+同一 communicator 上の 2 つの non-default context が異なる Level 3 geometry と
+adapter state を保持できることを 1 rank / 2 rank で確認しています。
 
 Level 1 の collective は `oh_context_broadcast()` /
 `oh_context_all_reduce()` / `oh_context_reduce()`、Level 2 の注入粒子操作は

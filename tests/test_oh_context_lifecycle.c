@@ -8,6 +8,7 @@
 #include "ohhelp1_internal.h"
 #include "oh_context_internal.h"
 #include "ohhelp3.h"
+#include "ohhelp3_internal.h"
 
 struct pic_particle {
   double x;
@@ -17,16 +18,8 @@ struct pic_particle {
   int species;
 };
 
-int
-main(int argc, char **argv) {
-  oh_context *context = 0;
-  oh_particle_adapter adapter;
-  MPI_Datatype pic_type = MPI_DATATYPE_NULL;
-  double *weights = 0;
-  struct pic_particle particles[4] = {{0}};
-  int *nphgram = 0;
-  int *totalp = 0;
-  int *pbase = 0;
+static void
+configure_level3_context(oh_context *context, int nranks, int axis) {
   int pcoord[OH_DIMENSION] = {0};
   int scoord[OH_DIMENSION][2] = {{0}};
   int bcond[OH_DIMENSION][2] = {{0}};
@@ -35,31 +28,12 @@ main(int argc, char **argv) {
   int ctypes[1][2][OH_CTYPE_N] = {{{0}}};
   int fsizes[1][OH_DIMENSION][2] = {{{0}}};
   double gsize[OH_DIMENSION] = {0.0};
-  double x = 0.5;
-  double y = 0.5;
-  double z = 0.5;
-  double field[8] = {0.0};
-  int rank = 0;
-  int n = 0;
-  int err;
-
-  MPI_Init(&argc, &argv);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &n);
-
-  weights = (double*)calloc((size_t)n, sizeof(*weights));
-  assert(weights);
-  for (int i=0; i<n; i++) weights[i] = 1.0;
-
-  err = oh_context_create(MPI_COMM_WORLD, &context);
-  assert(err == MPI_SUCCESS);
-  assert(context);
 
   oh_context_configure_particles(context, 1, 20);
   for (int i=0; i<OH_DIMENSION; i++) {
-    pcoord[i] = (i==0) ? n : 1;
-    scoord[i][0] = 0;
-    scoord[i][1] = pcoord[i];
+    pcoord[i] = (i==axis) ? nranks : 1;
+    scoord[i][OH_LOWER] = 0;
+    scoord[i][OH_UPPER] = pcoord[i];
     gsize[i] = 1.0;
   }
   ftypes[0][OH_FTYPE_ES] = 1;
@@ -73,19 +47,102 @@ main(int argc, char **argv) {
                               &bcond[0][0], 0, &ftypes[0][0], cfields,
                               &ctypes[0][0][0], &fsizes[0][0][0]);
   oh_context_grid_size(context, gsize);
-  assert(oh_context_map_particle_to_subdomain(context, x, y, z) == 0);
-  assert(oh_context_map_particle_to_neighbor(context, &x, &y, &z, 0) == 0);
-  oh_context_bcast_field(context, field, field, 0);
-  oh_context_reduce_field(context, field, field, 0);
-  oh_context_allreduce_field(context, field, field, 0);
-  oh_context_set_region_weights(context, weights);
-  particles[0].x = ((double)rank + 0.5) / (double)n;
-  particles[0].y = 0.5;
-  particles[0].z = 0.5;
-  assert(oh_particle_adapter_make_byte_type(sizeof(particles[0]),
+}
+
+static void
+set_custom_adapter(oh_context *context, const oh_particle_adapter *adapter) {
+  oh_context_set_particle_adapter(context, adapter);
+  assert(context->particle_adapter);
+  assert(context->particle_adapter->user_data == context);
+  assert(context->particle_adapter->map_to_subdomain);
+  assert(context->particle_adapter->map_to_neighbor);
+}
+
+int
+main(int argc, char **argv) {
+  oh_context *context_x = 0;
+  oh_context *context_y = 0;
+  oh_particle_adapter adapter;
+  MPI_Datatype pic_type = MPI_DATATYPE_NULL;
+  double *weights = 0;
+  struct pic_particle particles_x[4] = {{0}};
+  struct pic_particle particles_y[4] = {{0}};
+  int *nphgram_x = 0;
+  int *totalp_x = 0;
+  int *pbase_x = 0;
+  int *nphgram_y = 0;
+  int *totalp_y = 0;
+  int *pbase_y = 0;
+  double coord_x[3] = {0.5, 0.5, 0.5};
+  double coord_y[3] = {0.5, 0.5, 0.5};
+  double field[8] = {0.0};
+  int rank = 0;
+  int n = 0;
+  int err;
+
+  MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &n);
+
+  weights = (double*)calloc((size_t)n, sizeof(*weights));
+  assert(weights);
+  for (int i=0; i<n; i++) weights[i] = 1.0;
+
+  err = oh_context_create(MPI_COMM_WORLD, &context_x);
+  assert(err == MPI_SUCCESS);
+  assert(context_x);
+  err = oh_context_create(MPI_COMM_WORLD, &context_y);
+  assert(err == MPI_SUCCESS);
+  assert(context_y);
+  assert(context_x != context_y);
+
+  configure_level3_context(context_x, n, OH_DIM_X);
+#if OH_DIMENSION >= 2
+  configure_level3_context(context_y, n, OH_DIM_Y);
+#else
+  configure_level3_context(context_y, n, OH_DIM_X);
+#endif
+
+  assert(context_x->grid[OH_DIM_X].n == n);
+#if OH_DIMENSION >= 2
+  assert(context_x->grid[OH_DIM_Y].n == 1);
+  assert(context_y->grid[OH_DIM_X].n == 1);
+  assert(context_y->grid[OH_DIM_Y].n == n);
+#endif
+
+  coord_x[OH_DIM_X] = ((double)rank + 0.5) / (double)n;
+#if OH_DIMENSION >= 2
+  coord_y[OH_DIM_Y] = ((double)rank + 0.5) / (double)n;
+#else
+  coord_y[OH_DIM_X] = ((double)rank + 0.5) / (double)n;
+#endif
+  assert(oh_context_map_particle_to_subdomain(
+           context_x, coord_x[0], coord_x[1], coord_x[2]) == rank);
+  assert(oh_context_map_particle_to_subdomain(
+           context_y, coord_y[0], coord_y[1], coord_y[2]) == rank);
+  assert(oh_context_map_particle_to_neighbor(
+           context_x, coord_x, coord_x+1, coord_x+2, 0) == rank);
+  assert(oh_context_map_particle_to_neighbor(
+           context_y, coord_y, coord_y+1, coord_y+2, 0) == rank);
+  oh_context_bcast_field(context_x, field, field, 0);
+  oh_context_reduce_field(context_x, field, field, 0);
+  oh_context_allreduce_field(context_x, field, field, 0);
+  oh_context_bcast_field(context_y, field, field, 0);
+  oh_context_reduce_field(context_y, field, field, 0);
+  oh_context_allreduce_field(context_y, field, field, 0);
+  oh_context_set_region_weights(context_x, weights);
+  oh_context_set_region_weights(context_y, weights);
+
+  particles_x[0].x = coord_x[0];
+  particles_x[0].y = coord_x[1];
+  particles_x[0].z = coord_x[2];
+  particles_y[0].x = coord_y[0];
+  particles_y[0].y = coord_y[1];
+  particles_y[0].z = coord_y[2];
+  assert(oh_particle_adapter_make_byte_type(sizeof(particles_x[0]),
                                             &pic_type) == MPI_SUCCESS);
   adapter = oh_default_particle_adapter(pic_type);
-  adapter.stride = sizeof(particles[0]);
+  adapter.stride = sizeof(particles_x[0]);
   oh_particle_adapter_use_int_fields(&adapter,
                                      offsetof(struct pic_particle, region),
                                      offsetof(struct pic_particle, species));
@@ -93,22 +150,40 @@ main(int argc, char **argv) {
                                            offsetof(struct pic_particle, x),
                                            offsetof(struct pic_particle, y),
                                            offsetof(struct pic_particle, z));
-  oh_context_set_particle_adapter(context, &adapter);
-  assert(context->particle_adapter);
-  assert(context->particle_adapter->user_data == context);
-  assert(context->particle_adapter->map_to_subdomain(
-           context->particle_adapter, &particles[0], 0) == rank);
-  oh_context_bind_particles(context, particles, 4, OH_PARTICLES_BORROWED);
-  oh_context_bind_particle_accounting(context, &nphgram, &totalp, &pbase,
-                                      OH_PARTICLES_OWNED);
-  assert(nphgram);
-  assert(totalp);
-  assert(pbase);
-  assert(oh_context_transbound3(context, OH_MODE_NORMAL_PRIMARY, 0) ==
+  set_custom_adapter(context_x, &adapter);
+  set_custom_adapter(context_y, &adapter);
+  assert(context_x->particle_adapter != context_y->particle_adapter);
+  assert(context_x->particle_adapter->map_to_subdomain(
+           context_x->particle_adapter, &particles_x[0], 0) == rank);
+  assert(context_y->particle_adapter->map_to_subdomain(
+           context_y->particle_adapter, &particles_y[0], 0) == rank);
+
+  oh_context_bind_particles(context_x, particles_x, 4, OH_PARTICLES_BORROWED);
+  oh_context_bind_particle_accounting(context_x, &nphgram_x, &totalp_x,
+                                      &pbase_x, OH_PARTICLES_OWNED);
+  oh_context_bind_particles(context_y, particles_y, 4, OH_PARTICLES_BORROWED);
+  oh_context_bind_particle_accounting(context_y, &nphgram_y, &totalp_y,
+                                      &pbase_y, OH_PARTICLES_OWNED);
+  assert(nphgram_x);
+  assert(totalp_x);
+  assert(pbase_x);
+  assert(nphgram_y);
+  assert(totalp_y);
+  assert(pbase_y);
+  assert(nphgram_x != nphgram_y);
+  assert(totalp_x != totalp_y);
+  assert(pbase_x != pbase_y);
+  assert(oh_context_transbound3(context_x, OH_MODE_NORMAL_PRIMARY, 0) ==
          OH_MODE_NORMAL_PRIMARY);
-  oh_context_unbind_particle_accounting(context);
-  oh_context_unbind_particles(context);
-  oh_context_destroy(context);
+  assert(oh_context_transbound3(context_y, OH_MODE_NORMAL_PRIMARY, 0) ==
+         OH_MODE_NORMAL_PRIMARY);
+
+  oh_context_unbind_particle_accounting(context_x);
+  oh_context_unbind_particles(context_x);
+  oh_context_unbind_particle_accounting(context_y);
+  oh_context_unbind_particles(context_y);
+  oh_context_destroy(context_x);
+  oh_context_destroy(context_y);
   MPI_Type_free(&pic_type);
 
   free(weights);

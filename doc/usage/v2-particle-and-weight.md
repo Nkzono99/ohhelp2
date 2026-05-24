@@ -412,7 +412,8 @@ region field が同じ役割を持ちます。
 - Level 3/4 で独自粒子レイアウトを使う場合は、位置から subdomain を決める
   callback も用意してください。
 - adapter 設定は default context と heap-owned non-default context の両方に
-  適用できます。完全な複数 context 対応は v2 の継続作業です。
+  適用できます。C runtime smoke では、2 つの non-default context がそれぞれ
+  別の Level 3 geometry と context-local adapter state を保持することを確認しています。
 - `oh_set_particle_adapter(NULL)` または
   `oh_context_set_particle_adapter(ctx, NULL)` を呼ぶと custom adapter 設定は解除され、
   次の `oh_init()` では default `S_particle` adapter と default byte MPI datatype が
@@ -542,8 +543,8 @@ for (int step = 0; step < nstep; step++) {
 - Level 2/3 は context facade と state-backed internal path を通して
   region weight、particle adapter、transbound を参照します。
 - non-default context は Level 1-3 `transbound`、Level 3 geometry/field descriptor、
-  mapping、field facade まで実行できます。複数 context を同時に使う複数 rank 実
-  workload での検証は v2.x の継続対象です。
+  mapping、field facade まで実行できます。C/Fortran runtime smoke では 2 つの
+  non-default context を同一 communicator 上で同時に保持する経路も検証しています。
 - Level 4p/4s は v2.x 対応対象で、v2.0 の supported scope には含めません。
 - 公開 C API と context 内の粒子バッファ保持は `void *` ベースです。
   実装内部には既存アルゴリズムを保つための `struct S_particle *` ローカル

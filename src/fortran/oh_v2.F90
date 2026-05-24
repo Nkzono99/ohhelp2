@@ -97,6 +97,7 @@ module ohhelp_v2
   public :: oh_context_bind_particle_accounting
   public :: oh_context_unbind_particle_accounting
   public :: oh_context_configure_level3
+  public :: oh_context_configure_level3_legacy
   public :: oh_context_transbound1
   public :: oh_context_transbound2
   public :: oh_context_transbound3
@@ -219,6 +220,23 @@ module ohhelp_v2
     subroutine c_oh_context_configure_level3(context, pcoord, sdoms, &
         scoord, nbound, bcond, bounds, ftypes, cfields, ctypes, fsizes) &
         bind(C, name="oh_fortran_context_configure_level3")
+      import :: c_ptr, c_int
+      type(c_ptr), value :: context
+      type(c_ptr), value :: pcoord
+      type(c_ptr), value :: sdoms
+      type(c_ptr), value :: scoord
+      integer(c_int), value :: nbound
+      type(c_ptr), value :: bcond
+      type(c_ptr), value :: bounds
+      type(c_ptr), value :: ftypes
+      type(c_ptr), value :: cfields
+      type(c_ptr), value :: ctypes
+      type(c_ptr), value :: fsizes
+    end subroutine
+
+    subroutine c_oh_context_configure_level3_legacy(context, pcoord, sdoms, &
+        scoord, nbound, bcond, bounds, ftypes, cfields, ctypes, fsizes) &
+        bind(C, name="oh_fortran_context_configure_level3_legacy")
       import :: c_ptr, c_int
       type(c_ptr), value :: context
       type(c_ptr), value :: pcoord
@@ -681,6 +699,28 @@ contains
     call c_oh_context_configure_level3(context%ptr, pcoord, sdoms, scoord, &
                                        nbound, bcond, bounds, ftypes, &
                                        cfields, ctypes, fsizes)
+  end subroutine
+
+  subroutine oh_context_configure_level3_legacy(context, pcoord, sdoms, &
+                                                scoord, nbound, bcond, &
+                                                bounds, ftypes, cfields, &
+                                                ctypes, fsizes)
+    type(oh_context_handle), intent(in) :: context
+    type(c_ptr), intent(in), value :: pcoord
+    type(c_ptr), intent(in), value :: sdoms
+    type(c_ptr), intent(in), value :: scoord
+    integer(c_int), intent(in) :: nbound
+    type(c_ptr), intent(in), value :: bcond
+    type(c_ptr), intent(in), value :: bounds
+    type(c_ptr), intent(in), value :: ftypes
+    type(c_ptr), intent(in), value :: cfields
+    type(c_ptr), intent(in), value :: ctypes
+    type(c_ptr), intent(in), value :: fsizes
+
+    call c_oh_context_configure_level3_legacy(context%ptr, pcoord, sdoms, &
+                                              scoord, nbound, bcond, &
+                                              bounds, ftypes, cfields, &
+                                              ctypes, fsizes)
   end subroutine
 
   integer(c_int) function oh_context_transbound1(context, currmode, stats)

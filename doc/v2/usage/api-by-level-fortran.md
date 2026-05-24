@@ -83,3 +83,8 @@ mode = oh_context_transbound3(ctx, OH_MODE_NORMAL_PRIMARY, stats)
 任意 layout の既存 init argument list を使いたい場合は、`ohhelp_v2` の
 raw init bridge を使います。`oh2_init_raw()` / `oh3_init_raw()` は
 `type(c_ptr)` で粒子配列と accounting arrays を受け取ります。
+
+既存 Fortran code が Level 3 の active-decomposition sentinel と 1-based
+boundary IDs を持っている場合は、`oh_context_configure_level3_legacy()` を
+使えます。この helper は sentinel を active decomposition として扱い、
+boundary IDs を context API の 0-based 表現へ変換します。

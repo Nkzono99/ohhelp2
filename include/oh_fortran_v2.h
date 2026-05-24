@@ -38,6 +38,10 @@ void oh_fortran_context_configure_level3(
   oh_context *context, const int *pcoord, const int *sdoms,
   const int *scoord, int nbound, const int *bcond, const int *bounds,
   const int *ftypes, const int *cfields, const int *ctypes, int *fsizes);
+void oh_fortran_context_configure_level3_legacy(
+  oh_context *context, const int *pcoord, const int *sdoms,
+  const int *scoord, int nbound, const int *bcond, const int *bounds,
+  const int *ftypes, const int *cfields, const int *ctypes, int *fsizes);
 int oh_fortran_context_transbound1(oh_context *context, int currmode,
                                   int stats);
 int oh_fortran_context_transbound2(oh_context *context, int currmode,

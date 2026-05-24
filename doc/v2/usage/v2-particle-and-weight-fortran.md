@@ -56,6 +56,8 @@ call oh2_init_raw(sdid_ptr, nspec, maxfrac, nphgram_ptr, totalp_ptr, pbuf, &
 ```
 
 For Level 3, use `oh3_init_raw()` with the geometry descriptors.
+For context configuration with legacy Fortran Level 3 geometry arrays, use
+`oh_context_configure_level3_legacy()`.
 
 ## raw init の lifetime / ownership contract
 

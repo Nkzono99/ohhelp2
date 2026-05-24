@@ -57,6 +57,10 @@ call oh_context_configure_level3(ctx, pcoord_ptr, sdoms_ptr, scoord_ptr, &
                                  cfields_ptr, ctypes_ptr, fsizes_ptr)
 ```
 
+既存 Fortran initializer と同じ active-decomposition sentinel と 1-based
+boundary IDs を渡したい場合は、`oh_context_configure_level3_legacy()` を
+使います。
+
 ## 5. PIC Step
 
 ```fortran

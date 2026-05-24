@@ -106,6 +106,11 @@ oh_context_configure_level3(ctx, pcoord, sdoms, scoord, nbound, bcond,
 After configuration, the same context can map particles, exchange field
 borders, and run `oh_context_transbound3()`.
 
+Fortran migration code that still has legacy Level 3 arrays can call
+`oh_context_configure_level3_legacy()` from `ohhelp_v2`. That helper accepts the
+active-decomposition sentinel used by the old Fortran initializer and translates
+one-based boundary IDs to the zero-based IDs used by the context API.
+
 ## Transbound Modes
 
 Use named constants, not magic numbers:

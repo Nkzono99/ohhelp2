@@ -197,6 +197,17 @@ check_present 'oh_context_bind_particles' src/c/oh_context.c
 check_present 'oh_context_create' src/c/oh_context.c
 check_present 'oh_context_configure_particles' src/c/oh_context.c
 check_present 'oh_context_bind_particle_accounting' src/c/oh_context.c
+check_present 'oh_context_configure_level3_legacy' src/fortran/oh_v2.F90
+check_present 'oh_fortran_context_configure_level3_legacy' \
+  include/oh_fortran_v2.h
+check_present 'oh_fortran_context_configure_level3_legacy' \
+  src/c/oh_fortran_v2.c
+check_present 'oh_context_configure_level3_legacy' \
+  tests/test_oh_context_lifecycle_fortran.F90
+check_present 'one-based boundary IDs' doc/v2/design/context.md
+check_present 'OH_LIB_LEVEL_4P' src/c/ohhelp4p.c
+check_present 'OH_LIB_LEVEL_4S' src/c/ohhelp4s.c
+check_present 'fpm dependency builds' doc/v2/design/level-scope.md
 check_present 'heap-owned context' doc/v2/usage/api-by-level.md
 check_present 'heap-owned context' doc/v2/usage/api-by-level-fortran.md
 check_present 'oh_context_bind_particles' src/fortran/oh_v2.F90

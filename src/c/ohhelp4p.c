@@ -6,6 +6,7 @@
    commercial purpose providing that the copyright notice above remains
    unchanged.
 */
+#ifdef OH_LIB_LEVEL_4P
 #define EXTERN extern
 #include "ohhelp1.h"
 #include "ohhelp1_internal.h"
@@ -2366,3 +2367,4 @@ int oh4p_remap_particle_to_subdomain(void* part, const int ps, const int s) {
     oh4p_remove_mapped_particle(part, ps, s);
     return(oh4p_map_particle_to_subdomain(part, ps, s));
 }
+#endif

@@ -32,8 +32,8 @@ program test_oh_context_lifecycle_fortran
   call oh_context_create(context_y, int(MPI_COMM_WORLD, c_int), ierr)
   if (ierr /= 0_c_int) stop 2
 
-  call configure_context(context_x, nranks, 1)
-  call configure_context(context_y, nranks, 2)
+  call configure_context(context_x, nranks, 1, .false.)
+  call configure_context(context_y, nranks, 2, .true.)
 
   field = 0.0_c_double
   coord_x = 0.5_c_double
@@ -122,12 +122,14 @@ program test_oh_context_lifecycle_fortran
   call MPI_Finalize(mpierr)
 
 contains
-  subroutine configure_context(context, nranks_value, axis)
+  subroutine configure_context(context, nranks_value, axis, legacy_level3)
     type(oh_context_handle), intent(in) :: context
     integer, intent(in) :: nranks_value
     integer, intent(in) :: axis
+    logical, intent(in) :: legacy_level3
     integer(c_int), target :: pcoord(3)
     integer(c_int), target :: scoord(2,3)
+    integer(c_int), target :: sdoms(2,3,1)
     integer(c_int), target :: bcond(2,3)
     integer(c_int), target :: ftypes(7,2)
     integer(c_int), target :: cfields(1)
@@ -141,21 +143,33 @@ contains
     pcoord(axis) = int(nranks_value, c_int)
     scoord = 0_c_int
     bcond = 0_c_int
+    sdoms = 0_c_int
+    sdoms(1, 1, 1) = 0_c_int
+    sdoms(2, 1, 1) = -1_c_int
     do i = 1, 3
       scoord(2, i) = pcoord(i)
       gsize(i) = 1.0_c_double
     end do
+    if (legacy_level3) bcond = 1_c_int
     ftypes = 0_c_int
     ftypes(1, 1) = 1_c_int
     cfields(1) = -1_c_int
     ctypes = 0_c_int
     fsizes = 0_c_int
-    call oh_context_configure_level3(context, c_loc(pcoord(1)), c_null_ptr, &
-                                     c_loc(scoord(1,1)), 1_c_int, &
-                                     c_loc(bcond(1,1)), c_null_ptr, &
-                                     c_loc(ftypes(1,1)), c_loc(cfields(1)), &
-                                     c_loc(ctypes(1,1,1,1)), &
-                                     c_loc(fsizes(1,1,1)))
+    if (legacy_level3) then
+      call oh_context_configure_level3_legacy( &
+        context, c_loc(pcoord(1)), c_loc(sdoms(1,1,1)), &
+        c_loc(scoord(1,1)), 1_c_int, c_loc(bcond(1,1)), c_null_ptr, &
+        c_loc(ftypes(1,1)), c_loc(cfields(1)), &
+        c_loc(ctypes(1,1,1,1)), c_loc(fsizes(1,1,1)))
+    else
+      call oh_context_configure_level3(context, c_loc(pcoord(1)), c_null_ptr, &
+                                       c_loc(scoord(1,1)), 1_c_int, &
+                                       c_loc(bcond(1,1)), c_null_ptr, &
+                                       c_loc(ftypes(1,1)), c_loc(cfields(1)), &
+                                       c_loc(ctypes(1,1,1,1)), &
+                                       c_loc(fsizes(1,1,1)))
+    end if
     call oh_context_grid_size(context, gsize)
   end subroutine
 end program

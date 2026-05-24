@@ -10,6 +10,7 @@
 #include "ohhelp2_internal.h"
 #include "ohhelp3.h"
 #include "ohhelp3_internal.h"
+#include "oh_context_internal.h"
 
 struct oh_fortran_particle_adapter {
   oh_particle_adapter adapter;
@@ -30,6 +31,23 @@ unwrap_adapter(oh_fortran_particle_adapter *adapter) {
 static const oh_particle_adapter *
 unwrap_const_adapter(const oh_fortran_particle_adapter *adapter) {
   return adapter ? &adapter->adapter : NULL;
+}
+
+static int *
+copy_boundary_ids_zero_based(const int *values, int count, const char *name) {
+  int *copy;
+  int i;
+
+  if (!values) return NULL;
+  copy = (int*)malloc(sizeof(int) * count);
+  if (!copy) local_errstop("out of memory for %s", name);
+  for (i = 0; i < count; i++) copy[i] = values[i] - 1;
+  return copy;
+}
+
+static int
+legacy_sdoms_requests_active_decomposition(const int *sdoms) {
+  return sdoms && sdoms[OH_LOWER] > sdoms[OH_UPPER];
 }
 
 oh_context *
@@ -102,6 +120,31 @@ oh_fortran_context_configure_level3(
   const int *ftypes, const int *cfields, const int *ctypes, int *fsizes) {
   oh_context_configure_level3(context, pcoord, sdoms, scoord, nbound, bcond,
                               bounds, ftypes, cfields, ctypes, fsizes);
+}
+
+void
+oh_fortran_context_configure_level3_legacy(
+  oh_context *context, const int *pcoord, const int *sdoms,
+  const int *scoord, int nbound, const int *bcond, const int *bounds,
+  const int *ftypes, const int *cfields, const int *ctypes, int *fsizes) {
+  int active = legacy_sdoms_requests_active_decomposition(sdoms);
+  int nn = context ? context->n_of_nodes : 0;
+  int *bcond_zero = copy_boundary_ids_zero_based(
+      bcond, OH_DIMENSION * 2, "Level 3 boundary conditions");
+  int *bounds_zero = NULL;
+
+  if (!active && bounds) {
+    if (nn <= 0)
+      local_errstop("legacy Level 3 helper requires a configured context");
+    bounds_zero = copy_boundary_ids_zero_based(
+        bounds, nn * OH_DIMENSION * 2, "Level 3 boundary ids");
+  }
+
+  oh_context_configure_level3(context, pcoord, active ? NULL : sdoms, scoord,
+                              nbound, bcond_zero, bounds_zero, ftypes,
+                              cfields, ctypes, fsizes);
+  free(bounds_zero);
+  free(bcond_zero);
 }
 
 int

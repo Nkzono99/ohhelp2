@@ -36,3 +36,9 @@ mapping across subdomains and field halo exchange.
 Level 4p/4s are not v2.0 supported APIs. They remain under compile coverage and
 internal migration guardrails. Full custom-layout support for their packed-grid
 semantics is a v2.x target.
+
+The fpm package may compile all C translation units even when a downstream
+project only uses Level 1-3. The Level 4 source bodies are therefore enabled
+only when `OH_LIB_LEVEL_4P` or `OH_LIB_LEVEL_4S` is explicitly defined; default
+fpm dependency builds do not require downstream users to provide a Level 4
+macro.

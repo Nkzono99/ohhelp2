@@ -89,6 +89,8 @@ module ohhelp_v2
   public :: oh_default_context
   public :: oh_context_configure_particles
   public :: oh_context_associated
+  public :: oh_context_region_count
+  public :: oh_context_is_level3_configured
   public :: oh_particle_adapter_associated
   public :: oh_context_set_region_weights
   public :: oh_context_set_particle_mpi_type
@@ -134,6 +136,8 @@ module ohhelp_v2
   public :: oh_particle_adapter_use_single_species_integer_region
   public :: oh_particle_adapter_use_position_fields
   public :: oh_particle_adapter_use_level3_position_fields
+  public :: oh_particle_adapter_use_level3_neighbor_position_fields
+  public :: oh_particle_adapter_use_level3_subdomain_position_fields
   public :: oh_particle_adapter_set_callbacks
   public :: oh_particle_field_offset
   public :: oh_set_particle_adapter
@@ -174,6 +178,20 @@ module ohhelp_v2
       type(c_ptr), value :: weights
       integer(c_int), value :: weight_count
     end subroutine
+
+    function c_oh_context_region_count(context) &
+        bind(C, name="oh_fortran_context_region_count") result(count)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: context
+      integer(c_int) :: count
+    end function
+
+    function c_oh_context_is_level3_configured(context) &
+        bind(C, name="oh_fortran_context_is_level3_configured") result(flag)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: context
+      integer(c_int) :: flag
+    end function
 
     subroutine c_oh_context_set_particle_mpi_type(context, fortran_type) &
         bind(C, name="oh_fortran_context_set_particle_mpi_type")
@@ -607,6 +625,26 @@ module ohhelp_v2
       integer(c_size_t), value :: z_offset
     end subroutine
 
+    subroutine c_oh_particle_adapter_use_level3_neighbor_position_fields( &
+        adapter, x_offset, y_offset, z_offset) bind(C, &
+        name="oh_fortran_particle_adapter_use_level3_neighbor_position_fields")
+      import :: c_ptr, c_size_t
+      type(c_ptr), value :: adapter
+      integer(c_size_t), value :: x_offset
+      integer(c_size_t), value :: y_offset
+      integer(c_size_t), value :: z_offset
+    end subroutine
+
+    subroutine c_oh_particle_adapter_use_level3_subdomain_position_fields( &
+        adapter, x_offset, y_offset, z_offset) bind(C, &
+        name="oh_fortran_particle_adapter_use_level3_subdomain_position_fields")
+      import :: c_ptr, c_size_t
+      type(c_ptr), value :: adapter
+      integer(c_size_t), value :: x_offset
+      integer(c_size_t), value :: y_offset
+      integer(c_size_t), value :: z_offset
+    end subroutine
+
     subroutine c_oh_particle_adapter_set_callbacks(adapter, get_region, &
         set_region, get_species, map_to_neighbor, map_to_subdomain) &
         bind(C, name="oh_fortran_particle_adapter_set_callbacks")
@@ -662,6 +700,17 @@ contains
   logical function oh_context_associated(context)
     type(oh_context_handle), intent(in) :: context
     oh_context_associated = c_associated(context%ptr)
+  end function
+
+  integer(c_int) function oh_context_region_count(context)
+    type(oh_context_handle), intent(in) :: context
+    oh_context_region_count = c_oh_context_region_count(context%ptr)
+  end function
+
+  logical function oh_context_is_level3_configured(context)
+    type(oh_context_handle), intent(in) :: context
+    oh_context_is_level3_configured = &
+      c_oh_context_is_level3_configured(context%ptr) /= 0_c_int
   end function
 
   logical function oh_particle_adapter_associated(adapter)
@@ -1120,6 +1169,22 @@ contains
     integer(c_size_t), intent(in) :: x_offset, y_offset, z_offset
     call c_oh_particle_adapter_use_level3_position_fields(adapter%ptr, &
       x_offset, y_offset, z_offset)
+  end subroutine
+
+  subroutine oh_particle_adapter_use_level3_neighbor_position_fields(adapter, &
+      x_offset, y_offset, z_offset)
+    type(oh_particle_adapter_handle), intent(inout) :: adapter
+    integer(c_size_t), intent(in) :: x_offset, y_offset, z_offset
+    call c_oh_particle_adapter_use_level3_neighbor_position_fields( &
+      adapter%ptr, x_offset, y_offset, z_offset)
+  end subroutine
+
+  subroutine oh_particle_adapter_use_level3_subdomain_position_fields(adapter, &
+      x_offset, y_offset, z_offset)
+    type(oh_particle_adapter_handle), intent(inout) :: adapter
+    integer(c_size_t), intent(in) :: x_offset, y_offset, z_offset
+    call c_oh_particle_adapter_use_level3_subdomain_position_fields( &
+      adapter%ptr, x_offset, y_offset, z_offset)
   end subroutine
 
   subroutine oh_particle_adapter_set_callbacks(adapter, get_region, &

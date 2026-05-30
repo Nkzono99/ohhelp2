@@ -1064,7 +1064,8 @@ oh2_inject_particle_state(struct oh_state *state, void *part) {
                   "have 'spec' element and you have two or more species");
 #endif
   if (inj<0 || inj>INT_MAX || inj>=state->n_of_local_particles_limit)
-    local_errstop("injection causes local particle buffer overflow");
+    oh2_errstop_injection_overflow_state(state, "oh2_inject_particle_state",
+                                         inj, -1);
   state->n_of_injections++;
   if (oh_context_is_default_state(state))
     nOfInjections = state->n_of_injections;
@@ -1073,6 +1074,31 @@ oh2_inject_particle_state(struct oh_state *state, void *part) {
   state_update_injected_particle_count(state, copy, 1);
   return copy;
 }
+
+void
+oh2_errstop_injection_overflow_state(struct oh_state *state, const char *api,
+                                     dint inj, int species) {
+  const char *adapter = state && state->use_custom_particle_adapter
+                          ? "custom" : "default";
+  int rank = state ? state->my_rank : -1;
+  int total = state ? state->total_parts : -1;
+  int pending = state ? state->n_of_injections : -1;
+  int limit = state ? state->n_of_local_particles_limit : -1;
+  int nspec = state ? state->n_of_species : -1;
+
+  if (species >= 0)
+    local_errstop("%s: local particle buffer overflow on rank %d: "
+                  "total_parts=%d, pending_injections=%d, inj=%lld, "
+                  "limit=%d, nspec=%d, injected_species=%d, adapter=%s",
+                  (char*)api, rank, total, pending, (long long)inj, limit,
+                  nspec, species, (char*)adapter);
+  local_errstop("%s: local particle buffer overflow on rank %d: "
+                "total_parts=%d, pending_injections=%d, inj=%lld, "
+                "limit=%d, nspec=%d, adapter=%s",
+                (char*)api, rank, total, pending, (long long)inj, limit,
+                nspec, (char*)adapter);
+}
+
 void
 oh2_remap_injected_particle_(struct S_particle *part) {
   oh2_remap_injected_particle(part);
@@ -1333,7 +1359,8 @@ finalize_injected_particles_state(struct oh_state *state) {
     local_errstop("particle work buffer is not allocated");
   if (scan_total_wide<0 || scan_total_wide>INT_MAX ||
       scan_total_wide>state->n_of_local_particles_limit)
-    local_errstop("injection causes local particle buffer overflow");
+    oh2_errstop_injection_overflow_state(state, "set_total_particles_state",
+                                         scan_total_wide, -1);
   scan_total = (int)scan_total_wide;
 
   counts = (int*)mem_alloc(sizeof(int), nclass, "FinalizeCounts");
@@ -1370,7 +1397,8 @@ finalize_injected_particles_state(struct oh_state *state) {
     total += counts[t];
   }
   if (total>state->n_of_local_particles_limit)
-    local_errstop("injection causes local particle buffer overflow");
+    oh2_errstop_injection_overflow_state(state, "set_total_particles_state",
+                                         total, -1);
 
   for (i=0; i<scan_total; i++) {
     void *part=state_particle_at(state, state->particles, i);

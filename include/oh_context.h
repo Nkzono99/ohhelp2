@@ -28,6 +28,8 @@ void oh_context_destroy(oh_context *context);
 oh_context *oh_default_context(void);
 void oh_context_configure_particles(oh_context *context, int nspec,
                                     int maxfrac);
+int oh_context_region_count(const oh_context *context);
+int oh_context_is_level3_configured(const oh_context *context);
 /* Passing NULL weights resets all weights to 1.0 on the selected context.
    Passing a NULL context selects the default context. */
 void oh_context_set_region_weights(oh_context *context, const double *weights);

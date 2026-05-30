@@ -95,6 +95,11 @@ program test_oh_context_particle_layout_guard_fortran
     call oh_context_destroy(context)
     call oh_context_set_region_weights(context, weights)
   end if
+  if (trim(mode_arg) == "default-weights-before-init") then
+    weights = 1.0_c_double
+    context = oh_default_context()
+    call oh_context_set_region_weights(context, weights)
+  end if
   if (trim(mode_arg) == "short-weights") then
     call oh_context_set_region_weights(context, empty_weights)
   end if
@@ -112,22 +117,6 @@ program test_oh_context_particle_layout_guard_fortran
   if (trim(mode_arg) == "short-grid-size-nonempty") then
     short_grid_size = 0.0_c_double
     call oh_context_grid_size(context, short_grid_size)
-  end if
-  if (trim(mode_arg) == "negative-region-weight") then
-    weights = -1.0_c_double
-    call oh_context_set_region_weights(context, weights)
-  end if
-  if (trim(mode_arg) == "zero-region-weight") then
-    weights = 0.0_c_double
-    call oh_context_set_region_weights(context, weights)
-  end if
-  if (trim(mode_arg) == "nan-region-weight") then
-    weights = ieee_value(0.0_c_double, ieee_quiet_nan)
-    call oh_context_set_region_weights(context, weights)
-  end if
-  if (trim(mode_arg) == "inf-region-weight") then
-    weights = ieee_value(0.0_c_double, ieee_positive_inf)
-    call oh_context_set_region_weights(context, weights)
   end if
   if (trim(mode_arg) == "missing-y") then
     x = 0.0_c_double
@@ -160,6 +149,33 @@ program test_oh_context_particle_layout_guard_fortran
   end if
 
   call oh_context_configure_particles(context, 1_c_int, 0_c_int)
+  if (trim(mode_arg) == "short-weights-configured") then
+    call oh_context_set_region_weights(context, empty_weights)
+  end if
+  if (trim(mode_arg) == "long-weights-configured") then
+    long_weights = 1.0_c_double
+    call oh_context_set_region_weights(context, long_weights)
+  end if
+  if (trim(mode_arg) == "short-weights-n2-configured") then
+    weights = 1.0_c_double
+    call oh_context_set_region_weights(context, weights)
+  end if
+  if (trim(mode_arg) == "negative-region-weight") then
+    weights = -1.0_c_double
+    call oh_context_set_region_weights(context, weights)
+  end if
+  if (trim(mode_arg) == "zero-region-weight") then
+    weights = 0.0_c_double
+    call oh_context_set_region_weights(context, weights)
+  end if
+  if (trim(mode_arg) == "nan-region-weight") then
+    weights = ieee_value(0.0_c_double, ieee_quiet_nan)
+    call oh_context_set_region_weights(context, weights)
+  end if
+  if (trim(mode_arg) == "inf-region-weight") then
+    weights = ieee_value(0.0_c_double, ieee_positive_inf)
+    call oh_context_set_region_weights(context, weights)
+  end if
   sdid = [0_c_int, -1_c_int]
   sdid_ptr = c_loc(sdid(1))
   if (trim(mode_arg) == "owned-region") then

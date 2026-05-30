@@ -113,3 +113,6 @@ call oh_context_set_region_weights(ctx, weights)
 
 `size(weights)` must match the number of regions/nodes in the context. Omitting
 the optional `weights` argument resets all region weights to `1.0_c_double`.
+Call `oh_context_region_count(ctx)` to size downstream arrays. Setting weights
+requires configured region storage, but it does not require Level 3 geometry;
+`oh_context_is_level3_configured(ctx)` is only for geometry-dependent logic.

@@ -58,6 +58,8 @@ program test_oh_context_lifecycle_fortran
   if (ierr /= 0_c_int) stop 1
   call oh_context_create(context_y, int(MPI_COMM_WORLD, c_int), ierr)
   if (ierr /= 0_c_int) stop 2
+  if (oh_context_region_count(context_x) /= int(nranks, c_int)) stop 52
+  if (oh_context_is_level3_configured(context_x)) stop 53
   if (oh_context_max_local_particles_for_capacity( &
         context_x, 1000_c_long_long, 250_c_int, 8_c_int) /= &
       ((1000_c_int - 1_c_int) / int(nranks, c_int) + 1_c_int) + &
@@ -68,6 +70,7 @@ program test_oh_context_lifecycle_fortran
 
   call configure_context(context_x, nranks, 1, .false.)
   call configure_context(context_y, nranks, 2, .true.)
+  if (.not. oh_context_is_level3_configured(context_x)) stop 54
 
   call oh_particle_adapter_create_byte(adapter, c_sizeof(particle), ierr)
   if (ierr /= 0_c_int) stop 28
@@ -80,8 +83,8 @@ program test_oh_context_lifecycle_fortran
   z_offset = oh_particle_field_offset(c_loc(particle), c_loc(particle%z))
   call oh_particle_adapter_use_int_fields(adapter, region_offset, &
                                           species_offset)
-  call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
-                                                      y_offset, z_offset)
+  call oh_particle_adapter_use_level3_neighbor_position_fields( &
+    adapter, x_offset, y_offset, z_offset)
   call oh_context_set_particle_adapter(context_x, adapter)
 
   field = 0.0_c_double

@@ -33,6 +33,13 @@ double weights[nregions];
 oh_context_set_region_weights(ctx, weights);
 ```
 
+`oh_context_region_count(ctx)` returns the required array length. Setting
+weights requires configured region storage, which is established by
+`oh_context_configure_particles()`, `oh3_init_raw()`, or the equivalent
+Level-1/2/3 initialization path. It does not require Level 3 geometry.
+`oh_context_is_level3_configured(ctx)` can be used separately when an
+application needs to gate geometry-dependent work.
+
 ## Fortran
 
 ```fortran

@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added context query APIs for region count and Level 3 configuration state in
+  C and Fortran.
+- Added explicit Level 3 neighbor-position and subdomain-position adapter
+  helpers so applications can avoid ambiguous position-field side effects.
+
+### Fixed
+
+- Preserved Level 4p send counts separately from send-buffer cursors before
+  particle exchange.
+- Improved injection overflow diagnostics with rank, particle counts,
+  injection index, capacity, species count, adapter mode, and API path.
+- Reported a clear region-weight precondition error when Fortran callers set
+  weights before context/region configuration.
+- Kept weighted rebalance schedule load accounting balanced after assigning a
+  weighted transfer.
+
+### Verification
+
+- `git diff --check`
+- `bash tests/test_particle_contract_audit.sh`
+- `bash scripts/test.sh`
+
 ## v2.3.1 - 2026-05-30
 
 ### Added

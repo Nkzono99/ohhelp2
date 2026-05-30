@@ -915,6 +915,18 @@ oh_context_set_region_weights(struct oh_state *context, const double *weights) {
   }
 }
 
+int
+oh_context_region_count(const struct oh_state *context) {
+  if (!context) context = oh1_state();
+  return context->n_of_nodes;
+}
+
+int
+oh_context_is_level3_configured(const struct oh_state *context) {
+  if (!context) context = oh1_state();
+  return context->owns_level3_storage;
+}
+
 void
 oh_context_set_particle_adapter(struct oh_state *context,
                                 const oh_particle_adapter *adapter) {

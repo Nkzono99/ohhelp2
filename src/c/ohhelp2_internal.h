@@ -45,6 +45,9 @@ void oh2_set_particle_mpi_type_state(struct oh_state *state,
 void oh2_set_particle_adapter_state(struct oh_state *state,
                                     const oh_particle_adapter *adapter);
 void *oh2_inject_particle_state(struct oh_state *state, void *part);
+void oh2_errstop_injection_overflow_state(struct oh_state *state,
+                                          const char *api, dint inj,
+                                          int species);
 void oh2_remap_injected_particle_state(struct oh_state *state, void *part);
 void oh2_remove_injected_particle_state(struct oh_state *state, void *part);
 void oh2_set_total_particles_state(struct oh_state *state);

@@ -295,6 +295,12 @@ void
 oh1_set_region_weights_state(struct oh_state *state, const double *weights) {
   int i;
 
+  if (weights && (!state || !state->region_weights ||
+                  state->n_of_nodes<=0 || state->n_of_species<=0))
+    local_errstop("oh_context_set_region_weights(): context has no configured "
+                  "regions; call oh_context_configure_particles(), "
+                  "oh3_init_raw(), or equivalent before setting region "
+                  "weights");
   if (!state || !state->region_weights)
     local_errstop("oh1_set_region_weights() must be called after oh_init()");
   if (!weights) {
@@ -1165,6 +1171,7 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     }
     while (less_heap->n) {
       struct S_node *parent;
+      double moved_load;
       int get, h;
       j = pop_heap(less_heap, 0, &heap_key);
       node = nodes_next + j;
@@ -1174,14 +1181,16 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
         k = pop_heap(greater_heap, 1, &heap_key);
       get = oh_weighted_transfer_count(target, total_load_global[j],
                                        region_weights[k], totalp_global[k]);
+      moved_load = oh_region_load(get, region_weights[k]);
       node->get.sec = get;
       parent = nodes_next + k;
       node->parentid = k;  node->parent = parent;
       node->sibling = parent->child;
       parent->child = node;
       totalp_global[k] -= get;
-      total_load_global[k] = oh_load_after_transfer(total_load_global[k],
-                                                    get, region_weights[k]);
+      total_load_global[k] = oh_load_after_transfer(total_load_global[k], get,
+                                                    region_weights[k]);
+      total_load_global[j] += moved_load;
       if (total_load_global[k]<target && greater_heap->n>0) {
         push_heap(k, less_heap, 0, &heap_key);  node_queue[bot++] = parent;
       } else {

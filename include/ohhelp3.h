@@ -38,6 +38,12 @@ void oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
                                               size_t x_offset,
                                               size_t y_offset,
                                               size_t z_offset);
+void oh3_particle_adapter_use_neighbor_position_fields(
+  oh_particle_adapter *adapter, size_t x_offset, size_t y_offset,
+  size_t z_offset);
+void oh3_particle_adapter_use_subdomain_position_fields(
+  oh_particle_adapter *adapter, size_t x_offset, size_t y_offset,
+  size_t z_offset);
 void oh3_bcast_field(void *pfld, void *sfld, int ftype);
 void oh3_reduce_field(void *pfld, void *sfld, int ftype);
 void oh3_allreduce_field(void *pfld, void *sfld, int ftype);

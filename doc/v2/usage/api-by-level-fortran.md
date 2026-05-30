@@ -134,6 +134,10 @@ For adapter layouts with integer region fields, write the result of
 before `transbound`. Position-field helpers support Level 3 neighbor/boundary
 mapping; they do not replace an existing integer-region `map_to_subdomain`
 path.
+Use `oh_particle_adapter_use_level3_neighbor_position_fields()` when positions
+should drive only edge/neighbor movement, and
+`oh_particle_adapter_use_level3_subdomain_position_fields()` when positions
+should also become the subdomain mapping policy.
 
 If `mode == OH_MODE_REBALANCE_SECONDARY`, refresh region-local buffers after
 reading the updated `sdid`/`pbase` state.

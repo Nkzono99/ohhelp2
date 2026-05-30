@@ -24,8 +24,10 @@ void oh_fortran_context_configure_particles(oh_context *context, int nspec,
 void oh_fortran_context_set_region_weights(oh_context *context,
                                            const double *weights,
                                            int weight_count);
+int oh_fortran_context_region_count(oh_context *context);
+int oh_fortran_context_is_level3_configured(oh_context *context);
 void oh_fortran_context_set_particle_mpi_type(oh_context *context,
-                                             int fortran_type);
+                                              int fortran_type);
 void oh_fortran_context_set_particle_adapter(
   oh_context *context, const oh_fortran_particle_adapter *adapter);
 void *oh_fortran_context_bind_particles(oh_context *context, void *particles,
@@ -126,6 +128,12 @@ void oh_fortran_particle_adapter_use_position_fields(
   oh_fortran_particle_adapter *adapter, size_t x_offset, size_t y_offset,
   size_t z_offset);
 void oh_fortran_particle_adapter_use_level3_position_fields(
+  oh_fortran_particle_adapter *adapter, size_t x_offset, size_t y_offset,
+  size_t z_offset);
+void oh_fortran_particle_adapter_use_level3_neighbor_position_fields(
+  oh_fortran_particle_adapter *adapter, size_t x_offset, size_t y_offset,
+  size_t z_offset);
+void oh_fortran_particle_adapter_use_level3_subdomain_position_fields(
   oh_fortran_particle_adapter *adapter, size_t x_offset, size_t y_offset,
   size_t z_offset);
 void oh_fortran_particle_adapter_set_callbacks(

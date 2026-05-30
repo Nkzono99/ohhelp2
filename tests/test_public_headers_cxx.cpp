@@ -42,6 +42,8 @@ main(int argc, char **argv) {
   assert(context != nullptr);
   MPI_Comm_free(&app_comm);
   oh_context_configure_particles(context, nspec, 0);
+  assert(oh_context_region_count(context) == nprocs);
+  assert(!oh_context_is_level3_configured(context));
 
   std::vector<double> weights(static_cast<std::size_t>(nprocs), 1.0);
   if (!weights.empty()) weights[0] = 2.0;
@@ -59,6 +61,12 @@ main(int argc, char **argv) {
                                            offsetof(CustomParticle, x),
                                            offsetof(CustomParticle, y),
                                            offsetof(CustomParticle, z));
+  oh3_particle_adapter_use_neighbor_position_fields(
+    &adapter, offsetof(CustomParticle, x), offsetof(CustomParticle, y),
+    offsetof(CustomParticle, z));
+  oh3_particle_adapter_use_subdomain_position_fields(
+    &adapter, offsetof(CustomParticle, x), offsetof(CustomParticle, y),
+    offsetof(CustomParticle, z));
   adapter.get_region = custom_particle_get_region;
   adapter.set_region = custom_particle_set_region;
   adapter.get_species = custom_particle_get_species;

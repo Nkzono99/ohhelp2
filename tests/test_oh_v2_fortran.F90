@@ -41,10 +41,8 @@ program test_oh_v2_fortran
 
   context = oh_default_context()
   if (.not. oh_context_associated(context)) stop 1
-
-  weights = 1.0_c_double
-  call oh_context_set_region_weights(context, weights)
-  call oh_context_set_region_weights(context)
+  ierr = oh_context_region_count(context)
+  if (oh_context_is_level3_configured(context)) stop 51
 
   call oh_particle_adapter_create_byte(adapter, c_sizeof(particle), ierr)
   if (.not. oh_particle_adapter_associated(adapter)) stop 2
@@ -65,6 +63,10 @@ program test_oh_v2_fortran
   call oh_particle_adapter_set_species_base(adapter, 1_c_int)
   call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
                                                       y_offset, z_offset)
+  call oh_particle_adapter_use_level3_neighbor_position_fields( &
+    adapter, x_offset, y_offset, z_offset)
+  call oh_particle_adapter_use_level3_subdomain_position_fields( &
+    adapter, x_offset, y_offset, z_offset)
   call oh_context_set_particle_adapter(context, adapter)
   call oh_set_particle_adapter(adapter)
 
@@ -75,6 +77,9 @@ program test_oh_v2_fortran
                     raw_particles, c_loc(pbase(1)), 4_c_int, &
                     c_loc(mycomm), c_loc(nbor(1,1,1)), c_loc(pcoord(1)), &
                     0_c_int, 0_c_int, 0_c_int)
+  weights = 1.0_c_double
+  call oh_context_set_region_weights(context, weights)
+  call oh_context_set_region_weights(context)
   call oh3_init_raw(c_loc(sdid(1)), 1_c_int, 20_c_int, &
                     c_loc(nphgram(1,1,1)), c_loc(totalp(1,1)), &
                     raw_particles, c_loc(pbase(1)), 4_c_int, &

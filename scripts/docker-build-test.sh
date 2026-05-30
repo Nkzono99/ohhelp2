@@ -487,8 +487,8 @@ expect_mpi_failure_log_contains \
 expect_mpi_failure_log_contains \
   "expected injected particle index overflow to fail" \
   build/docker/inject_index_overflow.err \
-  "injection causes local particle buffer overflow" \
-  "expected injected particle index overflow to report buffer overflow" \
+  "oh2_inject_particle_state: local particle buffer overflow" \
+  "expected injected particle index overflow to report contextual overflow" \
   -n 1 build/docker/test_oh_context_particle_layout_guard inject-index-overflow
 expect_mpi_failure_log_cases build/docker/test_oh_context_particle_layout_guard \
   "expected NULL injected remap pointer to fail" \
@@ -558,10 +558,16 @@ expect_mpi_failure_log_cases build/docker/test_oh_context_particle_layout_guard_
   null-inject "requires an associated context handle" \
   "expected Fortran NULL context region weights to fail" null-region-weights \
   "requires an associated context handle" \
+  "expected Fortran default context weights before init to fail clearly" \
+  default-weights-before-init "context has no configured regions" \
   "expected Fortran short region weights to fail" short-weights \
   "requires 1 weights for this context, got 0" \
   "expected Fortran long region weights to fail" long-weights \
-  "requires 1 weights for this context, got 2" \
+  "context has no configured regions" \
+  "expected configured Fortran short region weights to fail" \
+  short-weights-configured "requires 1 weights for this context, got 0" \
+  "expected configured Fortran long region weights to fail" \
+  long-weights-configured "requires 1 weights for this context, got 2" \
   "expected Fortran short grid size array to fail" short-grid-size \
   "oh_context_grid_size requires at least OH_DIMENSION elements" \
   "expected Fortran non-empty short grid size array to fail" \
@@ -609,10 +615,17 @@ expect_mpi_failure_log_cases build/docker/test_oh_context_particle_layout_guard_
 expect_mpi_failure_log_contains \
   "expected Fortran short region weights to fail on two ranks" \
   build/docker/fortran_context_short_weights_n2.err \
+  "context has no configured regions" \
+  "expected Fortran short region weights n=2 preconfiguration message" \
+  -n 2 build/docker/test_oh_context_particle_layout_guard_fortran \
+  short-weights-n2
+expect_mpi_failure_log_contains \
+  "expected configured Fortran short region weights to fail on two ranks" \
+  build/docker/fortran_context_short_weights_n2_configured.err \
   "requires 2 weights for this context, got 1" \
   "expected Fortran short region weights n=2 failure message" \
   -n 2 build/docker/test_oh_context_particle_layout_guard_fortran \
-  short-weights-n2
+  short-weights-n2-configured
 expect_mpi_failure_log_cases build/docker/test_oh_context_particle_layout_guard_fortran \
   "expected Fortran adapter change while particles are bound to fail" \
   adapter "cannot change particle layout while particles are bound" \

@@ -91,6 +91,9 @@ oh_fortran_context_set_region_weights(oh_context *context,
                                       const double *weights,
                                       int weight_count) {
   context = require_fortran_context(context, "oh_context_set_region_weights()");
+  if (weights && (!context->region_weights ||
+                  context->n_of_nodes<=0 || context->n_of_species<=0))
+    local_errstop("oh_context_set_region_weights(): context has no configured regions; call oh_context_configure_particles(), oh3_init_raw(), or equivalent before setting region weights");
   if (weights && weight_count != context->n_of_nodes)
     local_errstop("oh_context_set_region_weights() requires %d weights for this context, got %d",
                   context->n_of_nodes, weight_count);
@@ -98,6 +101,19 @@ oh_fortran_context_set_region_weights(oh_context *context,
     local_errstop("oh_context_set_region_weights() requires %d weights for this context, got %d",
                   context->n_of_nodes, weight_count);
   oh_context_set_region_weights(context, weights);
+}
+
+int
+oh_fortran_context_region_count(oh_context *context) {
+  context = require_fortran_context(context, "oh_context_region_count()");
+  return oh_context_region_count(context);
+}
+
+int
+oh_fortran_context_is_level3_configured(oh_context *context) {
+  context = require_fortran_context(context,
+                                    "oh_context_is_level3_configured()");
+  return oh_context_is_level3_configured(context);
 }
 
 void
@@ -515,6 +531,22 @@ oh_fortran_particle_adapter_use_level3_position_fields(
   size_t z_offset) {
   oh3_particle_adapter_use_position_fields(unwrap_adapter(adapter), x_offset,
                                            y_offset, z_offset);
+}
+
+void
+oh_fortran_particle_adapter_use_level3_neighbor_position_fields(
+  oh_fortran_particle_adapter *adapter, size_t x_offset, size_t y_offset,
+  size_t z_offset) {
+  oh3_particle_adapter_use_neighbor_position_fields(
+    unwrap_adapter(adapter), x_offset, y_offset, z_offset);
+}
+
+void
+oh_fortran_particle_adapter_use_level3_subdomain_position_fields(
+  oh_fortran_particle_adapter *adapter, size_t x_offset, size_t y_offset,
+  size_t z_offset) {
+  oh3_particle_adapter_use_subdomain_position_fields(
+    unwrap_adapter(adapter), x_offset, y_offset, z_offset);
 }
 
 void

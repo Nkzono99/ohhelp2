@@ -236,11 +236,33 @@ oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
   const int had_subdomain_mapper = adapter && adapter->map_to_subdomain;
 
   if (!adapter) return;
+  oh3_particle_adapter_use_neighbor_position_fields(adapter, x_offset,
+                                                    y_offset, z_offset);
+  if (!had_subdomain_mapper)
+    oh3_particle_adapter_use_subdomain_position_fields(adapter, x_offset,
+                                                       y_offset, z_offset);
+}
+
+void
+oh3_particle_adapter_use_neighbor_position_fields(oh_particle_adapter *adapter,
+                                                  size_t x_offset,
+                                                  size_t y_offset,
+                                                  size_t z_offset) {
+  if (!adapter) return;
   oh_particle_adapter_use_position_fields(adapter, x_offset, y_offset,
                                           z_offset);
   adapter->map_to_neighbor = offset_level3_map_particle_to_neighbor;
-  if (!had_subdomain_mapper)
-    adapter->map_to_subdomain = offset_level3_map_particle_to_subdomain;
+}
+
+void
+oh3_particle_adapter_use_subdomain_position_fields(oh_particle_adapter *adapter,
+                                                   size_t x_offset,
+                                                   size_t y_offset,
+                                                   size_t z_offset) {
+  if (!adapter) return;
+  oh_particle_adapter_use_position_fields(adapter, x_offset, y_offset,
+                                          z_offset);
+  adapter->map_to_subdomain = offset_level3_map_particle_to_subdomain;
 }
 
 void

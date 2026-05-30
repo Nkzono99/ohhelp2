@@ -113,6 +113,10 @@ For adapter layouts with integer region fields, `dst` should be written back to
 the particle's region field before `transbound`. Position-field helpers support
 Level 3 neighbor/boundary mapping; they do not replace an existing
 integer-region `map_to_subdomain` path.
+Use `oh3_particle_adapter_use_neighbor_position_fields()` when positions should
+drive only edge/neighbor movement, and
+`oh3_particle_adapter_use_subdomain_position_fields()` when positions should
+also become the subdomain mapping policy.
 
 If `mode == OH_MODE_REBALANCE_SECONDARY`, refresh region-local buffers after
 reading the updated `sdid`/`pbase` state.

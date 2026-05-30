@@ -2661,7 +2661,8 @@ int oh4s_inject_particle(const void* particle, const int ps) {
 #endif
 
     if (inj < 0 || inj > INT_MAX || inj >= state->n_of_local_particles_limit)
-        local_errstop("injection causes local particle buffer overflow");
+        oh2_errstop_injection_overflow_state(state, "oh4s_inject_particle",
+                                             inj, s);
     state->n_of_injections++;
     nOfInjections = state->n_of_injections;
     p = level4_particle_at(state, (int)inj);

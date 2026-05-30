@@ -585,7 +585,7 @@ check_present 'expected Level 3 field config failure to report missing ctypes' \
   scripts/docker-build-test.sh
 check_present 'expected injected particle index overflow to fail' \
   scripts/docker-build-test.sh
-check_present 'expected injected particle index overflow to report buffer overflow' \
+check_present 'expected injected particle index overflow to report contextual overflow' \
   scripts/docker-build-test.sh
 check_present 'expected finalized injected particle remap to fail' \
   scripts/docker-build-test.sh
@@ -876,6 +876,9 @@ check_present 'null-region-weights' \
   tests/test_oh_context_particle_layout_guard_fortran.F90
 check_present 'short-weights' \
   tests/test_oh_context_particle_layout_guard_fortran.F90
+check_present 'default-weights-before-init' \
+  tests/test_oh_context_particle_layout_guard_fortran.F90
+check_present 'default-weights-before-init' scripts/docker-build-test.sh
 check_present 'short-grid-size' \
   tests/test_oh_context_particle_layout_guard_fortran.F90
 check_present 'empty_grid_size' \
@@ -1020,6 +1023,10 @@ check_present 'dint inj = (dint)state->total_parts \+ state->n_of_injections' \
   src/c/ohhelp2.c
 check_present 'inj<0 \|\| inj>INT_MAX \|\| inj>=state->n_of_local_particles_limit' \
   src/c/ohhelp2.c
+check_present 'oh2_errstop_injection_overflow_state' src/c/ohhelp2.c
+check_present 'local particle buffer overflow on rank' src/c/ohhelp2.c
+check_present 'oh2_inject_particle_state: local particle buffer overflow' \
+  scripts/docker-build-test.sh
 check_absent 'state->total_parts \+ state->n_of_injections\+\+' \
   src/c/ohhelp2.c
 check_absent 'oh2_inject_particle_state\(context, \(struct S_particle\*\)part\)' \
@@ -1535,6 +1542,16 @@ check_present 'Passing `NULL` resets all region' \
   doc/v2/design/load-balancing.md
 check_present '`size(weights)` must match the number of regions/nodes in the context' \
   doc/v2/design/load-balancing.md
+check_present 'oh_context_region_count(ctx)' doc/v2/design/load-balancing.md
+check_present 'oh_context_is_level3_configured(ctx)' \
+  doc/v2/design/load-balancing.md
+check_present 'oh_context_region_count' include/oh_context.h
+check_present 'oh_context_is_level3_configured' include/oh_context.h
+check_present 'oh_fortran_context_region_count' include/oh_fortran_v2.h
+check_present 'oh_fortran_context_is_level3_configured' include/oh_fortran_v2.h
+check_present 'oh_context_region_count(context)' tests/test_oh_v2_fortran.F90
+check_present 'oh_context_is_level3_configured(context)' \
+  tests/test_oh_v2_fortran.F90
 check_present '`size(weights)` must match the number of regions/nodes in the context' \
   doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'count-equivalent compatibility path' \
@@ -1545,6 +1562,16 @@ check_present 'rounds up the receiver.s load deficit' \
   doc/v2/design/load-balancing.md
 check_present 'oh_fortran_particle_adapter_set_species_base' \
   include/oh_fortran_v2.h
+check_present 'oh3_particle_adapter_use_neighbor_position_fields' include/ohhelp3.h
+check_present 'oh3_particle_adapter_use_subdomain_position_fields' include/ohhelp3.h
+check_present 'oh_fortran_particle_adapter_use_level3_neighbor_position_fields' \
+  include/oh_fortran_v2.h
+check_present 'oh_fortran_particle_adapter_use_level3_subdomain_position_fields' \
+  include/oh_fortran_v2.h
+check_present 'oh_particle_adapter_use_level3_neighbor_position_fields' \
+  src/fortran/oh_v2.F90
+check_present 'oh_particle_adapter_use_level3_subdomain_position_fields' \
+  src/fortran/oh_v2.F90
 check_present 'oh_particle_adapter_set_species_base(unwrap_adapter(adapter), 1)' \
   src/c/oh_fortran_v2.c
 check_absent 'context->spec_base = 1' src/c/oh_fortran_v2.c
@@ -1962,7 +1989,9 @@ check_present 'level4_init_particle_stride()' src/c/ohhelp4p.c
 check_present 'SendBuf = level4_init_particle_at(Particles, maxlocalp)' \
   src/c/ohhelp4p.c
 check_absent '\(struct S_particle\*\*\)pbuf' src/c/ohhelp4p.c
+check_present 'level4_send_counts' src/c/ohhelp4p.c
 check_present 'level4_send_counts' src/c/ohhelp4s.c
+check_present 'Level 4 send count exceeds send buffer' src/c/ohhelp4p.c
 check_present 'default-context state bridge' doc/v2/design/level-scope.md
 check_absent 'not heap-owned context support' doc/v2/design/level-scope.md
 check_absent 'not a guarantee that non-uniform' \

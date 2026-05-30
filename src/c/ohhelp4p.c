@@ -1548,8 +1548,20 @@ static void state_exchange_xfer_amount4p(struct oh_state* state,
     const struct S_realneighbor* snbr = real_src[trans];
     const struct S_realneighbor* dnbr = real_dst[trans];
     const int nnns = state->n_of_nodes * state->n_of_species;
+    const int send_count_slots = 2 * nnns;
     int ps, tag, req;
 
+    if (state->level4_send_counts_size < send_count_slots) {
+        free(state->level4_send_counts);
+        state->level4_send_counts =
+            (int*)mem_alloc(sizeof(int), send_count_slots, "Level4SendCounts");
+        state->level4_send_counts_size = send_count_slots;
+    }
+    for (ps = 0, tag = 0; ps < 2; ps++, tag += nnns) {
+        int i;
+        int* scbase = state->level4_send_counts + tag;
+        for (i = 0; i < nnns; i++) scbase[i] = 0;
+    }
     for (ps = 0, tag = 0, req = 0; ps <= psnew; ps++, tag += nnns) {
         const int n = snbr[ps].n;
         const int* nbor = snbr[ps].nbor;
@@ -1566,6 +1578,10 @@ static void state_exchange_xfer_amount4p(struct oh_state* state,
         int i, * nsbase = state->n_of_send + tag;
         for (i = 0; i < n; i++, req++) {
             const int nid = nbor[i];
+            int s;
+            for (s = 0; s < state->n_of_species; s++)
+                state->level4_send_counts[tag + s * state->n_of_nodes + nid] =
+                    nsbase[s * state->n_of_nodes + nid];
             MPI_Isend(nsbase + nid, 1, state->level4_histogram_half_type, nid,
                       tag, state->comm, state->requests + req);
         }
@@ -2009,7 +2025,7 @@ static void state_xfer_particles4p(struct oh_state* state, const int trans,
         (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
-    int ps, s, t, i, req, sdisp, * nofr, * nofs;
+    int ps, s, t, i, req, * nofr, * nofs, * nsend_counts;
 
     for (ps = 0, t = 0, nofr = state->n_of_recv, req = 0; ps <= psnew; ps++) {
         const int n = real_src[trans][ps].n;
@@ -2028,14 +2044,19 @@ static void state_xfer_particles4p(struct oh_state* state, const int trans,
             }
         }
     }
-    for (ps = 0, t = 0, sdisp = 0, nofs = state->n_of_send; ps < 2; ps++) {
+    for (ps = 0, t = 0, nofs = state->n_of_send,
+         nsend_counts = state->level4_send_counts; ps < 2; ps++) {
         const int n = real_dst[trans][ps].n;
         const int* nbor = real_dst[trans][ps].nbor;
-        for (s = 0; s < ns; s++, t++, nofs += nn) {
+        for (s = 0; s < ns; s++, t++, nofs += nn, nsend_counts += nn) {
             for (i = 0; i < n; i++) {
                 const int nid = nbor[i];
                 const int sdnxt = nofs[nid];
-                const int nsend = sdnxt - sdisp;
+                const int nsend = nsend_counts[nid];
+                const int sdisp = sdnxt - nsend;
+                if (sdisp < 0)
+                    local_errstop("Level 4 send count exceeds send buffer "
+                                  "displacement");
                 nofs[nid] = 0;
                 if (nsend) {
                     MPI_Isend(oh_particle_buffer_at(state->particle_adapter,
@@ -2043,7 +2064,6 @@ static void state_xfer_particles4p(struct oh_state* state, const int trans,
                               nsend, state->particle_mpi_type,
                               nid, t, state->comm, state->requests + req++);
                 }
-                sdisp = sdnxt;
             }
         }
     }
@@ -2343,7 +2363,8 @@ int oh4p_inject_particle(const void* particle, const int ps) {
                       "have 'spec' element and you have two or more species");
 #endif
     if (inj < 0 || inj > INT_MAX || inj >= state->n_of_local_particles_limit)
-        local_errstop("injection causes local particle buffer overflow");
+        oh2_errstop_injection_overflow_state(state, "oh4p_inject_particle",
+                                             inj, s);
     state->n_of_injections++;
     nOfInjections = state->n_of_injections;
     p = level4_particle_at(state, (int)inj);

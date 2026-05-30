@@ -46,6 +46,18 @@ oh3_particle_adapter_use_position_fields(&adapter, x_offset, y_offset,
                                          z_offset);
 ```
 
+That helper is a compatibility shim: it installs Level 3 position-based
+neighbor mapping, and installs position-based subdomain mapping only when the
+adapter does not already provide `map_to_subdomain()`. New code can make the
+side effect explicit:
+
+```c
+oh3_particle_adapter_use_neighbor_position_fields(&adapter, x_offset, y_offset,
+                                                  z_offset);
+oh3_particle_adapter_use_subdomain_position_fields(&adapter, x_offset,
+                                                   y_offset, z_offset);
+```
+
 Fortran exposes the same contract through `ohhelp_v2` opaque adapter handles.
 
 ## Region Semantics
@@ -110,6 +122,9 @@ fields must not replace that subdomain mapper. New v2 integrations should map a
 particle's physical position explicitly with `oh_context_map_particle_to_subdomain()`
 and store the result through the adapter region field or callback before
 `transbound`.
+Load-balance accounting follows the region accounting arrays and the adapter's
+region/subdomain mapper; recording position fields alone does not make physical
+position authoritative for balancing.
 
 ## Injection Accounting
 
@@ -122,6 +137,10 @@ Injected-particle accounting is part of the particle contract.
 - `oh_remap_injected_particle()` is additive; use it only for an injected copy
   that was not already counted, or after removing its previous count.
 - `remap_injected_particle()` is additive for the same reason.
+
+If the injection area exceeds the local particle buffer, the runtime diagnostic
+reports the API path, rank, current particle count, pending injection count,
+computed injection index, local capacity, species count, and adapter mode.
 
 Setting a region field negative is not enough to undo a counted injection. Use
 `oh_remove_injected_particle()` to avoid double counting.

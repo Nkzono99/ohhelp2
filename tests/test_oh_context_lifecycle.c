@@ -977,6 +977,9 @@ run_weighted_load_rebalance_test(int rank, int n, MPI_Datatype pic_type,
       assert(pbase[2] == 2);
     }
   } else {
+    const double target_load = context->total_load / (double)n;
+    for (int i=0; i<n; i++)
+      assert(context->total_load_global[i] >= target_load);
     if (rank == 0) {
       assert(copied_sdid[1] == -1);
       assert(pbase[0] == 0);

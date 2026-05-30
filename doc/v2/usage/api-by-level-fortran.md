@@ -166,6 +166,10 @@ boundary IDs を持っている場合は、`oh_context_configure_level3_legacy()
 boundary IDs を context API の 0-based 表現へ変換します。field operation
 の `ftype` / `ctype` は別の call-site 引数なので、この legacy helper では
 変換されません。
+It also does not promise full historical `oh3_init` field descriptor
+semantics for `cfields` / `ftypes` / `ctypes` / `fsizes`. If those arrays are
+still owned in the old Fortran layout, prefer `oh3_init_raw()` to initialize the
+default context and then use `oh_context_*` for subsequent PIC steps.
 
 ## Level 4p/4s
 

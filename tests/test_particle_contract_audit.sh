@@ -1265,6 +1265,10 @@ check_present 'zero-based `ftype` / `ctype` ids' \
   doc/v2/usage/api-by-level-fortran.md
 check_present 'この legacy helper では' doc/v2/usage/api-by-level-fortran.md
 check_present '変換されません' doc/v2/usage/api-by-level-fortran.md
+check_present 'does not promise full historical `oh3_init` field descriptor' \
+  doc/v2/usage/api-by-level-fortran.md
+check_present 'recommended migration path for existing Fortran Level 3 callers' \
+  doc/v2/usage/pic-lifecycle-fortran.md
 check_present 'sample/sample\.F90' \
   doc/v2/usage/README.md
 check_present 'oh_particle_adapter_create_byte' \
@@ -2300,6 +2304,10 @@ check_present 'context_ftype = ftype - 1_c_int' \
   doc/v2/design/index-conventions.md
 check_present 'oh_context_configure_level3_legacy' \
   doc/v2/design/index-conventions.md
+check_present 'not a full `oh3_init` field descriptor compatibility layer' \
+  doc/v2/design/index-conventions.md
+check_present 'does not preserve the full historical Fortran field descriptor' \
+  doc/v2/design/context.md
 check_present 'pbase\(2\).*secondary split' doc/v2/usage/api-by-level-fortran.md
 check_present 'pbase\(3\).*total local particle count' \
   doc/v2/usage/api-by-level-fortran.md

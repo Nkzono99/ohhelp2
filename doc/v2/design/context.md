@@ -175,6 +175,9 @@ Fortran migration code that still has legacy Level 3 arrays can call
 `oh_context_configure_level3_legacy()` from `ohhelp_v2`. That helper accepts the
 active-decomposition sentinel used by the old Fortran initializer and translates
 one-based boundary IDs to the zero-based IDs used by the context API.
+It does not preserve the full historical Fortran field descriptor semantics for
+`cfields` / `ftypes` / `ctypes` / `fsizes`; use `oh3_init_raw()` when those
+arrays must keep the old `oh3_init` interpretation.
 
 Recommended Level 3 ordering is: create/configure context, configure particle
 adapter, bind region ids, bind particle buffer, bind accounting arrays,

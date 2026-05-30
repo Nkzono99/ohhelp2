@@ -103,6 +103,11 @@ geometry arrays with one-based boundary ids.
 既存 Fortran initializer と同じ active-decomposition sentinel と 1-based
 boundary IDs を渡したい場合は、`oh_context_configure_level3_legacy()` を
 使います。
+This helper is not a full replacement for the historical Fortran `oh3_init`
+field descriptor path: `cfields` / `ftypes` / `ctypes` / `fsizes` are still the
+context descriptor contract. Existing callers that need the old Fortran field
+descriptor semantics should use `oh3_init_raw()` for initialization, then call
+the v2 `oh_context_*` operations on the default context.
 
 ## 5. PIC Step
 
@@ -182,3 +187,6 @@ call oh3_init_raw(sdid_ptr, nspec, maxfrac, nphgram_ptr, totalp_ptr, pbuf, &
 ```
 
 No v1 module is required for this v2 path.
+This is the recommended migration path for existing Fortran Level 3 callers
+that already own `cfields` / `ftypes` / `ctypes` / `fsizes` in the historical
+`oh3_init` layout.

@@ -9,6 +9,9 @@
 - Added a counted C region-weight setter for size-safe weight updates.
 - Added explicit Level 3 neighbor-position and subdomain-position adapter
   helpers so applications can avoid ambiguous position-field side effects.
+- Documented the supported scope of `oh_context_configure_level3_legacy()` and
+  the recommended `oh3_init_raw()` migration path for historical Fortran field
+  descriptors.
 
 ### Fixed
 

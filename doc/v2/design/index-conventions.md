@@ -66,6 +66,10 @@ converts one-based `bcond` / `bounds` entries to the zero-based context
 representation. It does not convert `ftype` or `ctype` values passed later to
 field operation calls; those call-site ids must still be converted by a
 v1-style wrapper.
+It is intentionally not a full `oh3_init` field descriptor compatibility layer:
+`cfields`, `ftypes`, `ctypes`, and `fsizes` remain on the context descriptor
+contract. Use `oh3_init_raw()` when an existing Fortran caller must preserve the
+historical raw init semantics for those arrays.
 
 `oh2_init_raw()` and `oh3_init_raw()` call the historical raw init path and
 therefore follow the v1 Fortran conventions for the raw init argument list.

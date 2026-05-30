@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v2.3.2 - 2026-05-30
+
 ### Added
 
 - Added context query APIs for region count and Level 3 configuration state in
@@ -38,6 +40,9 @@
   weights before context/region configuration.
 - Kept weighted rebalance schedule load accounting balanced after assigning a
   weighted transfer.
+- Reused stable weighted secondary schedules when particles remain inside the
+  existing primary/secondary family, avoiding repeated weighted rebalance on
+  unchanged ownership.
 
 ### Verification
 

@@ -17,12 +17,12 @@ COBJS           = simulator.o sample.o
 OBJS            = $(COBJS) $(OHOBJS)
 
 simulator:      $(OBJS)
-                $(LINKER) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@
+		$(LINKER) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $@
 
 $(COBJS):%.o:   %.c $(COMMONHDRS) $(CHDRS)
-                $(CC) $(CFLAGS) -c $< -o $@
+		$(CC) $(CFLAGS) -c $< -o $@
 $(OHOBJS):%.o:  %.c $(COMMONHDRS) $(OHHDRS)
-                $(CC) $(CFLAGS) -c $< -o $@
+		$(CC) $(CFLAGS) -c $< -o $@
 
 clean:;
-                rm *.o
+		rm *.o

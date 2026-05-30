@@ -1,5 +1,6 @@
 !  File: oh_v2.F90
 !  Fortran ISO_C_BINDING facade for v2 context and particle adapters.
+#include "oh_config.h"
 module ohhelp_v2
   use iso_c_binding
   implicit none
@@ -166,11 +167,12 @@ module ohhelp_v2
       integer(c_int), value :: maxfrac
     end subroutine
 
-    subroutine c_oh_context_set_region_weights(context, weights) &
+    subroutine c_oh_context_set_region_weights(context, weights, weight_count) &
         bind(C, name="oh_fortran_context_set_region_weights")
-      import :: c_ptr
+      import :: c_ptr, c_int
       type(c_ptr), value :: context
       type(c_ptr), value :: weights
+      integer(c_int), value :: weight_count
     end subroutine
 
     subroutine c_oh_context_set_particle_mpi_type(context, fortran_type) &
@@ -671,10 +673,15 @@ contains
     type(oh_context_handle), intent(in) :: context
     real(c_double), target, intent(in), optional :: weights(:)
     type(c_ptr) :: weights_ptr
+    integer(c_int) :: weight_count
 
     weights_ptr = c_null_ptr
-    if (present(weights)) weights_ptr = c_loc(weights(1))
-    call c_oh_context_set_region_weights(context%ptr, weights_ptr)
+    weight_count = -1_c_int
+    if (present(weights)) then
+      weight_count = int(size(weights), c_int)
+      if (size(weights) > 0) weights_ptr = c_loc(weights(1))
+    end if
+    call c_oh_context_set_region_weights(context%ptr, weights_ptr, weight_count)
   end subroutine
 
   subroutine oh_context_set_particle_mpi_type(context, fortran_type)
@@ -886,10 +893,12 @@ contains
     call c_oh_context_remove_injected_particle(context%ptr, part)
   end subroutine
 
-  subroutine oh_context_grid_size(context, size)
+  subroutine oh_context_grid_size(context, grid_size)
     type(oh_context_handle), intent(in) :: context
-    real(c_double), target, intent(inout) :: size(:)
-    call c_oh_context_grid_size(context%ptr, c_loc(size(1)))
+    real(c_double), target, intent(inout) :: grid_size(:)
+    if (size(grid_size) < OH_DIMENSION) &
+      error stop "oh_context_grid_size requires at least OH_DIMENSION elements"
+    call c_oh_context_grid_size(context%ptr, c_loc(grid_size(1)))
   end subroutine
 
   integer(c_int) function oh_context_map_particle_to_neighbor(context, x, y, &
@@ -903,6 +912,14 @@ contains
 
     y_ptr = c_null_ptr
     z_ptr = c_null_ptr
+#if OH_DIMENSION >= 2
+    if (.not. present(y)) &
+      error stop "oh_context_map_particle_to_neighbor requires y coordinate"
+#endif
+#if OH_DIMENSION >= 3
+    if (.not. present(z)) &
+      error stop "oh_context_map_particle_to_neighbor requires z coordinate"
+#endif
     if (present(y)) y_ptr = c_loc(y)
     if (present(z)) z_ptr = c_loc(z)
     oh_context_map_particle_to_neighbor = &
@@ -919,6 +936,14 @@ contains
 
     y_value = 0.0_c_double
     z_value = 0.0_c_double
+#if OH_DIMENSION >= 2
+    if (.not. present(y)) &
+      error stop "oh_context_map_particle_to_subdomain requires y coordinate"
+#endif
+#if OH_DIMENSION >= 3
+    if (.not. present(z)) &
+      error stop "oh_context_map_particle_to_subdomain requires z coordinate"
+#endif
     if (present(y)) y_value = y
     if (present(z)) z_value = z
     oh_context_map_particle_to_subdomain = &
@@ -960,6 +985,8 @@ contains
   subroutine oh2_init_raw(sdid, nspec, maxfrac, nphgram, totalp, pbuf, pbase, &
                           maxlocalp, mycomm, nbor, pcoord, stats, repiter, &
                           verbose)
+    ! pbuf is an inout pointer slot: c_null_ptr as the value requests legacy
+    ! allocation, but sdid/nphgram/totalp/pbase/pcoord must be real storage.
     type(c_ptr), intent(in), value :: sdid
     integer(c_int), intent(in) :: nspec
     integer(c_int), intent(in) :: maxfrac
@@ -983,6 +1010,8 @@ contains
                           maxlocalp, mycomm, nbor, pcoord, sdoms, scoord, &
                           nbound, bcond, bounds, ftypes, cfields, ctypes, &
                           fsizes, stats, repiter, verbose)
+    ! pbuf is an inout pointer slot: c_null_ptr as the value requests legacy
+    ! allocation, but sdid/nphgram/totalp/pbase/pcoord must be real storage.
     type(c_ptr), intent(in), value :: sdid
     integer(c_int), intent(in) :: nspec
     integer(c_int), intent(in) :: maxfrac

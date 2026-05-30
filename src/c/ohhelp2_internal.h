@@ -6,17 +6,19 @@
 #include "ohhelp2.h"
 
 EXTERN int nOfLocalPLimit;
-EXTERN struct S_particle *Particles;    /* [nOfLocalPLimit] */
-EXTERN struct S_particle *SendBuf;      /* [nOfLocalPLimit] */
-EXTERN struct S_particle **RecvBufBases;/* [2][nOfSpecies] */
+EXTERN void *Particles;                 /* [nOfLocalPLimit] */
+EXTERN void *SendBuf;                   /* [nOfLocalPLimit] */
+EXTERN void **RecvBufBases;             /* [2][nOfSpecies] */
 EXTERN int *secondaryBase, *totalLocalParticles;
 EXTERN int *SendBufDisps;               /* [nOfSpecies][nOfNodes] */
 EXTERN int *RecvBufDisps;               /* [nOfNodes] */
 EXTERN int nOfInjections;
 EXTERN int specBase;
 EXTERN MPI_Datatype T_Particle;
+EXTERN int ownsTParticle;
 EXTERN MPI_Datatype CustomTParticle;
 EXTERN int useCustomTParticle;
+EXTERN int ownsCustomTParticle;
 EXTERN oh_particle_adapter ParticleAdapter;
 EXTERN oh_particle_adapter CustomParticleAdapter;
 EXTERN int useCustomParticleAdapter;
@@ -30,7 +32,7 @@ EXTERN int AbsNeighbors[2][OH_NEIGHBORS];
 
 /* Prototypes for the functions called from higher-level library code */
 void init2(int **sdid, int nspec, int maxfrac, int **nphgram,
-           int **totalp, struct S_particle **pbuf, int **pbase, int maxlocalp,
+           int **totalp, void **pbuf, int **pbase, int maxlocalp,
            struct S_mycommc *mycommc, struct S_mycommf *mycommf,
            int **nbor, int *pcoord, int stats, int repiter, int verbose);
 void *oh2_bind_particle_buffer_state(struct oh_state *state, void *particles,

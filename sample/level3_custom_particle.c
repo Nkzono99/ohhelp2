@@ -1,5 +1,7 @@
-/* Minimal Level-3 custom particle layout setup for v2.0.
-   This sample is compile-checked by scripts/docker-build-test.sh. */
+/* Minimal Level-3 custom particle layout setup for the default-context
+   migration shim. Heap-owned v2 examples should prefer oh_context plus
+   oh_context_set_particle_adapter(). This sample is compile-checked by
+   scripts/docker-build-test.sh. */
 #include <stddef.h>
 #include <stdlib.h>
 

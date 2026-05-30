@@ -25,9 +25,12 @@ Fortran migration code should also read
 context API uses zero-based field and border type ids even when called through
 `ohhelp_v2`.
 
-`sample/sample.F90` は Fortran 側の compile-check 対象です。
-任意の Fortran 粒子 layout は `ohhelp_v2` の adapter handle と raw init bridge で扱います。
-raw init bridge には `oh2_init_raw()` / `oh3_init_raw()` があります。
+`sample/v2_context_level2_custom_particle.c` と
+`sample/v2_context_level2_custom_particle.F90` は v2 heap context と custom
+particle adapter の run-check 対象です。`sample/sample.F90` は legacy
+Fortran compile-check 対象です。任意の Fortran 粒子 layout は
+`ohhelp_v2` の adapter handle と raw init bridge で扱います。raw init
+bridge には `oh2_init_raw()` / `oh3_init_raw()` があります。
 
 ## C / Fortran Mirror 構成
 

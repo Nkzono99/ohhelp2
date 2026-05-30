@@ -16,25 +16,41 @@ extern "C" {
 typedef struct oh_state oh_context;
 typedef struct oh_particle_adapter oh_particle_adapter;
 
+/* Creates a heap-owned context by duplicating comm. Must be called after
+   MPI_Init and before MPI_Finalize. Returns MPI_ERR_ARG for a NULL context
+   slot, MPI_ERR_COMM for MPI_COMM_NULL, MPI_ERR_OTHER outside the MPI
+   lifetime, MPI_ERR_NO_MEM on allocation failure, or an MPI error from
+   communicator/datatype creation. On failure, *context is set to NULL.
+   oh_context_destroy() tolerates heap cleanup after MPI_Finalize(), but users
+   should destroy contexts before MPI_Finalize() to release MPI-owned handles. */
 int oh_context_create(MPI_Comm comm, oh_context **context);
 void oh_context_destroy(oh_context *context);
 oh_context *oh_default_context(void);
 void oh_context_configure_particles(oh_context *context, int nspec,
                                     int maxfrac);
-/* Passing NULL resets all region weights to 1.0 on the default context. */
+/* Passing NULL weights resets all weights to 1.0 on the selected context.
+   Passing a NULL context selects the default context. */
 void oh_context_set_region_weights(oh_context *context, const double *weights);
 /* Passing MPI_DATATYPE_NULL resets to the default byte datatype. */
 void oh_context_set_particle_mpi_type(oh_context *context, MPI_Datatype type);
 /* Passing NULL resets particle movement to the default S_particle adapter. */
 void oh_context_set_particle_adapter(oh_context *context,
                                      const oh_particle_adapter *adapter);
+/* Heap contexts must be configured before binding particles.
+   Borrowed storage requires a non-NULL buffer when maxlocalp > 0.
+   Owned storage requires particles == NULL and returns the owned buffer. */
 void *oh_context_bind_particles(oh_context *context, void *particles,
                                 int maxlocalp, int ownership);
 void oh_context_unbind_particles(oh_context *context);
+/* Borrowed region ids require non-NULL sdid. Owned region ids require
+   sdid == NULL and return the owned two-element array. */
 int *oh_context_bind_region_ids(oh_context *context, int *sdid,
                                 int ownership);
 void oh_context_unbind_region_ids(oh_context *context);
 void oh_context_get_region_ids(oh_context *context, int sdid[2]);
+/* nphgram, totalp, and pbase are pointer slots; all three slot addresses must
+   be non-NULL. Borrowed accounting requires non-NULL storage in the slots.
+   Owned accounting requires NULL slots and writes the allocated arrays back. */
 void oh_context_bind_particle_accounting(oh_context *context, int **nphgram,
                                          int **totalp, int **pbase,
                                          int ownership);

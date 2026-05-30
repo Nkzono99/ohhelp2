@@ -22,7 +22,8 @@ oh_context *oh_fortran_default_context(void);
 void oh_fortran_context_configure_particles(oh_context *context, int nspec,
                                             int maxfrac);
 void oh_fortran_context_set_region_weights(oh_context *context,
-                                           const double *weights);
+                                           const double *weights,
+                                           int weight_count);
 void oh_fortran_context_set_particle_mpi_type(oh_context *context,
                                              int fortran_type);
 void oh_fortran_context_set_particle_adapter(
@@ -87,6 +88,9 @@ void oh_fortran_context_allreduce_field(oh_context *context, void *pfld,
 void oh_fortran_context_exchange_borders(oh_context *context, void *pfld,
                                          void *sfld, int ctype, int bcast);
 
+/* Raw init bridge for ISO_C_BINDING users. pbuf is an inout pointer slot:
+   pbuf == NULL is invalid, while *pbuf == NULL requests legacy allocation.
+   sdid, nphgram, totalp, pbase, and pcoord must point at real storage. */
 void oh_fortran_oh2_init_raw(
   int *sdid, int nspec, int maxfrac, int *nphgram, int *totalp, void **pbuf,
   int *pbase, int maxlocalp, struct S_mycommf *mycomm, int *nbor,

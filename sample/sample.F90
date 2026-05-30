@@ -1,5 +1,8 @@
 !  File: sample.F90
 !  Version 1.1.1 (2015/10/23)
+!  Legacy v1/v1-compatible sample: this intentionally uses oh_particle and
+!  direct nid/spec fields. New v2 examples should use ohhelp_v2 plus a
+!  particle adapter instead.
 !  Copyright (C) 2009-2015  Hiroshi Nakashima <h.nakashima@media.kyoto-u.ac.jp>
 !                           (ACCMS, Kyoto University)
 !  This program can be freely used, redistributed and modified for non-
@@ -223,6 +226,7 @@ module sample
     integer           :: xl, yl, zl, xu, yu, zu
     integer           :: s, p, q
     integer           :: i, j, k
+    integer           :: xi, yi, zi
     real*8            :: x, y, z
     real*8            :: c(3,2,2,2)
 
@@ -242,10 +246,11 @@ module sample
         p = p + 1
         call scatter(pbuf(p), s, c)
         x = pbuf(p)%x - xl;  y = pbuf(p)%y - yl;  z = pbuf(p)%z - zl
+        xi = int(x);  yi = int(y);  zi = int(z)
         do k=0,1;  do j=0,1;  do i=0,1
-          cd(JX, x+i, y+j, z+k) = cd(JX, x+i, y+j, z+k) + c(JX, i, j, k)
-          cd(JY, x+i, y+j, z+k) = cd(JY, x+i, y+j, z+k) + c(JY, i, j, k)
-          cd(JZ, x+i, y+j, z+k) = cd(JZ, x+i, y+j, z+k) + c(JZ, i, j, k)
+          cd(JX, xi+i, yi+j, zi+k) = cd(JX, xi+i, yi+j, zi+k) + c(JX, i, j, k)
+          cd(JY, xi+i, yi+j, zi+k) = cd(JY, xi+i, yi+j, zi+k) + c(JY, i, j, k)
+          cd(JZ, xi+i, yi+j, zi+k) = cd(JZ, xi+i, yi+j, zi+k) + c(JZ, i, j, k)
         end do;  end do;  end do;
       end do
     end do

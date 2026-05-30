@@ -12,11 +12,14 @@ not require `S_particle`. 粒子ポインタを `void *` として bind し、la
 adapter で説明します。
 
 ```c
-oh_particle_adapter adapter = oh_default_particle_adapter(MPI_DATATYPE_NULL);
+MPI_Datatype particle_type = MPI_DATATYPE_NULL;
+oh_particle_adapter_make_byte_type(sizeof(struct my_particle), &particle_type);
+oh_particle_adapter adapter = oh_default_particle_adapter(particle_type);
+adapter.stride = sizeof(struct my_particle);
 oh_particle_adapter_use_integer_fields(&adapter, region_offset, region_size,
                                        species_offset, species_size);
-oh_particle_adapter_use_position_fields(&adapter, x_offset, y_offset,
-                                        z_offset);
+oh3_particle_adapter_use_position_fields(&adapter, x_offset, y_offset,
+                                         z_offset);
 oh_context_set_particle_adapter(ctx, &adapter);
 ```
 
@@ -24,6 +27,12 @@ Use `OH_BIG_SPACE`-capable integer fields when region ids may exceed `int`.
 C adapters use 0-based species ids by default. If an application stores
 1-based species ids, set `oh_particle_adapter_set_species_base(&adapter, 1)`
 before binding the adapter to a context.
+Use `oh_particle_adapter_use_position_fields()` only to record coordinate offsets without installing Level 3 mapping callbacks.
+
+Set the particle adapter or particle MPI datatype before binding a particle
+buffer. If the application needs to change particle layout later, call
+`oh_context_unbind_particles()` first and then bind the replacement layout and
+buffer together.
 
 ## Borrowed Buffer
 
@@ -40,7 +49,12 @@ overwrite elements during `oh_context_transbound2()` or
 Level 1-3 transfer also mutates accounting arrays:
 
 ```c
-oh_context_bind_particle_accounting(ctx, nphgram, totalp, pbase,
+int *nphgram_slot = nphgram;
+int *totalp_slot = totalp;
+int *pbase_slot = pbase;
+
+oh_context_bind_particle_accounting(ctx, &nphgram_slot, &totalp_slot,
+                                    &pbase_slot,
                                     OH_PARTICLES_BORROWED);
 ```
 
@@ -63,7 +77,6 @@ resets every region weight to `1.0`.
 When injecting particles, use the context helpers:
 
 ```c
-oh_context_inject_particle(ctx, part);
 void *copy = oh_context_inject_particle_get(ctx, part);
 oh_context_remove_injected_particle(ctx, copy);
 ```

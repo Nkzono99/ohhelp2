@@ -32,6 +32,10 @@
 #define OH_POS_AWARE
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* constants for D-dimensional simulation */
 #define OH_DIM_X        0
 #define OH_DIM_Y        1
@@ -198,5 +202,9 @@ void oh1_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
                struct S_mycommf *mycomm, int *nbor, int *pcoord, int *stats,
                int *repiter, int *verbose);
 int  oh1_transbound_(int *currmode, int *stats);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -58,6 +58,18 @@ with `oh_context_destroy()`. They are the v2 direction for multiple independent
 OhHelp instances. Use them for new code unless a raw initialization path forces
 the default context. Multiple independent OhHelp instances should not share
 mutable particle, accounting, geometry, or scheduling state.
+Heap-owned contexts duplicate the communicator passed to `oh_context_create()`
+and release that duplicate in `oh_context_destroy()`, so the application may
+free its original communicator after context creation. Destroy heap-owned
+contexts before `MPI_Finalize()`.
+
+The internal `init1_state()` migration entry point can initialize heap-owned
+contexts for Level 1 scheduling with `stats == 0` and `verbose == 0`. It
+accepts borrowed or context-owned `sdid`, `nphgram`, and `totalp`, but
+borrowed `rcounts` / `scounts` are not supported yet because the context does
+not track separate ownership for those arrays. Repeated initialization treats
+previous context-owned output pointers as stale and replaces them instead of
+rebinding freed storage.
 
 ## Particle Buffer Ownership
 
@@ -74,10 +86,17 @@ Ownership is explicit:
 - `OH_PARTICLES_BORROWED`: OhHelp stores the pointer and mutates the caller's
   buffer. The caller owns allocation and lifetime.
 - `OH_PARTICLES_OWNED`: OhHelp may allocate or replace the buffer and owns the
-  bound storage until unbind/destroy.
+  bound storage until unbind/destroy. Pass `NULL` when requesting owned storage;
+  non-NULL pointers are borrowed by definition.
 
 Transfer calls mutate the bound particle buffer. This is intentional API
 behavior, not an incidental side effect.
+
+The particle adapter and particle MPI datatype define the layout of the bound
+buffer and any context-owned work storage. Call
+`oh_context_configure_particles()` before binding particles. Configure the
+adapter and datatype before binding particles too. To change either layout,
+unbind the particle buffer first.
 
 ## Region Id State
 
@@ -101,16 +120,24 @@ snapshot helper for applications that do not want to bind caller-owned storage.
 
 Level 1-3 transfer logic also needs accounting arrays. The context binds
 `nphgram`, `totalp`, and `pbase` together so the transfer path can update
-particle counts consistently.
+particle counts consistently. The three arguments are pointer slots, so pass
+the address of each pointer variable even when requesting owned storage.
 
 ```c
-oh_context_bind_particle_accounting(ctx, nphgram, totalp, pbase,
+int *nphgram_slot = nphgram;
+int *totalp_slot = totalp;
+int *pbase_slot = pbase;
+
+oh_context_bind_particle_accounting(ctx, &nphgram_slot, &totalp_slot,
+                                    &pbase_slot,
                                     OH_PARTICLES_BORROWED);
 ```
 
 For borrowed accounting arrays, OhHelp does not take ownership of allocation.
 The application must keep the arrays alive for the whole bound lifetime.
 `oh_context_unbind_particle_accounting()` detaches them from the context.
+For owned accounting arrays, pass `NULL` pointer slots; OhHelp allocates and
+owns the arrays until accounting is unbound or the context is destroyed.
 
 `pbase` is an offset/count array, not a Fortran lower-bound array. In C,
 `pbase[1]` is the first secondary-particle offset after transbound and

@@ -14,6 +14,10 @@
 #define OH_NBR_BCC      (1+1*3+0*3*3)
 #define OH_NBR_TCC      (1+1*3+2*3*3)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Prototypes for the functions called from simulator code */
 void oh4s_init(int** sdid, const int nspec, const int maxfrac,
     const dint npmax, const int minmargin,
@@ -63,5 +67,9 @@ int  oh4s_remap_particle_to_neighbor_(struct S_particle* part, const int* ps,
     const int* s);
 int  oh4s_remap_particle_to_subdomain_(struct S_particle* part, const int* ps,
     const int* s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

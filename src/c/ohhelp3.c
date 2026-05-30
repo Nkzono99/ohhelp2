@@ -47,16 +47,7 @@ static void set_border_comm(int esize, int f, int *xyz, int *wdh,
                             struct S_borderexc bx[OH_DIMENSION][2]);
 static int  transbound3(struct oh_state *state, int currmode, int stats,
                         int level);
-static int  map_irregular(double p0, double p1, double p2, int dim, int from,
-                          int n);
-static int  map_irregular_range(double p, int dim, int from, int to);
 static void install_default_level3_particle_maps(struct oh_state *state);
-static oh_particle_region_t default_level3_map_particle_to_neighbor(
-  const oh_particle_adapter *adapter, void *particle,
-  int primary_or_secondary);
-static oh_particle_region_t default_level3_map_particle_to_subdomain(
-  const oh_particle_adapter *adapter, void *particle,
-  int primary_or_secondary);
 static oh_particle_region_t offset_level3_map_particle_to_neighbor(
   const oh_particle_adapter *adapter, void *particle,
   int primary_or_secondary);
@@ -87,6 +78,10 @@ static void state_allreduce_field(struct oh_state *state, void *pfld,
                                   void *sfld, int ftype);
 static void state_exchange_borders(struct oh_state *state, void *pfld,
                                    void *sfld, int ctype, int bcast);
+static void state_require_field_type(struct oh_state *state, int ftype,
+                                     const char *api);
+static void state_require_exchange_type(struct oh_state *state, int ctype,
+                                        const char *api);
 static void state_grid_size(struct oh_state *state, double size[OH_DIMENSION]);
 void state_clear_border_exchange(struct oh_state *state);
 void state_set_field_descriptors(struct oh_state *state,
@@ -100,10 +95,12 @@ oh3_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
           int *sdoms, int *scoord, int *nbound, int *bcond, int *bounds,
           int *ftypes, int *cfields, int *ctypes, int *fsizes,
           int *stats, int *repiter, int *verbose) {
+  void *raw_pbuf = pbuf;
+
   specBase = 1;
-  init3(&sdid, *nspec, *maxfrac, &nphgram, &totalp, NULL, NULL, &pbuf, &pbase,
-        *maxlocalp, NULL, mycomm, &nbor, pcoord, &sdoms, scoord, *nbound,
-        bcond, &bounds, ftypes, cfields, -1, ctypes, &fsizes,
+  init3(&sdid, *nspec, *maxfrac, &nphgram, &totalp, NULL, NULL, &raw_pbuf,
+        &pbase, *maxlocalp, NULL, mycomm, &nbor, pcoord, &sdoms, scoord,
+        *nbound, bcond, &bounds, ftypes, cfields, -1, ctypes, &fsizes,
         *stats, *repiter, *verbose, 0);
 }
 void
@@ -114,8 +111,10 @@ oh3_init(int **sdid, int nspec, int maxfrac, int **nphgram,
          int *ftypes, int *cfields, int *ctypes, int **fsizes,
          int stats, int repiter, int verbose) {
   specBase = 0;
-  init3(sdid, nspec, maxfrac, nphgram, totalp, NULL, NULL,
-        (struct S_particle**)pbuf, pbase, maxlocalp,
+  if (!pbuf) local_errstop("oh3_init() requires a particle pointer slot");
+  if (!pbase) local_errstop("oh3_init() requires a particle base slot");
+  init3(sdid, nspec, maxfrac, nphgram, totalp, NULL, NULL, pbuf, pbase,
+        maxlocalp,
         (struct S_mycommc*)mycomm, NULL, nbor, pcoord, sdoms, scoord,
         nbound, bcond, bounds, ftypes, cfields, 0, ctypes, fsizes,
         stats, repiter, verbose, 0);
@@ -147,7 +146,7 @@ oh13_init(int **sdid, int nspec, int maxfrac, int **nphgram,
 void
 init3(int **sdid, int nspec, int maxfrac, int **nphgram,
       int **totalp, int **rcounts, int **scounts,
-      struct S_particle **pbuf, int **pbase, int maxlocalp,
+      void **pbuf, int **pbase, int maxlocalp,
       struct S_mycommc *mycommc, struct S_mycommf *mycommf,
       int **nbor, int *pcoord, int **sdoms, int *scoord,
       int nbound, int *bcond, int **bounds, int *ftypes,
@@ -165,8 +164,9 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
   int d, n, m;
 
   if (skip2)
-    init1(sdid, nspec, maxfrac, nphgram, totalp, rcounts, scounts,
-          mycommc, mycommf, nbor, pcoord, stats, repiter, verbose);
+    init1_state(&OhDefaultState, sdid, nspec, maxfrac, nphgram, totalp,
+                rcounts, scounts, mycommc, mycommf, nbor, pcoord, stats,
+                repiter, verbose);
   else
     init2(sdid, nspec, maxfrac, nphgram, totalp, pbuf, pbase, maxlocalp,
           mycommc, mycommf, nbor, pcoord, stats, repiter, verbose);
@@ -223,18 +223,11 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
 static void
 install_default_level3_particle_maps(struct oh_state *state) {
   if (state->exclude_level2 || state->use_custom_particle_adapter) return;
-  if (oh_context_is_default_state(state)) {
-    state->particle_adapter->map_to_neighbor =
-      default_level3_map_particle_to_neighbor;
-    state->particle_adapter->map_to_subdomain =
-      default_level3_map_particle_to_subdomain;
-  } else {
-    state->particle_adapter->user_data = state;
-    state->particle_adapter->map_to_neighbor =
-      context_level3_map_particle_to_neighbor;
-    state->particle_adapter->map_to_subdomain =
-      context_level3_map_particle_to_subdomain;
-  }
+  state->particle_adapter->user_data = state;
+  state->particle_adapter->map_to_neighbor =
+    context_level3_map_particle_to_neighbor;
+  state->particle_adapter->map_to_subdomain =
+    context_level3_map_particle_to_subdomain;
 }
 void
 oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
@@ -255,6 +248,8 @@ oh3_bind_context_particle_adapter(struct oh_state *state) {
   oh_particle_adapter *adapter;
 
   if (!state || oh_context_is_default_state(state)) return;
+  if (!state->use_custom_particle_adapter)
+    install_default_level3_particle_maps(state);
   adapter = state->particle_adapter;
   if (!adapter) return;
   if (adapter->map_to_neighbor == offset_level3_map_particle_to_neighbor) {
@@ -284,7 +279,8 @@ oh3_configure_context_state(struct oh_state *state, const int *pcoord,
   if (oh_context_is_default_state(state))
     local_errstop("oh_context_configure_level3() is for non-default context");
   if (state->n_of_nodes<=0 || state->n_of_species<=0)
-    local_errstop("Level 3 context configuration requires particles first");
+    local_errstop("Level 3 context configuration requires "
+                  "oh_context_configure_particles() first");
   if (!state->owns_level1_storage)
     local_errstop("Level 3 context configuration requires Level 1 storage");
 
@@ -416,19 +412,21 @@ init_subdomain_actively(struct oh_state *state,
     }
   }
   for (i=0,z=grid[OH_DIM_Z].coord[OH_LOWER],n=0; i<grid[OH_DIM_Z].n; i++) {
-    int bot=z, top=z+grid[OH_DIM_Z].light.size;
-    int bzlo = i==0 && OH_DIMENSION>OH_DIM_Z ?
-                 bc[OH_DIM_Z][OH_LOWER] : bbase;
-    int bzup = i==grid[OH_DIM_Z].n-1  && OH_DIMENSION>OH_DIM_Z ?
-                 bc[OH_DIM_Z][OH_UPPER] : bbase;
+    int top=z+grid[OH_DIM_Z].light.size;
+#if OH_DIMENSION >= 3
+    int bot=z;
+    int bzlo = i==0 ? bc[OH_DIM_Z][OH_LOWER] : bbase;
+    int bzup = i==grid[OH_DIM_Z].n-1 ? bc[OH_DIM_Z][OH_UPPER] : bbase;
+#endif
     if (i>=grid[OH_DIM_Z].light.n)  top++;
     z = top;
     for (j=0,y=grid[OH_DIM_Y].coord[OH_LOWER]; j<grid[OH_DIM_Y].n; j++) {
-      int south=y, north=y+grid[OH_DIM_Y].light.size;
-      int bylo = j==0 && OH_DIMENSION>OH_DIM_Y ?
-                   bc[OH_DIM_Y][OH_LOWER] : bbase;
-      int byup = j==grid[OH_DIM_Y].n-1  && OH_DIMENSION>OH_DIM_Y ?
-                   bc[OH_DIM_Y][OH_UPPER] : bbase;
+      int north=y+grid[OH_DIM_Y].light.size;
+#if OH_DIMENSION >= 2
+      int south=y;
+      int bylo = j==0 ? bc[OH_DIM_Y][OH_LOWER] : bbase;
+      int byup = j==grid[OH_DIM_Y].n-1 ? bc[OH_DIM_Y][OH_UPPER] : bbase;
+#endif
       if (j>=grid[OH_DIM_Y].light.n)  north++;
       y = north;
       for (k=0,x=grid[OH_DIM_X].coord[OH_LOWER]; k<grid[OH_DIM_X].n; k++,n++) {
@@ -438,18 +436,18 @@ init_subdomain_actively(struct oh_state *state,
         sd[n][OH_DIM_X][OH_LOWER] = west;
         sd[n][OH_DIM_X][OH_UPPER] = east;
         bd[n][OH_DIM_X][OH_LOWER] = bd[n][OH_DIM_X][OH_UPPER] = bbase;
-        if (OH_DIMENSION>OH_DIM_Y) {
-          sd[n][OH_DIM_Y][OH_LOWER] = south;
-          sd[n][OH_DIM_Y][OH_UPPER] = north;
-          bd[n][OH_DIM_Y][OH_LOWER] = bylo;
-          bd[n][OH_DIM_Y][OH_UPPER] = byup;
-        }
-        if (OH_DIMENSION>OH_DIM_Z) {
-          sd[n][OH_DIM_Z][OH_LOWER] = bot;
-          sd[n][OH_DIM_Z][OH_UPPER] = top;
-          bd[n][OH_DIM_Z][OH_LOWER] = bzlo;
-          bd[n][OH_DIM_Z][OH_UPPER] = bzup;
-        }
+#if OH_DIMENSION >= 2
+        sd[n][OH_DIM_Y][OH_LOWER] = south;
+        sd[n][OH_DIM_Y][OH_UPPER] = north;
+        bd[n][OH_DIM_Y][OH_LOWER] = bylo;
+        bd[n][OH_DIM_Y][OH_UPPER] = byup;
+#endif
+#if OH_DIMENSION >= 3
+        sd[n][OH_DIM_Z][OH_LOWER] = bot;
+        sd[n][OH_DIM_Z][OH_UPPER] = top;
+        bd[n][OH_DIM_Z][OH_LOWER] = bzlo;
+        bd[n][OH_DIM_Z][OH_UPPER] = bzup;
+#endif
       }
       bd[n-grid[OH_DIM_X].n][OH_DIM_X][OH_LOWER] = bc[OH_DIM_X][OH_LOWER];
       bd[n-1][OH_DIM_X][OH_UPPER] = bc[OH_DIM_X][OH_UPPER];
@@ -458,42 +456,10 @@ init_subdomain_actively(struct oh_state *state,
 }
 static void
 configure_context_neighbors_from_grid(struct oh_state *state, int pc[3]) {
-  int nn=state->n_of_nodes, me=state->my_rank;
-  int p=pc[0];
-  int q=(OH_DIMENSION>1)?pc[1]:1;
-  int r=(OH_DIMENSION>2)?pc[2]:1;
-  int i, j, k, l;
-  int yplus=(OH_DIMENSION>1)?2:0, zplus=(OH_DIMENSION>2)?2:0;
-  int xoff, yoff, zoff;
-  int *nb=state->neighbors[0];
   int raw[OH_NEIGHBORS];
-  int *temp=state->temp_array;
 
-  if (p*q*r!=nn || p<=0 || q<=0 || r<=0)
-    local_errstop("context pcoord product must match communicator size");
-
-  i = me % p;
-  j = (me/p) % q;
-  k = me / (p*q);
-  for (l=0,zoff=-1; zoff<zplus; zoff++) {
-    for (yoff=-1; yoff<yplus; yoff++) {
-      for (xoff=-1; xoff<2; xoff++,l++) {
-        raw[l] = (i+xoff+p)%p + (((j+yoff+q)%q) + ((k+zoff+r)%r)*q)*p;
-      }
-    }
-  }
-
-  memcpy(state->neighbors[1], raw, sizeof(int)*OH_NEIGHBORS);
-  memcpy(state->neighbors[2], raw, sizeof(int)*OH_NEIGHBORS);
-  state->dst_neighbors = state->neighbors[0];
-  for (i=0; i<nn; i++) temp[i] = 0;
-  for (i=0; i<OH_NEIGHBORS; i++) {
-    int dst=raw[i], src=raw[(OH_NEIGHBORS-1)-i];
-    state->dst_neighbors[i] = (temp[dst]&1) ? -(dst+1) : dst;
-    temp[dst] |= 1;
-    state->src_neighbors[i] = (temp[src]&2) ? -(src+1) : src;
-    temp[src] |= 2;
-  }
+  oh_context_build_grid_neighbors(state, pc, raw);
+  oh_context_apply_neighbors(state, raw);
 }
 static void
 init_subdomain_passively(struct oh_state *state,
@@ -662,7 +628,10 @@ state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N], int *cf,
   int *owned_fsizes = NULL;
   int (*fs)[OH_DIMENSION][2];
   int nf, ne;
-  int f, e, b, d, lu, i, *tmp;
+  int f, e, d, lu;
+#ifndef OH_POS_AWARE
+  int b, i, *tmp;
+#endif
 
   state->n_of_boundaries = nb;
   if (oh_context_is_default_state(state)) nOfBoundaries = nb;
@@ -680,6 +649,8 @@ state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N], int *cf,
 #endif
   state->n_of_exchanges = ne;
   if (oh_context_is_default_state(state)) nOfExc = ne;
+  if (ne>0 && !ct)
+    local_errstop("Level 3 field configuration requires ctypes when cfields defines boundary exchanges");
 
   fd = (struct S_flddesc*)mem_alloc(sizeof(struct S_flddesc), nf,
                                     "FieldDesc");
@@ -817,7 +788,6 @@ state_set_border_exchange(struct oh_state *state, int e, int ps,
   int (*sd)[2] = state->subdomains[state->region_id[ps]];
   struct S_flddesc *fd = &state->field_desc[f];
   int esize = fd->esize;
-  int fext = fd->ext[OH_UPPER] - fd->ext[OH_LOWER];
   int xyz[3] = {
     sd[OH_DIM_X][OH_UPPER]-sd[OH_DIM_X][OH_LOWER],
     OH_DIMENSION>OH_DIM_Y ? sd[OH_DIM_Y][OH_UPPER]-sd[OH_DIM_Y][OH_LOWER] : 0,
@@ -988,16 +958,22 @@ set_border_comm(int esize, int f, int *xyz, int *wdh,
 void
 state_clear_border_exchange(struct oh_state *state) {
   int ne=state->n_of_exchanges, e, d, lu;
+  int initialized = 0;
+  int finalized = 0;
+  int mpi_active = 0;
   struct S_borderexc (*bx)[2][OH_DIMENSION][2] =
     (struct S_borderexc(*)[2][OH_DIMENSION][2])state->border_exchange;
 
   if (!bx) return;
+  MPI_Initialized(&initialized);
+  if (initialized) MPI_Finalized(&finalized);
+  mpi_active = initialized && !finalized;
   for (e=0; e<ne; e++) {
     for (d=0; d<OH_DIMENSION; d++) {
       for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
-        if (bx[e][1][d][lu].send.deriv)
+        if (mpi_active && bx[e][1][d][lu].send.deriv)
           MPI_Type_free(&bx[e][1][d][lu].send.type);
-        if (bx[e][1][d][lu].recv.deriv)
+        if (mpi_active && bx[e][1][d][lu].recv.deriv)
           MPI_Type_free(&bx[e][1][d][lu].recv.type);
         bx[e][1][d][lu].send.buf =   bx[e][1][d][lu].recv.buf = 0;
         bx[e][1][d][lu].send.count = bx[e][1][d][lu].recv.count = -1;
@@ -1012,10 +988,15 @@ state_clear_border_exchange(struct oh_state *state) {
 static void
 free_border_exchange_types(struct oh_state *state) {
   int ne=state->n_of_exchanges, e, ps, d, lu;
+  int initialized = 0;
+  int finalized = 0;
   struct S_borderexc (*bx)[2][OH_DIMENSION][2] =
     (struct S_borderexc(*)[2][OH_DIMENSION][2])state->border_exchange;
 
   if (!bx) return;
+  MPI_Initialized(&initialized);
+  if (initialized) MPI_Finalized(&finalized);
+  if (!initialized || finalized) return;
   for (e=0; e<ne; e++) {
     for (ps=0; ps<2; ps++) {
       for (d=0; d<OH_DIMENSION; d++) {
@@ -1271,7 +1252,13 @@ oh3_map_particle_to_subdomain_state(struct oh_state *state, double x,
 static int
 state_map_particle_to_subdomain(struct oh_state *state, double x, double y,
                                 double z) {
-  int sdx, sdy=0, sdz=0, sd, nx=state->grid[OH_DIM_X].n;
+  int sdx, sd;
+#if OH_DIMENSION>=2
+  int sdy=0, nx=state->grid[OH_DIM_X].n;
+#endif
+#if OH_DIMENSION>=3
+  int sdz=0;
+#endif
 
   if (state->subdomain_desc)
     return state_map_irregular_subdomain(state, x, y, z);
@@ -1303,38 +1290,6 @@ state_map_particle_to_subdomain(struct oh_state *state, double x, double y,
   }
 #endif
   return(sd);
-}
-static oh_particle_region_t
-default_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
-                                        void *particle,
-                                        int primary_or_secondary) {
-  struct S_particle *p = (struct S_particle*)particle;
-
-  (void)adapter;
-#if OH_DIMENSION==1
-  return oh3_map_particle_to_neighbor(&p->x, primary_or_secondary);
-#elif OH_DIMENSION==2
-  return oh3_map_particle_to_neighbor(&p->x, &p->y, primary_or_secondary);
-#else
-  return oh3_map_particle_to_neighbor(&p->x, &p->y, &p->z,
-                                      primary_or_secondary);
-#endif
-}
-static oh_particle_region_t
-default_level3_map_particle_to_subdomain(const oh_particle_adapter *adapter,
-                                         void *particle,
-                                         int primary_or_secondary) {
-  struct S_particle *p = (struct S_particle*)particle;
-
-  (void)adapter;
-  (void)primary_or_secondary;
-#if OH_DIMENSION==1
-  return oh3_map_particle_to_subdomain(p->x);
-#elif OH_DIMENSION==2
-  return oh3_map_particle_to_subdomain(p->x, p->y);
-#else
-  return oh3_map_particle_to_subdomain(p->x, p->y, p->z);
-#endif
 }
 static oh_particle_region_t
 offset_level3_map_particle_to_neighbor(const oh_particle_adapter *adapter,
@@ -1418,10 +1373,6 @@ map_irregular_subdomain(double x, double y, double z) {
   return state_map_irregular_subdomain(oh1_state(), x, y, z);
 }
 static int
-map_irregular(double p0, double p1, double p2, int dim, int from, int n) {
-  return state_map_irregular(oh1_state(), p0, p1, p2, dim, from, n);
-}
-static int
 state_map_irregular_subdomain(struct oh_state *state, double x, double y,
                               double z) {
   return state_map_irregular(state, x, y, z, OH_DIM_X, 0, state->n_of_nodes);
@@ -1449,10 +1400,6 @@ state_map_irregular(struct oh_state *state, double p0, double p1, double p2,
     i += n;
   }
   return(-1);
-}
-static int
-map_irregular_range(double p, int dim, int from, int to) {
-  return state_map_irregular_range(oh1_state(), p, dim, from, to);
 }
 static int
 state_map_irregular_range(struct oh_state *state, double p, int dim, int from,
@@ -1526,18 +1473,41 @@ oh3_exchange_borders_state(struct oh_state *state, void *pfld, void *sfld,
   state_exchange_borders(state, pfld, sfld, ctype, bcast);
 }
 static void
+state_require_field_type(struct oh_state *state, int ftype, const char *api) {
+  if (!state->field_desc || state->n_of_fields<=0)
+    local_errstop("%s requires configured fields", api);
+  if (ftype<0 || ftype>=state->n_of_fields)
+    local_errstop("%s field type %d outside configured range [0,%d)",
+                  api, ftype, state->n_of_fields);
+}
+static void
+state_require_exchange_type(struct oh_state *state, int ctype,
+                            const char *api) {
+  if (!state->border_exchange || state->n_of_exchanges<=0)
+    local_errstop("%s requires configured boundary exchanges", api);
+  if (ctype<0 || ctype>=state->n_of_exchanges)
+    local_errstop("%s boundary exchange type %d outside configured range [0,%d)",
+                  api, ctype, state->n_of_exchanges);
+}
+static void
 state_bcast_field(struct oh_state *state, void *pfld, void *sfld, int ftype) {
-  int base=state->field_desc[ftype].bc.base;
-  int *size=state->field_desc[ftype].bc.size;
+  int base;
+  int *size;
 
+  state_require_field_type(state, ftype, "oh_bcast_field()");
+  base=state->field_desc[ftype].bc.base;
+  size=state->field_desc[ftype].bc.size;
   oh1_broadcast_state(state, (double*)pfld+base, (double*)sfld+base,
                       size[0], size[1], MPI_DOUBLE, MPI_DOUBLE);
 }
 static void
 state_reduce_field(struct oh_state *state, void *pfld, void *sfld, int ftype) {
-  int base=state->field_desc[ftype].red.base;
-  int *size=state->field_desc[ftype].red.size;
+  int base;
+  int *size;
 
+  state_require_field_type(state, ftype, "oh_reduce_field()");
+  base=state->field_desc[ftype].red.base;
+  size=state->field_desc[ftype].red.size;
   oh1_reduce_state(state, (double*)pfld+base, (double*)sfld+base,
                    size[0], size[1], MPI_DOUBLE, MPI_DOUBLE, MPI_SUM,
                    MPI_SUM);
@@ -1545,9 +1515,12 @@ state_reduce_field(struct oh_state *state, void *pfld, void *sfld, int ftype) {
 static void
 state_allreduce_field(struct oh_state *state, void *pfld, void *sfld,
                       int ftype) {
-  int base=state->field_desc[ftype].red.base;
-  int *size=state->field_desc[ftype].red.size;
+  int base;
+  int *size;
 
+  state_require_field_type(state, ftype, "oh_allreduce_field()");
+  base=state->field_desc[ftype].red.base;
+  size=state->field_desc[ftype].red.size;
   oh1_all_reduce_state(state, (double*)pfld+base, (double*)sfld+base,
                        size[0], size[1], MPI_DOUBLE, MPI_DOUBLE, MPI_SUM,
                        MPI_SUM);
@@ -1562,6 +1535,7 @@ state_exchange_borders(struct oh_state *state, void *pfld, void *sfld,
     (struct S_borderexc(*)[2][OH_DIMENSION][2])state->border_exchange;
   double *pf=(double*)pfld, *sf=(double*)sfld;
 
+  state_require_exchange_type(state, ctype, "oh_exchange_borders()");
   for (d=0; d<OH_DIMENSION; d++) {
     for (lu=OH_LOWER; lu<=OH_UPPER; lu++) {
       int dst=adjacent[d][lu], src=adjacent[d][1-lu];

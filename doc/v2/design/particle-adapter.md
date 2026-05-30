@@ -32,11 +32,18 @@ oh_particle_adapter_set_species_base(&adapter, species_base);
 Use `oh_particle_adapter_use_integer_fields()` when the region field may need to
 carry wide ids such as `OH_BIG_SPACE` or future Level 4 packed ids.
 
-Level 3 position mapping can be configured with:
+Generic coordinate offsets can be recorded with:
 
 ```c
 oh_particle_adapter_use_position_fields(&adapter, x_offset, y_offset,
                                         z_offset);
+```
+
+For Level 3 automatic position-to-region mapping, use the Level 3 helper:
+
+```c
+oh3_particle_adapter_use_position_fields(&adapter, x_offset, y_offset,
+                                         z_offset);
 ```
 
 Fortran exposes the same contract through `ohhelp_v2` opaque adapter handles.
@@ -53,6 +60,12 @@ field does not need to be named `nid`, but these semantics matter:
 
 For custom layouts, the same meanings apply to the value returned by
 `get_region()` and written by `set_region()`.
+
+If a custom adapter supplies `map_to_subdomain()`, the produced destination
+uses the same skip rule for negative values. Every non-negative destination
+must be a valid node index in `[0, n_of_nodes)`; OhHelp treats out-of-range
+destinations as adapter contract violations before they can index particle
+accounting or transfer buffers.
 
 ## Species Semantics
 
@@ -150,3 +163,9 @@ semantics are documented here so the adapter boundary does not regress:
 
 Level 4 code should keep packed-id representation details behind local helper
 functions until the v2.x adapter contract is finalized.
+
+Level 4 still treats `state->particles`, `state->send_buffer`,
+`state->recv_buffer_bases`, and `state->level4_boundary_send_buffer` as
+adapter-strided particle storage or cursors. Temporary `struct S_particle *`
+aliases are migration-boundary handles for helper and MPI calls only; they do
+not permit direct field access or raw particle pointer arithmetic.

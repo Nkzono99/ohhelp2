@@ -52,10 +52,19 @@ Level 1 manages the load-balance schedule and communicator. The application
 keeps particle movement.
 
 ```c
-oh_context_bind_particle_accounting(ctx, nphgram, totalp, pbase,
+int *nphgram_slot = nphgram;
+int *totalp_slot = totalp;
+int *pbase_slot = pbase;
+
+oh_context_bind_particle_accounting(ctx, &nphgram_slot, &totalp_slot,
+                                    &pbase_slot,
                                     OH_PARTICLES_BORROWED);
 mode = oh_context_transbound1(ctx, OH_MODE_NORMAL_PRIMARY, stats);
 ```
+
+The v2 heap-owned context path initializes Level 1 state explicitly. The
+current migration surface supports `stats == 0` and `verbose == 0`; borrowed
+`rcounts` / `scounts` from the legacy raw initializer are not accepted yet.
 
 Choose Level 1 if the application already has a particle exchange path.
 
@@ -65,14 +74,22 @@ Level 2 adds particle transfer. Bind both particle storage and accounting
 arrays before calling transbound.
 
 ```c
-oh_particle_adapter adapter = oh_default_particle_adapter(MPI_DATATYPE_NULL);
+MPI_Datatype particle_type = MPI_DATATYPE_NULL;
+oh_particle_adapter_make_byte_type(sizeof(struct my_particle), &particle_type);
+oh_particle_adapter adapter = oh_default_particle_adapter(particle_type);
+int *nphgram_slot = nphgram;
+int *totalp_slot = totalp;
+int *pbase_slot = pbase;
+
+adapter.stride = sizeof(struct my_particle);
 oh_particle_adapter_use_integer_fields(&adapter, region_offset, region_size,
                                        species_offset, species_size);
 
 oh_context_set_particle_adapter(ctx, &adapter);
 oh_context_bind_region_ids(ctx, sdid, OH_PARTICLES_BORROWED);
 oh_context_bind_particles(ctx, particles, maxlocalp, OH_PARTICLES_BORROWED);
-oh_context_bind_particle_accounting(ctx, nphgram, totalp, pbase,
+oh_context_bind_particle_accounting(ctx, &nphgram_slot, &totalp_slot,
+                                    &pbase_slot,
                                     OH_PARTICLES_BORROWED);
 
 mode = oh_context_transbound2(ctx, OH_MODE_NORMAL_PRIMARY, stats);
@@ -110,4 +127,7 @@ the total local particle count / end offset.
 ## Level 4p/4s
 
 Level 4p/4s are not v2.0 supported APIs. They remain under compile coverage and
-are documented as a v2.x target in [Level Scope](../design/level-scope.md).
+runtime migration smoke, and are documented as a v2.x target in
+[Level Scope](../design/level-scope.md). Their current state bridge is
+default-context-only; heap-owned context and non-uniform weighted Level 4
+secondary schedules are not part of the supported v2.0 surface.

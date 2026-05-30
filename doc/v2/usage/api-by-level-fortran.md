@@ -57,6 +57,9 @@ Level 1 は負荷分散 schedule と communicator を扱います。粒子転送
 ```fortran
 type(c_ptr) :: nphgram_ptr, totalp_ptr, pbase_ptr
 
+nphgram_ptr = c_loc(nphgram(1))
+totalp_ptr = c_loc(totalp(1))
+pbase_ptr = c_loc(pbase(1))
 call oh_context_bind_particle_accounting(ctx, nphgram_ptr, totalp_ptr, &
                                          pbase_ptr, OH_PARTICLES_BORROWED)
 mode = oh_context_transbound1(ctx, OH_MODE_NORMAL_PRIMARY, stats)
@@ -71,16 +74,26 @@ arrays を bind してから transbound します。
 type(oh_particle_adapter_handle) :: adapter
 integer(c_int), target :: sdid(2)
 type(c_ptr) :: particles_ptr, sdid_ptr
+type(c_ptr) :: nphgram_ptr, totalp_ptr, pbase_ptr
 
 call oh_particle_adapter_create_byte(adapter, stride, ierr)
 call oh_particle_adapter_use_integer_fields(adapter, region_offset, &
                                             region_size, species_offset, &
                                             species_size)
+call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
+                                                    y_offset, z_offset)
 call oh_context_set_particle_adapter(ctx, adapter)
+call oh_particle_adapter_destroy(adapter)
 sdid_ptr = c_loc(sdid(1))
+particles_ptr = c_loc(particles(1))
+nphgram_ptr = c_loc(nphgram(1))
+totalp_ptr = c_loc(totalp(1))
+pbase_ptr = c_loc(pbase(1))
 call oh_context_bind_region_ids(ctx, sdid_ptr, OH_PARTICLES_BORROWED)
 call oh_context_bind_particles(ctx, particles_ptr, maxlocalp, &
                                OH_PARTICLES_BORROWED)
+call oh_context_bind_particle_accounting(ctx, nphgram_ptr, totalp_ptr, &
+                                         pbase_ptr, OH_PARTICLES_BORROWED)
 
 mode = oh_context_transbound2(ctx, OH_MODE_NORMAL_PRIMARY, stats)
 ```
@@ -93,8 +106,19 @@ entry point です。
 Level 3 は geometry mapping と field-border exchange を追加します。
 
 ```fortran
-call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
-                                                    y_offset, z_offset)
+type(c_ptr) :: pcoord_ptr, sdoms_ptr, scoord_ptr
+type(c_ptr) :: bcond_ptr, bounds_ptr, ftypes_ptr, cfields_ptr, ctypes_ptr
+type(c_ptr) :: fsizes_ptr
+
+pcoord_ptr = c_loc(pcoord(1))
+sdoms_ptr = c_null_ptr
+scoord_ptr = c_loc(scoord(1))
+bcond_ptr = c_loc(bcond(1))
+bounds_ptr = c_null_ptr
+ftypes_ptr = c_loc(ftypes(1))
+cfields_ptr = c_loc(cfields(1))
+ctypes_ptr = c_loc(ctypes(1))
+fsizes_ptr = c_loc(fsizes(1))
 call oh_context_configure_level3(ctx, pcoord_ptr, sdoms_ptr, scoord_ptr, &
                                  nbound, bcond_ptr, bounds_ptr, ftypes_ptr, &
                                  cfields_ptr, ctypes_ptr, fsizes_ptr)
@@ -128,6 +152,9 @@ v2 context API and reject non-positive ids.
 任意 layout の既存 init argument list を使いたい場合は、`ohhelp_v2` の
 raw init bridge を使います。`oh2_init_raw()` / `oh3_init_raw()` は
 `type(c_ptr)` で粒子配列と accounting arrays を受け取ります。
+`pbuf` は inout pointer slot です。`pbuf` の値が `c_null_ptr` の場合は
+legacy allocation を要求しますが、`sdid` / `nphgram` / `totalp` /
+`pbase` / `pcoord` は実 storage を指している必要があります。
 
 既存 Fortran code が Level 3 の active-decomposition sentinel と 1-based
 boundary IDs を持っている場合は、`oh_context_configure_level3_legacy()` を

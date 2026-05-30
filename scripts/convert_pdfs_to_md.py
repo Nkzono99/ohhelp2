@@ -1,11 +1,17 @@
-from __future__ import annotations
+import sys
 
+MIN_PYTHON = (3, 10)
+if sys.version_info < MIN_PYTHON:
+    raise SystemExit(
+        "scripts/convert_pdfs_to_md.py requires Python 3.10 or newer; "
+        "set PYTHON to a newer interpreter when using check-v1-markdown.sh"
+    )
+
+import argparse
 import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-
-import fitz
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -190,8 +196,18 @@ def primary_heading(headings: list[Heading]) -> Heading | None:
     return headings[0]
 
 
+def open_pdf(pdf_path: Path):
+    try:
+        import fitz
+    except ImportError as exc:
+        raise SystemExit(
+            "missing documentation dependencies; install requirements-doc.txt"
+        ) from exc
+    return fitz.open(pdf_path)
+
+
 def collect_pages(pdf_path: Path) -> PdfPages:
-    doc = fitz.open(pdf_path)
+    doc = open_pdf(pdf_path)
     pages: list[str] = []
     page_count = doc.page_count
     for page in doc:
@@ -513,18 +529,46 @@ def write_root_readme(all_written: dict[str, list[tuple[str, Segment]]]) -> None
             "",
             "From the repository root:",
             "",
-            "```powershell",
-            ".\\.venv\\Scripts\\python.exe scripts\\convert_pdfs_to_md.py",
+            "```sh",
+            "python3 scripts/convert_pdfs_to_md.py",
             "```",
             "",
-            "Python dependencies are listed in `requirements-doc.txt`.",
+            "To verify that the committed files match a fresh conversion:",
+            "",
+            "```sh",
+            "bash scripts/check-v1-markdown.sh",
+            "```",
+            "",
+            "Use Python 3.10 or newer. Dependencies are listed in `requirements-doc.txt`.",
+            "If the default `python3` is older, set `PYTHON`:",
+            "",
+            "```sh",
+            "PYTHON=python3.11 bash scripts/check-v1-markdown.sh",
+            "```",
         ]
     )
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     write_text_lf(OUT_DIR / "README.md", "\n".join(lines) + "\n")
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Convert historical OhHelp PDFs into Markdown."
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=Path,
+        default=OUT_DIR,
+        help="Markdown output directory",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    global OUT_DIR
+
+    args = parse_args()
+    OUT_DIR = args.out_dir.resolve()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     all_written: dict[str, list[tuple[str, Segment]]] = {}
     for pdf_name, spec in PDFS.items():

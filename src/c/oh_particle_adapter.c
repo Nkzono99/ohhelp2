@@ -47,6 +47,11 @@ integer_field_size_valid(size_t size) {
          size == sizeof(long long);
 }
 
+static int
+field_range_valid(size_t stride, size_t offset, size_t size) {
+  return offset <= stride && size <= stride - offset;
+}
+
 static oh_particle_region_t
 read_integer_field(const void *field, size_t size) {
   if (size == sizeof(int)) {
@@ -120,27 +125,50 @@ int_field_map_to_region(const oh_particle_adapter *adapter, void *particle,
 int
 oh_particle_adapter_validate(const oh_particle_adapter *adapter) {
   MPI_Aint lb, extent;
-  int mpi_initialized;
+  int mpi_initialized = 0;
+  int mpi_finalized = 0;
 
   if (!adapter) return 0;
   if (adapter->stride == 0) return 0;
   if (adapter->mpi_type == MPI_DATATYPE_NULL) return 0;
   MPI_Initialized(&mpi_initialized);
-  if (mpi_initialized) {
-    MPI_Type_get_extent(adapter->mpi_type, &lb, &extent);
-    if (lb != 0 || extent != (MPI_Aint)adapter->stride) return 0;
-  }
+  if (mpi_initialized) MPI_Finalized(&mpi_finalized);
+  if (!mpi_initialized) return 0;
+  if (mpi_finalized) return 0;
+  MPI_Type_get_extent(adapter->mpi_type, &lb, &extent);
+  if (lb != 0 || extent != (MPI_Aint)adapter->stride) return 0;
   if (!adapter->get_region || !adapter->set_region) return 0;
   if (!adapter->get_species) return 0;
   if ((adapter->get_region == int_field_get_region ||
        adapter->set_region == int_field_set_region ||
-       adapter->get_species == int_field_get_species) &&
+       adapter->get_species == int_field_get_species ||
+       adapter->map_to_neighbor == int_field_map_to_region ||
+       adapter->map_to_subdomain == int_field_map_to_region) &&
       !integer_field_size_valid(adapter->region_size))
+    return 0;
+  if ((adapter->get_region == int_field_get_region ||
+       adapter->set_region == int_field_set_region ||
+       adapter->map_to_neighbor == int_field_map_to_region ||
+       adapter->map_to_subdomain == int_field_map_to_region) &&
+      !field_range_valid(adapter->stride, adapter->region_offset,
+                         adapter->region_size))
     return 0;
   if (adapter->get_species == int_field_get_species &&
       !adapter->single_species &&
       !integer_field_size_valid(adapter->species_size))
     return 0;
+  if (adapter->get_species == int_field_get_species &&
+      !adapter->single_species &&
+      !field_range_valid(adapter->stride, adapter->species_offset,
+                         adapter->species_size))
+    return 0;
+  if (adapter->has_position_fields) {
+    int dim;
+    for (dim=0; dim<3; dim++)
+      if (!field_range_valid(adapter->stride, adapter->position_offset[dim],
+                             sizeof(double)))
+        return 0;
+  }
   return 1;
 }
 
@@ -149,10 +177,15 @@ oh_particle_adapter_make_byte_type(size_t stride, MPI_Datatype *type) {
   MPI_Datatype raw_type = MPI_DATATYPE_NULL;
   MPI_Datatype particle_type = MPI_DATATYPE_NULL;
   int err;
+  int mpi_initialized = 0;
+  int mpi_finalized = 0;
 
   if (!type) return MPI_ERR_ARG;
   *type = MPI_DATATYPE_NULL;
   if (stride == 0 || stride > (size_t)INT_MAX) return MPI_ERR_COUNT;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized) MPI_Finalized(&mpi_finalized);
+  if (!mpi_initialized || mpi_finalized) return MPI_ERR_OTHER;
 
   err = MPI_Type_contiguous((int)stride, MPI_BYTE, &raw_type);
   if (err != MPI_SUCCESS) return err;
@@ -176,6 +209,9 @@ double*
 oh_particle_adapter_position(const oh_particle_adapter *adapter,
                              void *particle, int dim) {
   if (!adapter || !particle || dim < 0 || dim >= 3) return 0;
+  if (!field_range_valid(adapter->stride, adapter->position_offset[dim],
+                         sizeof(double)))
+    return 0;
   return (double*)((char*)particle + adapter->position_offset[dim]);
 }
 
@@ -183,6 +219,9 @@ const double*
 oh_particle_adapter_const_position(const oh_particle_adapter *adapter,
                                    const void *particle, int dim) {
   if (!adapter || !particle || dim < 0 || dim >= 3) return 0;
+  if (!field_range_valid(adapter->stride, adapter->position_offset[dim],
+                         sizeof(double)))
+    return 0;
   return (const double*)((const char*)particle + adapter->position_offset[dim]);
 }
 
@@ -194,6 +233,7 @@ oh_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
   adapter->position_offset[0] = x_offset;
   adapter->position_offset[1] = y_offset;
   adapter->position_offset[2] = z_offset;
+  adapter->has_position_fields = 1;
 }
 
 void
@@ -268,6 +308,7 @@ oh_default_particle_adapter(MPI_Datatype mpi_type) {
   adapter.position_offset[0] = offsetof(struct S_particle, x);
   adapter.position_offset[1] = offsetof(struct S_particle, y);
   adapter.position_offset[2] = offsetof(struct S_particle, z);
+  adapter.has_position_fields = 0;
   adapter.single_species = 0;
   adapter.species_base = 0;
   adapter.get_region = default_get_region;

@@ -25,16 +25,13 @@ static int   try_stable2_state(struct oh_state *state, int currmode,
 static void  rebalance2_state(struct oh_state *state, int currmode, int level,
                               int stats);
 static void  init_particle_adapter(void);
-static void  allocate_particle_storage(struct oh_state *state,
-                                       struct S_particle **pbuf,
+static void  allocate_particle_storage(struct oh_state *state, void **pbuf,
                                        int maxlocalp);
 static int   particle_buffer_ownership_is_valid(int ownership);
 static void  allocate_particle_base(struct oh_state *state, int **pbase);
 static void  allocate_level2_work_buffers(struct oh_state *state, int ns,
                                           int nn, int nnns,
                                           int maxlocalp);
-int          transbound2_state(struct oh_state *state, int currmode, int stats,
-                               int level);
 static int   finish_transbound2_state(struct oh_state *state, int ret);
 static void  move_to_sendbuf_secondary_state(struct oh_state *state,
                                              int secondary, int stats);
@@ -54,59 +51,61 @@ static void  receive_particles(struct oh_state *state,
 static void  send_particles(struct oh_state *state,
                             struct S_commlist *slist, int slsize,
                             int myregion, int parentregion, int *req);
-void        *oh2_inject_particle_state(struct oh_state *state, void *part);
-void         oh2_remap_injected_particle_state(struct oh_state *state,
-                                               void *part);
-void         oh2_remove_injected_particle_state(struct oh_state *state,
-                                                void *part);
 static void  state_update_injected_particle_count(struct oh_state *state,
-                                                  struct S_particle *part,
-                                                  int delta);
+                                                  void *part, int delta);
 static OH_nid_t state_particle_region(struct oh_state *state,
-                                      const struct S_particle *part,
+                                      const void *part,
                                       int primary_or_secondary);
 static void  state_set_particle_region(struct oh_state *state,
-                                       struct S_particle *part,
+                                       void *part,
                                        OH_nid_t region,
                                        int primary_or_secondary);
 static void  state_mark_particle_removed(struct oh_state *state,
-                                         struct S_particle *part,
+                                         void *part,
                                          int primary_or_secondary);
 static int   state_particle_species(struct oh_state *state,
-                                    const struct S_particle *part);
+                                    const void *part);
 static int   state_particle_subdomain(struct oh_state *state,
-                                      const struct S_particle *part,
+                                      void *part,
                                       int primary_or_secondary);
 static int   state_map_injected_particle_to_subdomain(struct oh_state *state,
-                                                      struct S_particle *part);
-static int   state_region_subdomain(struct oh_state *state, OH_nid_t region,
-                                    int primary_or_secondary);
-static int   state_primarize_particle(struct oh_state *state,
-                                      struct S_particle *part);
+                                                      void *part);
+static int   state_checked_particle_destination(struct oh_state *state,
+                                                oh_particle_region_t dst,
+                                                const char *source);
+static oh_particle_region_t state_region_subdomain(struct oh_state *state,
+                                                   OH_nid_t region,
+                                                   int primary_or_secondary);
+#ifdef OH_POS_AWARE
+static oh_particle_region_t state_primarize_particle(struct oh_state *state,
+                                                     void *part);
+#endif
 static size_t particle_stride_state(struct oh_state *state);
-static struct S_particle *state_particle_at(struct oh_state *state,
-                                            void *base,
-                                            int index);
-static int   state_particle_buffer_index(struct oh_state *state,
-                                         const struct S_particle *part);
+static void  *state_particle_at(struct oh_state *state, void *base, int index);
+static void  free_owned_particle_mpi_type_state(struct oh_state *state);
+static void  free_owned_default_particle_mpi_type(void);
+static void  free_owned_default_custom_particle_mpi_type(void);
+static int   state_injected_particle_index(struct oh_state *state,
+                                           const void *part);
 static void  state_copy_particle(struct oh_state *state,
-                                 struct S_particle *dst,
-                                 const struct S_particle *src);
+                                 void *dst,
+                                 const void *src);
 static void  state_copy_particles(struct oh_state *state,
-                                  struct S_particle *dst,
-                                  const struct S_particle *src, int count);
+                                  void *dst, const void *src, int count);
 static void  finalize_injected_particles_state(struct oh_state *state);
 static int   state_injected_particle_region_kind(struct oh_state *state,
-                                                 struct S_particle *part);
+                                                 void *part);
 
 void
 oh2_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
           int *totalp, struct S_particle *pbuf, int *pbase, int *maxlocalp,
           struct S_mycommf *mycomm, int *nbor, int *pcoord,
           int *stats, int *repiter, int *verbose) {
+  void *raw_pbuf = pbuf;
+
   specBase = 1;
   init2(&sdid, *nspec, *maxfrac, &nphgram, &totalp,
-        &pbuf, &pbase, *maxlocalp, NULL, mycomm, &nbor, pcoord,
+        &raw_pbuf, &pbase, *maxlocalp, NULL, mycomm, &nbor, pcoord,
         *stats, *repiter, *verbose);
 }
 void
@@ -123,19 +122,25 @@ oh2_set_particle_mpi_type_state(struct oh_state *state, MPI_Datatype type) {
   if (state != &OhDefaultState) {
     int err;
 
-    if (state->owns_particle_mpi_type &&
-        state->owned_particle_adapter.mpi_type != MPI_DATATYPE_NULL)
-      MPI_Type_free(&state->owned_particle_adapter.mpi_type);
+    free_owned_particle_mpi_type_state(state);
     if (type == MPI_DATATYPE_NULL) {
       err = oh_particle_adapter_make_byte_type(sizeof(struct S_particle),
                                                &type);
       if (err != MPI_SUCCESS)
         local_errstop("failed to create default particle MPI datatype");
-      state->owns_particle_mpi_type = 1;
     } else {
-      state->owns_particle_mpi_type = 0;
+      MPI_Datatype duplicated = MPI_DATATYPE_NULL;
+      err = MPI_Type_dup(type, &duplicated);
+      if (err != MPI_SUCCESS)
+        local_errstop("failed to duplicate particle MPI datatype");
+      type = duplicated;
     }
+    state->owns_particle_mpi_type = 1;
     state->owned_particle_adapter = oh_default_particle_adapter(type);
+    if (!oh_particle_adapter_validate(&state->owned_particle_adapter)) {
+      free_owned_particle_mpi_type_state(state);
+      local_errstop("particle MPI datatype extent must match particle stride");
+    }
     state->particle_adapter = &state->owned_particle_adapter;
     state->particle_mpi_type = type;
     state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
@@ -144,12 +149,19 @@ oh2_set_particle_mpi_type_state(struct oh_state *state, MPI_Datatype type) {
     return;
   }
   if (type == MPI_DATATYPE_NULL) {
+    free_owned_default_particle_mpi_type();
+    free_owned_default_custom_particle_mpi_type();
     state->use_custom_particle_mpi_type = 0;
     state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
+    state->use_custom_particle_adapter = 0;
   } else {
+    free_owned_default_particle_mpi_type();
+    free_owned_default_custom_particle_mpi_type();
     state->custom_particle_mpi_type = type;
     state->use_custom_particle_mpi_type = 1;
+    state->use_custom_particle_adapter = 0;
   }
+  useCustomParticleAdapter = state->use_custom_particle_adapter;
   CustomTParticle = state->custom_particle_mpi_type;
   useCustomTParticle = state->use_custom_particle_mpi_type;
 }
@@ -164,12 +176,7 @@ oh2_set_particle_adapter_state(struct oh_state *state,
   if (state != &OhDefaultState) {
     int err;
 
-    if (state->owns_particle_mpi_type &&
-        state->owned_particle_adapter.mpi_type != MPI_DATATYPE_NULL) {
-      MPI_Type_free(&state->owned_particle_adapter.mpi_type);
-      state->owned_particle_adapter.mpi_type = MPI_DATATYPE_NULL;
-      state->owns_particle_mpi_type = 0;
-    }
+    free_owned_particle_mpi_type_state(state);
     if (!adapter) {
       MPI_Datatype type = MPI_DATATYPE_NULL;
       err = oh_particle_adapter_make_byte_type(sizeof(struct S_particle),
@@ -187,19 +194,27 @@ oh2_set_particle_adapter_state(struct oh_state *state,
     }
     if (!oh_particle_adapter_validate(adapter))
       local_errstop("invalid oh_particle_adapter");
+    err = MPI_Type_dup(adapter->mpi_type, &state->custom_particle_mpi_type);
+    if (err != MPI_SUCCESS)
+      local_errstop("failed to duplicate custom particle MPI datatype");
     state->owned_custom_particle_adapter = *adapter;
+    state->owned_custom_particle_adapter.mpi_type =
+      state->custom_particle_mpi_type;
     state->custom_particle_adapter = &state->owned_custom_particle_adapter;
     state->particle_adapter = &state->owned_custom_particle_adapter;
-    state->particle_mpi_type = adapter->mpi_type;
-    state->custom_particle_mpi_type = adapter->mpi_type;
+    state->particle_mpi_type = state->custom_particle_mpi_type;
     state->use_custom_particle_mpi_type = 1;
     state->use_custom_particle_adapter = 1;
+    state->owns_particle_mpi_type = 1;
     return;
   }
   if (!adapter) {
+    free_owned_default_particle_mpi_type();
+    free_owned_default_custom_particle_mpi_type();
     state->use_custom_particle_adapter = 0;
     state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
     state->use_custom_particle_mpi_type = 0;
+    ownsCustomTParticle = 0;
     useCustomParticleAdapter = state->use_custom_particle_adapter;
     CustomTParticle = state->custom_particle_mpi_type;
     useCustomTParticle = state->use_custom_particle_mpi_type;
@@ -207,14 +222,93 @@ oh2_set_particle_adapter_state(struct oh_state *state,
   }
   if (!oh_particle_adapter_validate(adapter))
     local_errstop("invalid oh_particle_adapter");
+  free_owned_default_particle_mpi_type();
+  free_owned_default_custom_particle_mpi_type();
+  if (MPI_Type_dup(adapter->mpi_type, &CustomTParticle) != MPI_SUCCESS)
+    local_errstop("failed to duplicate custom particle MPI datatype");
   CustomParticleAdapter = *adapter;
+  CustomParticleAdapter.mpi_type = CustomTParticle;
   state->custom_particle_adapter = &CustomParticleAdapter;
   state->use_custom_particle_adapter = 1;
-  state->custom_particle_mpi_type = adapter->mpi_type;
+  state->custom_particle_mpi_type = CustomTParticle;
   state->use_custom_particle_mpi_type = 1;
+  ownsCustomTParticle = 1;
   useCustomParticleAdapter = state->use_custom_particle_adapter;
   CustomTParticle = state->custom_particle_mpi_type;
   useCustomTParticle = state->use_custom_particle_mpi_type;
+}
+static void
+free_owned_particle_mpi_type_state(struct oh_state *state) {
+  MPI_Datatype owned;
+
+  if (!state || !state->owns_particle_mpi_type ||
+      state->particle_mpi_type == MPI_DATATYPE_NULL)
+    return;
+
+  owned = state->particle_mpi_type;
+  MPI_Type_free(&state->particle_mpi_type);
+  if (state->owned_particle_adapter.mpi_type == owned)
+    state->owned_particle_adapter.mpi_type = MPI_DATATYPE_NULL;
+  if (state->owned_custom_particle_adapter.mpi_type == owned)
+    state->owned_custom_particle_adapter.mpi_type = MPI_DATATYPE_NULL;
+  if (state->custom_particle_mpi_type == owned)
+    state->custom_particle_mpi_type = MPI_DATATYPE_NULL;
+  state->owns_particle_mpi_type = 0;
+}
+static void
+free_owned_default_particle_mpi_type(void) {
+  MPI_Datatype owned;
+  int initialized = 0;
+  int finalized = 0;
+
+  if (!ownsTParticle || T_Particle == MPI_DATATYPE_NULL) {
+    ownsTParticle = 0;
+    return;
+  }
+
+  owned = T_Particle;
+  MPI_Initialized(&initialized);
+  if (initialized) MPI_Finalized(&finalized);
+  if (initialized && !finalized)
+    MPI_Type_free(&T_Particle);
+  else
+    T_Particle = MPI_DATATYPE_NULL;
+  if (ParticleAdapter.mpi_type == owned)
+    ParticleAdapter.mpi_type = MPI_DATATYPE_NULL;
+  if (OhDefaultState.particle_mpi_type == owned)
+    OhDefaultState.particle_mpi_type = MPI_DATATYPE_NULL;
+  OhDefaultState.owns_particle_mpi_type = 0;
+  ownsTParticle = 0;
+}
+static void
+free_owned_default_custom_particle_mpi_type(void) {
+  MPI_Datatype owned;
+  int initialized = 0;
+  int finalized = 0;
+
+  if (!ownsCustomTParticle || CustomTParticle == MPI_DATATYPE_NULL) {
+    ownsCustomTParticle = 0;
+    return;
+  }
+
+  owned = CustomTParticle;
+  MPI_Initialized(&initialized);
+  if (initialized) MPI_Finalized(&finalized);
+  if (initialized && !finalized)
+    MPI_Type_free(&CustomTParticle);
+  else
+    CustomTParticle = MPI_DATATYPE_NULL;
+  if (CustomParticleAdapter.mpi_type == owned)
+    CustomParticleAdapter.mpi_type = MPI_DATATYPE_NULL;
+  if (ParticleAdapter.mpi_type == owned)
+    ParticleAdapter.mpi_type = MPI_DATATYPE_NULL;
+  if (T_Particle == owned)
+    T_Particle = MPI_DATATYPE_NULL;
+  if (OhDefaultState.custom_particle_mpi_type == owned)
+    OhDefaultState.custom_particle_mpi_type = MPI_DATATYPE_NULL;
+  if (OhDefaultState.particle_mpi_type == owned)
+    OhDefaultState.particle_mpi_type = MPI_DATATYPE_NULL;
+  ownsCustomTParticle = 0;
 }
 void
 oh2_init(int **sdid, int nspec, int maxfrac, int **nphgram,
@@ -222,21 +316,23 @@ oh2_init(int **sdid, int nspec, int maxfrac, int **nphgram,
          void *mycomm, int **nbor, int *pcoord,
          int stats, int repiter, int verbose) {
   specBase = 0;
-  init2(sdid, nspec, maxfrac, nphgram, totalp,
-        (struct S_particle**)pbuf, pbase, maxlocalp,
+  init2(sdid, nspec, maxfrac, nphgram, totalp, pbuf, pbase, maxlocalp,
         (struct S_mycommc*)mycomm, NULL, nbor, pcoord, stats, repiter,
         verbose);
 }
 void
 init2(int **sdid, int nspec, int maxfrac, int **nphgram,
-      int **totalp, struct S_particle **pbuf, int **pbase, int maxlocalp,
+      int **totalp, void **pbuf, int **pbase, int maxlocalp,
       struct S_mycommc *mycommc, struct S_mycommf *mycommf,
       int **nbor, int *pcoord, int stats, int repiter, int verbose) {
   struct oh_state *state;
   int ns, nn, nnns;
 
-  init1(sdid, nspec, maxfrac, nphgram, totalp, NULL, NULL,
-        mycommc, mycommf, nbor, pcoord, stats, repiter, verbose);
+  if (!pbuf) local_errstop("oh2_init() requires a particle pointer slot");
+  if (!pbase) local_errstop("oh2_init() requires a particle base slot");
+
+  init1_state(&OhDefaultState, sdid, nspec, maxfrac, nphgram, totalp, NULL,
+              NULL, mycommc, mycommf, nbor, pcoord, stats, repiter, verbose);
 
   init_particle_adapter();
   oh1_sync_default_state();
@@ -253,16 +349,20 @@ init2(int **sdid, int nspec, int maxfrac, int **nphgram,
 }
 static void
 init_particle_adapter(void) {
+  free_owned_default_particle_mpi_type();
   if (useCustomParticleAdapter) {
     ParticleAdapter = CustomParticleAdapter;
     T_Particle = ParticleAdapter.mpi_type;
+    ownsTParticle = 0;
   } else if (useCustomTParticle) {
     T_Particle = CustomTParticle;
     ParticleAdapter = oh_default_particle_adapter(T_Particle);
+    ownsTParticle = 0;
   } else {
     if (oh_particle_adapter_make_byte_type(sizeof(struct S_particle),
                                            &T_Particle) != MPI_SUCCESS)
       local_errstop("failed to create default particle MPI datatype");
+    ownsTParticle = 1;
     ParticleAdapter = oh_default_particle_adapter(T_Particle);
   }
   if (!useCustomParticleAdapter)
@@ -271,12 +371,10 @@ init_particle_adapter(void) {
     local_errstop("particle MPI datatype extent must match particle stride");
 }
 static void
-allocate_particle_storage(struct oh_state *state, struct S_particle **pbuf,
-                          int maxlocalp) {
+allocate_particle_storage(struct oh_state *state, void **pbuf, int maxlocalp) {
   const int ownership = *pbuf ? OH_PARTICLES_BORROWED : OH_PARTICLES_OWNED;
 
-  *pbuf = (struct S_particle*)oh2_bind_particle_buffer_state(
-    state, *pbuf, maxlocalp, ownership);
+  *pbuf = oh2_bind_particle_buffer_state(state, *pbuf, maxlocalp, ownership);
 }
 void *
 oh2_bind_particle_buffer_state(struct oh_state *state, void *particles,
@@ -299,7 +397,7 @@ oh2_bind_particle_buffer_state(struct oh_state *state, void *particles,
                           "Particles");
 
   if (state == &OhDefaultState) {
-    Particles = (struct S_particle*)particles;
+    Particles = particles;
     nOfLocalPLimit = maxlocalp;
     totalParts = maxlocalp;
   }
@@ -346,25 +444,28 @@ allocate_particle_base(struct oh_state *state, int **pbase) {
 static void
 allocate_level2_work_buffers(struct oh_state *state, int ns, int nn, int nnns,
                              int maxlocalp) {
+  long long request_slots_wide = 4LL * nnns + 2LL * OH_NEIGHBORS;
+  int request_slots;
+
+  if (request_slots_wide > INT_MAX) mem_alloc_error("Requests", 0);
+  request_slots = (int)request_slots_wide;
 #ifndef OH_POS_AWARE
-  SendBuf = (struct S_particle*)mem_alloc(particle_stride_state(state),
-                                          maxlocalp, "SendBuf");
+  SendBuf = mem_alloc(particle_stride_state(state), maxlocalp, "SendBuf");
   state->send_buffer = SendBuf;
 #endif
-  RecvBufBases = (struct S_particle**)mem_alloc(sizeof(struct S_particle*),
-                                                2*ns+1, "RecvBufBases");
+  RecvBufBases = mem_alloc(sizeof(void*), 2*ns+1, "RecvBufBases");
   SendBufDisps = (int*)mem_alloc(sizeof(int),  nnns, "SendBufDisps");
   RecvBufDisps = (int*)mem_alloc(sizeof(int),  nn, "RecvBufDisps");
   nOfInjections = 0;
-  state->recv_buffer_bases = (void**)RecvBufBases;
+  state->recv_buffer_bases = RecvBufBases;
   state->send_buffer_disps = SendBufDisps;
   state->recv_buffer_disps = RecvBufDisps;
   state->n_of_injections = nOfInjections;
 
-  Requests = (MPI_Request*)mem_alloc(sizeof(MPI_Request),
-                                     nnns*4+OH_NEIGHBORS*2, "Requests");
-  Statuses = (MPI_Status*) mem_alloc(sizeof(MPI_Status),
-                                     nnns*4+OH_NEIGHBORS*2, "Statuses");
+  Requests = (MPI_Request*)mem_alloc(sizeof(MPI_Request), request_slots,
+                                     "Requests");
+  Statuses = (MPI_Status*) mem_alloc(sizeof(MPI_Status), request_slots,
+                                     "Statuses");
   state->requests = Requests;
   state->statuses = Statuses;
 }
@@ -441,11 +542,11 @@ exchange_primary_particles_state(struct oh_state *state, int currmode,
   int *np, *rnp, *sbd;
   MPI_Comm comm=state->comm;
   MPI_Datatype particle_type=state->particle_mpi_type;
-  struct S_particle *sendbuf=state->send_buffer;
+  void *sendbuf=state->send_buffer;
   void **recvbuf_bases=state->recv_buffer_bases;
   int *recvbuf_disps=state->recv_buffer_disps;
 
-  if (stats) oh1_stats_time(STATS_TB_COMM, 0);
+  if (stats) oh1_stats_time_state(state, STATS_TB_COMM, 0);
   np = state->n_of_particles_local;     /* &NOfPLocal[0][0][0] */
   rnp = state->n_of_primaries;          /* &NOfPrimaries[0][0][0] */
   sbd = state->send_buffer_disps;       /* SendBufDisps[0][0] */
@@ -454,7 +555,7 @@ exchange_primary_particles_state(struct oh_state *state, int currmode,
                                         /* np=&NOfPLocal[0][s][0] */
                                         /* rnp=&NOfPrimaries[0][s][0] */
                                         /* sbd=&SendBufDisps[s][0] */
-      struct S_particle *rb;
+      void *rb;
       rb = recvbuf_bases[s];            /* RecvBufBases[0][s] */
       for (i=0; i<OH_NEIGHBORS; i++) {
         int dst=state->dst_neighbors[i];
@@ -536,7 +637,7 @@ move_to_sendbuf_primary_state(struct oh_state *state, int secondary,
   int *total_particles_next=state->total_particles_next;
   int s, i, j, *pp;
 
-  if (stats) oh1_stats_time(STATS_TB_MOVE, 0);
+  if (stats) oh1_stats_time_state(state, STATS_TB_MOVE, 0);
   for (s=0,i=me,pp=n_of_primaries; s<ns; s++,i+=nn,pp+=nn) {
     int t = 0;
     n_of_particles_local[i] = 0;                /* NOfPLocal[0][s][me] */
@@ -585,7 +686,7 @@ move_to_sendbuf_secondary_state(struct oh_state *state, int secondary,
   int *mynps;
   int ps, s, i;
 
-  if (stats) oh1_stats_time(STATS_TB_MOVE, 1);
+  if (stats) oh1_stats_time_state(state, STATS_TB_MOVE, 1);
   for (ps=0,i=0; ps<2; ps++) {
     int putme=put[ps], npnext=0;
     mynps=mynp[ps];
@@ -628,8 +729,7 @@ move_to_sendbuf_secondary_state(struct oh_state *state, int secondary,
                        total_particles+ns, pnext[0]+pnext[1],
                        total_particles_next+ns);
   } else {
-    struct S_particle *rbb=state_particle_at(state, state->particles,
-                                             pnext[0]);
+    void *rbb=state_particle_at(state, state->particles, pnext[0]);
     for (s=0; s<ns; s++) {
       state->recv_buffer_bases[ns+s] = rbb;     /* RecvBufBases[1][s] */
       rbb = state_particle_at(state, rbb, total_particles_next[ns+s]);
@@ -680,15 +780,14 @@ void
 exchange_particles_state(struct oh_state *state, struct S_commlist *secrlist,
                          int secrlsize, int oldparent, int neighboring,
                          int currmode, int stats) {
-  int me, nn, ns, nnns;
+  int me, nn, ns;
   int newparent;
   int s, i, req;
 
   move_to_sendbuf_secondary_state(state, Mode_PS(currmode), stats);
   me=state->my_rank;  nn=state->n_of_nodes;  ns=state->n_of_species;
-  nnns=nn*ns;
   newparent=state->nodes[me].parentid;
-  if (stats) oh1_stats_time(STATS_TB_COMM, 1);
+  if (stats) oh1_stats_time_state(state, STATS_TB_COMM, 1);
   if (neighboring) {
     req = 0;
     receive_particles(state, state->comm_list, state->sl_head_tail[0], &req);
@@ -752,15 +851,15 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
   int i, in, j, jn, k, s;
   int ns=state->n_of_species, nn=state->n_of_nodes;
   int *sbd=state->send_buffer_disps;
-  struct S_particle *particles=state->particles;
-  struct S_particle *sendbuf=state->send_buffer;
+  void *particles=state->particles;
+  void *sendbuf=state->send_buffer;
 
   for (s=0,i=cbase,j=nbase,k=0; s<ns; s++,i=in,j=jn,sbd+=nn,k+=nn) {
     int putme = putmes ? putmes[k] : 0; /* NOfPLocal[0/1][s][me/sec] */
     in = i + ctp[s];  jn = j + ntp[s];
     if (j<=i) {                         /* upward move only */
       for (; putme>0; i++) {            /* throw my particles to send buf */
-        struct S_particle *part=state_particle_at(state, particles, i);
+        void *part=state_particle_at(state, particles, i);
         int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         state_copy_particle(state, state_particle_at(state, sendbuf,
@@ -768,7 +867,7 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
         if (dst==me) putme--;
       }
       for (; i<in; i++) {               /* move upward */
-        struct S_particle *part=state_particle_at(state, particles, i);
+        void *part=state_particle_at(state, particles, i);
         int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         if (dst==me)
@@ -784,7 +883,7 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
     } else {                            /* downward and upward */
       int ib, im, jm;
       for (; putme>0; i++) {            /* throw my particles to send buf */
-        struct S_particle *part=state_particle_at(state, particles, i);
+        void *part=state_particle_at(state, particles, i);
         int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         state_copy_particle(state, state_particle_at(state, sendbuf,
@@ -799,7 +898,7 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
       }
       im = i-1; jm = j-1;
       for (; i<in; i++) {               /* move remainders upward */
-        struct S_particle *part=state_particle_at(state, particles, i);
+        void *part=state_particle_at(state, particles, i);
         int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         if (dst==me)
@@ -811,7 +910,7 @@ move_to_sendbuf_uw(struct oh_state *state, int ps, int me, int *putmes,
       }
       rbb[s] = state_particle_at(state, particles, j); /* receive to bottom */
       for (i=im,j=jm; i>=ib; i--) {     /* move first half downward if any */
-        struct S_particle *part=state_particle_at(state, particles, i);
+        void *part=state_particle_at(state, particles, i);
         int dst=state_particle_subdomain(state, part, ps);
         if (dst<0) continue;
         if (dst==me)
@@ -830,8 +929,8 @@ move_to_sendbuf_dw(struct oh_state *state, int ps, int me, int *putmes,
   int i, in, j, jn, k, s;
   int ns=state->n_of_species, nn=state->n_of_nodes, nnnsm1=nn*(ns-1);
   int *sbd=state->send_buffer_disps+nnnsm1;
-  struct S_particle *particles=state->particles;
-  struct S_particle *sendbuf=state->send_buffer;
+  void *particles=state->particles;
+  void *sendbuf=state->send_buffer;
 
   in = ctail;  jn = ntail;
   for (s=ns-1,i=in-1,j=jn-1,k=nnnsm1; s>=0; s--,i=in-1,j=jn-1,sbd-=nn,k-=nn) {
@@ -839,7 +938,7 @@ move_to_sendbuf_dw(struct oh_state *state, int ps, int me, int *putmes,
     in -= ctp[s];  jn -= ntp[s];
     if (i>=j || in>=jn) continue;       /* not downward only and thus skip */
     for (; putme>0; i--) {              /* throw my particles to send buf */
-      struct S_particle *part=state_particle_at(state, particles, i);
+      void *part=state_particle_at(state, particles, i);
       int dst=state_particle_subdomain(state, part, ps);
       if (dst<0) continue;
       state_copy_particle(state,
@@ -848,7 +947,7 @@ move_to_sendbuf_dw(struct oh_state *state, int ps, int me, int *putmes,
       if (dst==me) putme--;
     }
     for (; i>=in; i--) {                /* move downward */
-      struct S_particle *part=state_particle_at(state, particles, i);
+      void *part=state_particle_at(state, particles, i);
       int dst=state_particle_subdomain(state, part, ps);
       if (dst<0) continue;
       if (dst==me)
@@ -863,13 +962,12 @@ move_to_sendbuf_dw(struct oh_state *state, int ps, int me, int *putmes,
 }
 static void
 move_injected_to_sendbuf(struct oh_state *state) {
-  struct S_particle *pbuf=state_particle_at(state, state->particles,
-                                            state->total_parts);
+  void *pbuf=state_particle_at(state, state->particles, state->total_parts);
   int ninj=state->n_of_injections, nn=state->n_of_nodes;
   int i;
 
   for (i=0; i<ninj; i++) {
-    struct S_particle *part=state_particle_at(state, pbuf, i);
+    void *part=state_particle_at(state, pbuf, i);
     int dst = state_map_injected_particle_to_subdomain(state, part);
     int s = state_particle_species(state, part);
     if (dst<0) continue;
@@ -884,12 +982,11 @@ move_injected_from_sendbuf(struct oh_state *state, int *injected, int mysd,
                            void **rbb) {
   int nn=state->n_of_nodes, ns=state->n_of_species;
   int *sdisp=state->send_buffer_disps+mysd;
-  int s, i;
+  int s;
 
   for (s=0; s<ns; s++,sdisp+=nn) {
-    struct S_particle *rbuf=rbb[s];
-    struct S_particle *sbuf=state_particle_at(state, state->send_buffer,
-                                              *sdisp);
+    void *rbuf=rbb[s];
+    void *sbuf=state_particle_at(state, state->send_buffer, *sdisp);
     int inj=injected[s];
     state_copy_particles(state, rbuf, sbuf, inj);
     rbb[s] = state_particle_at(state, rbb[s], inj);  *sdisp += inj;
@@ -900,7 +997,7 @@ receive_particles(struct oh_state *state, struct S_commlist *rlist,
                   int rlsize, int *req) {
   int me=state->my_rank, i, r=*req, nn=state->n_of_nodes;
   int ns=state->n_of_species, sdisp;
-  struct S_particle *rbuf;
+  void *rbuf;
 
   for (i=0; i<rlsize; i++) {
     if (rlist[i].rid==me) {
@@ -958,19 +1055,20 @@ oh2_inject_particle_get(void *part) {
 }
 void *
 oh2_inject_particle_state(struct oh_state *state, void *part) {
-  int inj = state->total_parts + state->n_of_injections++;
+  dint inj = (dint)state->total_parts + state->n_of_injections;
   void *copy;
-  if (oh_context_is_default_state(state))
-    nOfInjections = state->n_of_injections;
 
 #ifndef OH_HAS_SPEC
   if (!state->use_custom_particle_adapter && state->n_of_species!=1)
     local_errstop("particles cannot be injected when S_particle does not "
                   "have 'spec' element and you have two or more species");
 #endif
-  if (inj>=state->n_of_local_particles_limit)
+  if (inj<0 || inj>INT_MAX || inj>=state->n_of_local_particles_limit)
     local_errstop("injection causes local particle buffer overflow");
-  copy = state_particle_at(state, state->particles, inj);
+  state->n_of_injections++;
+  if (oh_context_is_default_state(state))
+    nOfInjections = state->n_of_injections;
+  copy = state_particle_at(state, state->particles, (int)inj);
   state_copy_particle(state, copy, part);
   state_update_injected_particle_count(state, copy, 1);
   return copy;
@@ -985,10 +1083,10 @@ oh2_remap_injected_particle(void *part) {
 }
 void
 oh2_remap_injected_particle_state(struct oh_state *state, void *part) {
-  const int pidx = state_particle_buffer_index(state, part);
+  const int pidx = state_injected_particle_index(state, part);
+  const dint injected_end = (dint)state->total_parts + state->n_of_injections;
 
-  if (pidx<state->total_parts ||
-      pidx>=state->total_parts+state->n_of_injections)
+  if ((dint)pidx<state->total_parts || (dint)pidx>=injected_end)
     local_errstop("'part' argument pointing %c%d%c of the particle buffer is "\
                   "not for injected particles",
                   state->spec_base?'(':'[', pidx+state->spec_base,
@@ -1010,10 +1108,10 @@ oh2_remove_injected_particle(void *part) {
 }
 void
 oh2_remove_injected_particle_state(struct oh_state *state, void *part) {
-  const int pidx = state_particle_buffer_index(state, part);
+  const int pidx = state_injected_particle_index(state, part);
+  const dint injected_end = (dint)state->total_parts + state->n_of_injections;
 
-  if (pidx<state->total_parts ||
-      pidx>=state->total_parts+state->n_of_injections)
+  if ((dint)pidx<state->total_parts || (dint)pidx>=injected_end)
     local_errstop("'part' argument pointing %c%d%c of the particle buffer is "\
                   "not for injected particles",
                   state->spec_base?'(':'[', pidx+state->spec_base,
@@ -1027,8 +1125,8 @@ oh2_remove_injected_particle_state(struct oh_state *state, void *part) {
   state_mark_particle_removed(state, part, 0);
 }
 static void
-state_update_injected_particle_count(struct oh_state *state,
-                                     struct S_particle *part, int delta) {
+state_update_injected_particle_count(struct oh_state *state, void *part,
+                                     int delta) {
   const int ns=state->n_of_species, nn=state->n_of_nodes;
   int s, n;
 
@@ -1044,7 +1142,7 @@ state_update_injected_particle_count(struct oh_state *state,
   }
 }
 static OH_nid_t
-state_particle_region(struct oh_state *state, const struct S_particle *part,
+state_particle_region(struct oh_state *state, const void *part,
                       int primary_or_secondary) {
   oh_particle_region_t region =
     state->particle_adapter->get_region(state->particle_adapter, part,
@@ -1053,18 +1151,18 @@ state_particle_region(struct oh_state *state, const struct S_particle *part,
   return (OH_nid_t)region;
 }
 static void
-state_set_particle_region(struct oh_state *state, struct S_particle *part,
+state_set_particle_region(struct oh_state *state, void *part,
                           OH_nid_t region, int primary_or_secondary) {
   state->particle_adapter->set_region(state->particle_adapter, part, region,
                                       primary_or_secondary);
 }
 static void
-state_mark_particle_removed(struct oh_state *state, struct S_particle *part,
+state_mark_particle_removed(struct oh_state *state, void *part,
                             int primary_or_secondary) {
   state_set_particle_region(state, part, (OH_nid_t)-1, primary_or_secondary);
 }
 static int
-state_particle_species(struct oh_state *state, const struct S_particle *part) {
+state_particle_species(struct oh_state *state, const void *part) {
   int raw_species = state->particle_adapter->get_species(
     state->particle_adapter, part);
   int species = raw_species;
@@ -1085,31 +1183,53 @@ state_particle_species(struct oh_state *state, const struct S_particle *part) {
   return species;
 }
 static int
-state_particle_subdomain(struct oh_state *state, const struct S_particle *part,
+state_particle_subdomain(struct oh_state *state, void *part,
                          int primary_or_secondary) {
-  if (state->particle_adapter->map_to_subdomain)
-    return state->particle_adapter->map_to_subdomain(
-      state->particle_adapter, (void*)part, primary_or_secondary);
-  return state_region_subdomain(
+  oh_particle_region_t dst;
+
+  if (state->particle_adapter->map_to_subdomain) {
+    dst = state->particle_adapter->map_to_subdomain(
+      state->particle_adapter, part, primary_or_secondary);
+    return state_checked_particle_destination(state, dst,
+                                             "particle adapter map_to_subdomain()");
+  }
+  dst = state_region_subdomain(
     state, state_particle_region(state, part, primary_or_secondary),
     primary_or_secondary);
+  return state_checked_particle_destination(state, dst, "particle region");
 }
 static int
-state_map_injected_particle_to_subdomain(struct oh_state *state,
-                                         struct S_particle *part) {
-  int dst;
+state_map_injected_particle_to_subdomain(struct oh_state *state, void *part) {
+  oh_particle_region_t dst;
+  int used_region_mapping = 0;
 
-  if (state->particle_adapter->map_to_subdomain)
-    return state->particle_adapter->map_to_subdomain(state->particle_adapter,
-                                                     part, 0);
-  dst = state_region_subdomain(state, state_particle_region(state, part, 0),
-                               0);
+  if (state->particle_adapter->map_to_subdomain) {
+    dst = state->particle_adapter->map_to_subdomain(state->particle_adapter,
+                                                    part, 0);
+  } else {
+    dst = state_region_subdomain(state, state_particle_region(state, part, 0),
+                                 0);
+    used_region_mapping = 1;
+  }
 #ifdef OH_POS_AWARE
-  if (dst>=state->n_of_nodes)  dst = state_primarize_particle(state, part);
+  if (used_region_mapping && dst>=state->n_of_nodes)
+    dst = state_primarize_particle(state, part);
 #endif
-  return dst;
+  return state_checked_particle_destination(
+    state, dst, used_region_mapping ? "particle region" :
+                                      "particle adapter map_to_subdomain()");
 }
 static int
+state_checked_particle_destination(struct oh_state *state,
+                                   oh_particle_region_t dst,
+                                   const char *source) {
+  if (dst<0) return -1;
+  if (dst>=state->n_of_nodes)
+    local_errstop("%s returned destination %lld outside node range [0,%d)",
+                  source, (long long)dst, state->n_of_nodes);
+  return (int)dst;
+}
+static oh_particle_region_t
 state_region_subdomain(struct oh_state *state, OH_nid_t region,
                        int primary_or_secondary) {
 #ifdef OH_POS_AWARE
@@ -1126,9 +1246,9 @@ state_region_subdomain(struct oh_state *state, OH_nid_t region,
   return region;
 #endif
 }
-static int
-state_primarize_particle(struct oh_state *state, struct S_particle *part) {
 #ifdef OH_POS_AWARE
+static oh_particle_region_t
+state_primarize_particle(struct oh_state *state, void *part) {
   const OH_nid_t region =
     (OH_nid_t)state->particle_adapter->get_region(
       state->particle_adapter, part, 1) -
@@ -1137,34 +1257,35 @@ state_primarize_particle(struct oh_state *state, struct S_particle *part) {
   state->particle_adapter->set_region(state->particle_adapter, part, region,
                                       1);
   return state_region_subdomain(state, region, 1);
-#else
-  (void)state;
-  (void)part;
-  return -1;
-#endif
 }
+#endif
 static size_t
 particle_stride_state(struct oh_state *state) {
   return oh_particle_buffer_stride(state->particle_adapter);
 }
-static struct S_particle *
+static void *
 state_particle_at(struct oh_state *state, void *base, int index) {
   return oh_particle_buffer_at(state->particle_adapter, base, index);
 }
 static int
-state_particle_buffer_index(struct oh_state *state,
-                            const struct S_particle *part) {
-  return oh_particle_buffer_index(state->particle_adapter, state->particles,
-                                  part);
+state_injected_particle_index(struct oh_state *state, const void *part) {
+  dint injected_end;
+
+  if (!state || !state->particle_buffer_bound || !state->particles || !part)
+    return -1;
+  injected_end = (dint)state->total_parts + state->n_of_injections;
+  if (injected_end < 0 || injected_end > INT_MAX) return -1;
+  return oh_particle_buffer_index_bounded(state->particle_adapter,
+                                          state->particles,
+                                          (int)injected_end, part);
 }
 static void
-state_copy_particle(struct oh_state *state, struct S_particle *dst,
-                    const struct S_particle *src) {
+state_copy_particle(struct oh_state *state, void *dst, const void *src) {
   oh_particle_buffer_copy(state->particle_adapter, dst, src);
 }
 static void
-state_copy_particles(struct oh_state *state, struct S_particle *dst,
-                     const struct S_particle *src, int count) {
+state_copy_particles(struct oh_state *state, void *dst, const void *src,
+                     int count) {
   oh_particle_buffer_copy_n(state->particle_adapter, dst, src, count);
 }
 void
@@ -1198,8 +1319,9 @@ finalize_injected_particles_state(struct oh_state *state) {
   const int old_primary=state->primary_parts;
   const int old_total=state->total_parts;
   const int ninj=state->n_of_injections;
-  const int scan_total=old_total+ninj;
+  const dint scan_total_wide=(dint)old_total+ninj;
   const int nclass=ns*2, nhist=nclass*nn;
+  int scan_total;
   int *counts, *hist, *cursor;
   int i, s, t, ps, dst, total;
 
@@ -1209,8 +1331,10 @@ finalize_injected_particles_state(struct oh_state *state) {
     local_errstop("particle accounting is not bound");
   if (!state->send_buffer)
     local_errstop("particle work buffer is not allocated");
-  if (scan_total>state->n_of_local_particles_limit)
+  if (scan_total_wide<0 || scan_total_wide>INT_MAX ||
+      scan_total_wide>state->n_of_local_particles_limit)
     local_errstop("injection causes local particle buffer overflow");
+  scan_total = (int)scan_total_wide;
 
   counts = (int*)mem_alloc(sizeof(int), nclass, "FinalizeCounts");
   hist = (int*)mem_alloc(sizeof(int), nhist, "FinalizeNOfPLocal");
@@ -1219,7 +1343,7 @@ finalize_injected_particles_state(struct oh_state *state) {
   for (i=0; i<nhist; i++) hist[i] = 0;
 
   for (i=0; i<scan_total; i++) {
-    struct S_particle *part=state_particle_at(state, state->particles, i);
+    void *part=state_particle_at(state, state->particles, i);
     if (i<old_total) {
       ps = i<old_primary ? 0 : 1;
       dst = state_particle_subdomain(state, part, ps);
@@ -1249,7 +1373,7 @@ finalize_injected_particles_state(struct oh_state *state) {
     local_errstop("injection causes local particle buffer overflow");
 
   for (i=0; i<scan_total; i++) {
-    struct S_particle *part=state_particle_at(state, state->particles, i);
+    void *part=state_particle_at(state, state->particles, i);
     if (i<old_total) {
       ps = i<old_primary ? 0 : 1;
       dst = state_particle_subdomain(state, part, ps);
@@ -1278,8 +1402,7 @@ finalize_injected_particles_state(struct oh_state *state) {
   free(counts);
 }
 static int
-state_injected_particle_region_kind(struct oh_state *state,
-                                    struct S_particle *part) {
+state_injected_particle_region_kind(struct oh_state *state, void *part) {
   int dst = state_map_injected_particle_to_subdomain(state, part);
   return dst>=0 && dst==state->region_id[1] ? 1 : 0;
 }
@@ -1290,16 +1413,25 @@ oh2_max_local_particles_(dint *npmax, int *maxfrac, int *minmargin) {
 int
 oh2_max_local_particles(dint npmax, int maxfrac, int minmargin) {
   int nn, nplint;
-  dint npl, npmargin;
+  dint npl, npmargin, margin;
 
   MPI_Comm_size(MCW, &nn);
   if (npmax<=0) errstop("max # of particles should be greater than 0");
   if (maxfrac<=0 || maxfrac>100)
     errstop("load imbalance factor (%d) should be in the range [1..100]",
             maxfrac);
+  if (minmargin<0)
+    errstop("minimum particle buffer margin (%d) should be non-negative",
+            minmargin);
   npl = (npmax-1)/nn + 1; /* ceil(npmax/nn) */
-  npmargin = (npl*maxfrac-1)/100 + 1;
-  npl += (npmargin<minmargin) ? minmargin : npmargin;
+  if (npl>INT_MAX) mem_alloc_error("Particles", 0);
+  npmargin = (npl/100) * maxfrac;
+  if (npl%100)
+    npmargin += (((npl%100) * maxfrac - 1) / 100) + 1;
+  margin = (npmargin<minmargin) ? minmargin : npmargin;
+  if (margin>INT_MAX || npl>(dint)INT_MAX-margin)
+    mem_alloc_error("Particles", 0);
+  npl += margin;
   if (npl>INT_MAX) mem_alloc_error("Particles", 0);
   nplint = npl;
   return(nplint);

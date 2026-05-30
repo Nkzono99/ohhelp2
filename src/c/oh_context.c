@@ -18,12 +18,15 @@ struct oh_state OhDefaultState;
 static void free_context_particle_type(struct oh_state *context);
 static int init_context_particle_adapter(struct oh_state *context,
                                          MPI_Datatype type, int owns_type);
+static void free_context_comm(struct oh_state *context);
 static void free_context_level1_storage(struct oh_state *context);
 static void ensure_context_level1_storage(struct oh_state *context);
 static void free_context_level2_storage(struct oh_state *context);
 static void ensure_context_level2_storage(struct oh_state *context,
                                           int maxlocalp);
 static void free_context_region_id_storage(struct oh_state *context);
+static void configure_context_level1_neighbors(struct oh_state *context,
+                                               int **nbor, int *pcoord);
 
 static int
 storage_ownership_is_valid(int ownership) {
@@ -34,6 +37,58 @@ static struct oh_state*
 context_or_default(struct oh_state *context) {
   if (!context) context = oh1_state();
   return context;
+}
+
+static void
+require_particle_buffer_unbound(struct oh_state *context, const char *api) {
+  if (context->particle_buffer_bound)
+    local_errstop("%s cannot change particle layout while particles are bound",
+                  (char*)api);
+}
+
+static void
+require_particle_configuration_unbound(struct oh_state *context,
+                                       const char *api) {
+  if (context->particle_buffer_bound)
+    local_errstop("%s cannot change species count while particles are bound",
+                  (char*)api);
+  if (context->particle_accounting_bound)
+    local_errstop("%s cannot change species count while accounting is bound",
+                  (char*)api);
+  if (context->owns_level3_storage)
+    local_errstop("%s cannot change species count while Level 3 is configured",
+                  (char*)api);
+}
+
+void
+oh_context_validate_species_node_capacity(int n_of_nodes, int nspec,
+                                          const char *api) {
+  long long nnns;
+  long long hist_slots;
+  long long species_classes;
+  long long request_slots;
+  long long comm_list_a;
+  long long comm_list_b;
+
+  if (n_of_nodes<=0)
+    local_errstop("%s requires initialized communicator", (char*)api);
+  if (nspec > INT_MAX / n_of_nodes)
+    local_errstop("%s species/node count exceeds Level 2 particle accounting capacity",
+                  (char*)api);
+
+  nnns = (long long)n_of_nodes * nspec;
+  hist_slots = 2LL * nnns;
+  species_classes = 4LL * nspec;
+  request_slots = 4LL * nnns + 2LL * OH_NEIGHBORS;
+  comm_list_a = 2LL * OH_NEIGHBORS * (nnns + 1LL) +
+                (long long)n_of_nodes * ((long long)nspec + 3LL);
+  comm_list_b = (14LL + 4LL * nspec) * n_of_nodes;
+
+  if (hist_slots > INT_MAX || species_classes > INT_MAX ||
+      request_slots > INT_MAX ||
+      comm_list_a > INT_MAX || comm_list_b > INT_MAX)
+    local_errstop("%s species/node count exceeds Level 2 particle accounting capacity",
+                  (char*)api);
 }
 
 static int
@@ -48,7 +103,11 @@ oh_context_is_default_state(const struct oh_state *state) {
 
 static void*
 context_calloc(size_t count, size_t size, const char *name) {
-  void *ptr = calloc(count, size);
+  void *ptr;
+
+  if (size != 0 && count > ((size_t)-1) / size)
+    local_errstop("invalid allocation size for %s", (char*)name);
+  ptr = calloc(count, size);
   if (!ptr) local_errstop("out of memory for %s", (char*)name);
   return ptr;
 }
@@ -56,14 +115,34 @@ context_calloc(size_t count, size_t size, const char *name) {
 static void
 free_context_particle_type(struct oh_state *context) {
   int initialized = 0;
+  int finalized = 0;
 
   if (!context || !context->owns_particle_mpi_type ||
-      context->owned_particle_adapter.mpi_type == MPI_DATATYPE_NULL)
+      context->particle_mpi_type == MPI_DATATYPE_NULL)
     return;
   MPI_Initialized(&initialized);
-  if (initialized) MPI_Type_free(&context->owned_particle_adapter.mpi_type);
+  if (initialized) MPI_Finalized(&finalized);
+  if (initialized && !finalized)
+    MPI_Type_free(&context->particle_mpi_type);
+  context->particle_mpi_type = MPI_DATATYPE_NULL;
   context->owned_particle_adapter.mpi_type = MPI_DATATYPE_NULL;
+  context->owned_custom_particle_adapter.mpi_type = MPI_DATATYPE_NULL;
+  context->custom_particle_mpi_type = MPI_DATATYPE_NULL;
   context->owns_particle_mpi_type = 0;
+}
+
+static void
+free_context_comm(struct oh_state *context) {
+  int initialized = 0;
+  int finalized = 0;
+
+  if (!context || !context->owns_comm || context->comm == MPI_COMM_NULL)
+    return;
+  MPI_Initialized(&initialized);
+  if (initialized) MPI_Finalized(&finalized);
+  if (initialized && !finalized) MPI_Comm_free(&context->comm);
+  context->comm = MPI_COMM_NULL;
+  context->owns_comm = 0;
 }
 
 static void
@@ -71,6 +150,13 @@ free_context_region_id_storage(struct oh_state *context) {
   int *freed = NULL;
 
   if (!context) return;
+  if (context_is_default(context)) {
+    context->region_id = RegionId;
+    context->subdomain_id = SubdomainId;
+    context->owns_region_id = 0;
+    context->owns_subdomain_id = 0;
+    return;
+  }
   if (context->owns_region_id && context->region_id) {
     freed = context->region_id;
     free(context->region_id);
@@ -221,7 +307,7 @@ ensure_context_level2_storage(struct oh_state *context, int maxlocalp) {
   slots = maxlocalp > 0 ? (size_t)maxlocalp : 1;
   context->send_buffer = context_calloc(slots, stride, "SendBuf");
   context->recv_buffer_bases =
-    (void**)context_calloc((size_t)2*ns+1, sizeof(void*), "RecvBufBases");
+    context_calloc((size_t)2*ns+1, sizeof(void*), "RecvBufBases");
   context->send_buffer_disps =
     (int*)context_calloc((size_t)nnns, sizeof(int), "SendBufDisps");
   context->recv_buffer_disps =
@@ -345,21 +431,254 @@ ensure_context_level1_storage(struct oh_state *context) {
   context->owns_level1_storage = 1;
 }
 
+void
+oh_context_build_grid_neighbors(struct oh_state *state, const int *pcoord,
+                                int raw[OH_NEIGHBORS]) {
+  int nn = state->n_of_nodes;
+  int me = state->my_rank;
+  int p, q, r, i, j, k, l;
+  int yplus = (OH_DIMENSION>1) ? 2 : 0;
+  int zplus = (OH_DIMENSION>2) ? 2 : 0;
+  int xoff, yoff, zoff;
+
+  if (!pcoord)
+    local_errstop("context grid neighbor build requires pcoord");
+  p = pcoord[0];
+  q = (OH_DIMENSION>1) ? pcoord[1] : 1;
+  r = (OH_DIMENSION>2) ? pcoord[2] : 1;
+  if (p<=0 || q<=0 || r<=0 || p*q*r!=nn)
+    local_errstop("context pcoord product must match communicator size");
+
+  i = me % p;
+  j = (me/p) % q;
+  k = me / (p*q);
+  for (l=0,zoff=-1; zoff<zplus; zoff++) {
+    for (yoff=-1; yoff<yplus; yoff++) {
+      for (xoff=-1; xoff<2; xoff++,l++) {
+        raw[l] = (i+xoff+p)%p + (((j+yoff+q)%q) + ((k+zoff+r)%r)*q)*p;
+      }
+    }
+  }
+}
+
+void
+oh_context_apply_neighbors(struct oh_state *state,
+                           const int raw[OH_NEIGHBORS]) {
+  int nn = state->n_of_nodes;
+  int *temp = state->temp_array;
+  int i;
+
+  memcpy(state->neighbors[1], raw, sizeof(int)*OH_NEIGHBORS);
+  memcpy(state->neighbors[2], raw, sizeof(int)*OH_NEIGHBORS);
+  state->dst_neighbors = state->neighbors[0];
+  for (i=0; i<nn; i++) temp[i] = 0;
+  for (i=0; i<OH_NEIGHBORS; i++) {
+    int dst = raw[i];
+    int src = raw[(OH_NEIGHBORS-1)-i];
+    if (dst<0) {
+      state->dst_neighbors[i] = -(nn+1);
+    } else {
+      state->dst_neighbors[i] = (temp[dst]&1) ? -(dst+1) : dst;
+      temp[dst] |= 1;
+    }
+    if (src<0) {
+      state->src_neighbors[i] = -(nn+1);
+    } else {
+      state->src_neighbors[i] = (temp[src]&2) ? -(src+1) : src;
+      temp[src] |= 2;
+    }
+  }
+}
+
+static void
+configure_context_level1_neighbors(struct oh_state *context, int **nbor,
+                                   int *pcoord) {
+  int me = context->my_rank;
+  int *raw;
+  int i;
+
+  if (!nbor)
+    local_errstop("non-default init1_state() requires a neighbor output");
+
+  raw = *nbor;
+  if (!raw) {
+    raw = context->neighbors[1];
+    *nbor = raw;
+    oh_context_build_grid_neighbors(context, pcoord, raw);
+  } else {
+    for (i=0; i<OH_NEIGHBORS; i++) {
+      int n = raw[i];
+      int m = raw[(OH_NEIGHBORS-1)-i];
+      int reply;
+      MPI_Status st;
+
+      if (m>=0) {
+        if (n>=0)
+          MPI_Sendrecv(&i, 1, MPI_INT, n, 0, &reply, 1, MPI_INT, m, 0,
+                       context->comm, &st);
+        else
+          MPI_Recv(&reply, 1, MPI_INT, m, 0, context->comm, &st);
+        if (reply!=i)
+          local_errstop("rank-%d's %d-th neighbor rank-%d says "
+                        "rank-%d is not %d-th neighbor but %d-th",
+                        me, (OH_NEIGHBORS-1)-i, m, me, i, reply);
+      } else if (n>=0) {
+        MPI_Send(&i, 1, MPI_INT, n, 0, context->comm);
+      }
+    }
+  }
+
+  oh_context_apply_neighbors(context, raw);
+}
+
+void
+oh_context_init_level1_state(struct oh_state *state, int **sdid, int nspec,
+                             int maxfrac, int **nphgram, int **totalp,
+                             int **rcounts, int **scounts,
+                             struct S_mycommc *mycommc,
+                             struct S_mycommf *mycommf, int **nbor,
+                             int *pcoord, int stats, int repiter,
+                             int verbose) {
+  int i;
+  int accounting_ownership;
+  int *requested_sdid;
+  int old_owned_sdid;
+
+  if (!state || context_is_default(state))
+    local_errstop("oh_context_init_level1_state() requires a non-default context");
+  if (stats || verbose)
+    local_errstop("non-default init1_state() does not support stats or verbose yet");
+  if (nspec<=0)
+    local_errstop("non-default init1_state() requires nspec > 0");
+  if (maxfrac<0)
+    local_errstop("non-default init1_state() requires maxfrac >= 0");
+  oh_context_validate_species_node_capacity(state->n_of_nodes, nspec,
+                                            "non-default init1_state()");
+  if (!sdid || !nphgram || !totalp)
+    local_errstop("non-default init1_state() requires sdid, nphgram, and totalp");
+
+  old_owned_sdid = state->owns_region_id && *sdid == state->region_id;
+  if (old_owned_sdid) *sdid = NULL;
+  if (state->n_of_particles_local_ownership==OH_PARTICLES_OWNED &&
+      *nphgram == state->n_of_particles_local)
+    *nphgram = NULL;
+  if (state->total_particles_next_ownership==OH_PARTICLES_OWNED &&
+      *totalp == state->total_particles_next)
+    *totalp = NULL;
+  if (nbor && state->owns_level1_storage && *nbor == state->neighbors[1])
+    *nbor = NULL;
+  if (rcounts && state->owns_level1_storage && *rcounts == state->recv_counts)
+    *rcounts = NULL;
+  if (scounts && state->owns_level1_storage && *scounts == state->send_counts)
+    *scounts = NULL;
+
+  if ((*nphgram && !*totalp) || (!*nphgram && *totalp))
+    local_errstop("non-default init1_state() requires nphgram and totalp "
+                  "to be both NULL or both borrowed");
+  if (rcounts && *rcounts)
+    local_errstop("non-default init1_state() cannot borrow recv counts yet");
+  if (scounts && *scounts)
+    local_errstop("non-default init1_state() cannot borrow send counts yet");
+  requested_sdid = *sdid;
+
+  oh_context_unbind_particle_accounting_state(state);
+  free_context_level2_storage(state);
+  free_context_level1_storage(state);
+  free_context_region_id_storage(state);
+
+  state->curr_mode = MODE_NORM_PRI;
+  state->acc_mode = 0;
+  state->n_of_species = nspec;
+  state->max_fraction = maxfrac;
+  state->stats_mode = stats;
+  state->report_iteration = repiter;
+  state->weighted_load_balancing = FALSE;
+  state->n_of_particles = 0;
+  state->total_load = 0.0;
+  state->n_of_local_particles_max = 0;
+  state->n_of_local_load_max = 0.0;
+
+  state->region_id = requested_sdid
+                       ? requested_sdid
+                       : (int*)mem_alloc(sizeof(int), 2, "SubdomainID");
+  state->subdomain_id = state->region_id;
+  state->owns_region_id = requested_sdid ? 0 : 1;
+  state->owns_subdomain_id = 0;
+  state->region_id[0] = state->my_rank;
+  state->region_id[1] = -1;
+  *sdid = state->region_id;
+
+  ensure_context_level1_storage(state);
+  configure_context_level1_neighbors(state, nbor, pcoord);
+
+  accounting_ownership = (*nphgram || *totalp)
+                           ? OH_PARTICLES_BORROWED
+                           : OH_PARTICLES_OWNED;
+  oh_context_bind_particle_accounting_state(state, nphgram, totalp, NULL,
+                                            accounting_ownership);
+  if (rcounts) *rcounts = state->recv_counts;
+  if (scounts) *scounts = state->send_counts;
+  for (i=0; i<2*state->n_of_species*state->n_of_nodes; i++) {
+    state->n_of_particles_local[i] = 0;
+    state->n_of_recv[i] = 0;
+    state->n_of_send[i] = 0;
+    state->recv_counts[i] = 0;
+    state->send_counts[i] = 0;
+  }
+  for (i=0; i<2*state->n_of_species; i++)
+    state->total_particles_next[i] = 0;
+  for (i=0; i<state->n_of_nodes; i++) {
+    state->region_weights[i] = 1.0;
+    state->total_load_global[i] = 0.0;
+  }
+  for (i=0; i<4*state->n_of_species; i++) state->injected_particles[i] = 0;
+
+  state->my_comm_c = mycommc;
+  state->my_comm_f = mycommf;
+  if (state->my_comm) {
+    state->my_comm->prime = MPI_COMM_NULL;
+    state->my_comm->sec = MPI_COMM_NULL;
+    state->my_comm->rank = 0;
+    state->my_comm->root = 0;
+    state->my_comm->black = 0;
+    if (mycommc) *mycommc = *state->my_comm;
+  }
+  if (mycommf) {
+    mycommf->prime = MPI_Comm_c2f(MPI_COMM_NULL);
+    mycommf->sec = MPI_Comm_c2f(MPI_COMM_NULL);
+    mycommf->rank = 0;
+    mycommf->root = 0;
+    mycommf->black = 0;
+  }
+}
+
 int
 oh_context_create(MPI_Comm comm, struct oh_state **context) {
   MPI_Datatype particle_type = MPI_DATATYPE_NULL;
   struct oh_state *created;
+  int mpi_initialized = 0;
+  int mpi_finalized = 0;
   int err, i;
 
   if (!context) return MPI_ERR_ARG;
   *context = NULL;
+  if (comm == MPI_COMM_NULL) return MPI_ERR_COMM;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized) MPI_Finalized(&mpi_finalized);
+  if (!mpi_initialized || mpi_finalized) return MPI_ERR_OTHER;
 
   created = (struct oh_state*)calloc(1, sizeof(*created));
   if (!created) return MPI_ERR_NO_MEM;
 
-  created->comm = comm;
-  MPI_Comm_size(comm, &created->n_of_nodes);
-  MPI_Comm_rank(comm, &created->my_rank);
+  created->comm = MPI_COMM_NULL;
+  err = MPI_Comm_dup(comm, &created->comm);
+  if (err != MPI_SUCCESS) {
+    free(created);
+    return err;
+  }
+  created->owns_comm = 1;
+  MPI_Comm_size(created->comm, &created->n_of_nodes);
+  MPI_Comm_rank(created->comm, &created->my_rank);
   created->curr_mode = MODE_NORM_PRI;
   created->acc_mode = 0;
   created->world_group = MPI_GROUP_NULL;
@@ -369,6 +688,7 @@ oh_context_create(MPI_Comm comm, struct oh_state **context) {
   err = oh_particle_adapter_make_byte_type(sizeof(struct S_particle),
                                            &particle_type);
   if (err != MPI_SUCCESS) {
+    free_context_comm(created);
     free(created);
     return err;
   }
@@ -380,6 +700,7 @@ oh_context_create(MPI_Comm comm, struct oh_state **context) {
     (double*)calloc((size_t)created->n_of_nodes, sizeof(double));
   if (!created->region_weights || !created->total_load_global) {
     free_context_particle_type(created);
+    free_context_comm(created);
     free(created->region_weights);
     free(created->total_load_global);
     free(created);
@@ -407,12 +728,14 @@ oh_context_destroy(struct oh_state *context) {
   free_context_region_id_storage(context);
   free(context->region_weights);
   free(context->total_load_global);
+  free_context_comm(context);
   free(context);
 }
 
 void
 oh1_sync_default_state(void) {
   OhDefaultState.comm = MCW;
+  OhDefaultState.owns_comm = 0;
   OhDefaultState.n_of_nodes = nOfNodes;
   OhDefaultState.my_rank = myRank;
   OhDefaultState.region_id = RegionId;
@@ -467,7 +790,7 @@ oh1_sync_default_state(void) {
   OhDefaultState.n_of_local_particles_limit = nOfLocalPLimit;
   OhDefaultState.particles = Particles;
   OhDefaultState.send_buffer = SendBuf;
-  OhDefaultState.recv_buffer_bases = (void**)RecvBufBases;
+  OhDefaultState.recv_buffer_bases = RecvBufBases;
   OhDefaultState.owns_level2_storage = 0;
   OhDefaultState.secondary_base = secondaryBase;
   OhDefaultState.total_local_particles = totalLocalParticles;
@@ -476,6 +799,7 @@ oh1_sync_default_state(void) {
   OhDefaultState.n_of_injections = nOfInjections;
   OhDefaultState.spec_base = specBase;
   OhDefaultState.particle_mpi_type = T_Particle;
+  OhDefaultState.owns_particle_mpi_type = ownsTParticle;
   OhDefaultState.custom_particle_mpi_type = CustomTParticle;
   OhDefaultState.use_custom_particle_mpi_type = useCustomTParticle;
   OhDefaultState.particle_adapter = &ParticleAdapter;
@@ -535,6 +859,19 @@ oh_context_configure_particles(struct oh_state *context, int nspec,
   context = context_or_default(context);
   if (nspec<=0)
     local_errstop("oh_context_configure_particles() requires nspec > 0");
+  if (maxfrac<0)
+    local_errstop("oh_context_configure_particles() requires maxfrac >= 0");
+  oh_context_validate_species_node_capacity(
+    context->n_of_nodes, nspec, "oh_context_configure_particles()");
+
+  if (!context_is_default(context) && context->n_of_species>0) {
+    require_particle_configuration_unbound(
+      context, "oh_context_configure_particles()");
+    if (context->n_of_species!=nspec) {
+      free_context_level2_storage(context);
+      free_context_level1_storage(context);
+    }
+  }
 
   if (!context->region_id) {
     context->region_id = (int*)calloc(2, sizeof(int));
@@ -579,6 +916,7 @@ void
 oh_context_set_particle_adapter(struct oh_state *context,
                                 const oh_particle_adapter *adapter) {
   context = context_or_default(context);
+  require_particle_buffer_unbound(context, "oh_context_set_particle_adapter()");
   oh2_set_particle_adapter_state(context, adapter);
   oh3_bind_context_particle_adapter(context);
   if (context_is_default(context)) oh1_sync_default_state();
@@ -587,7 +925,9 @@ oh_context_set_particle_adapter(struct oh_state *context,
 void
 oh_context_set_particle_mpi_type(struct oh_state *context, MPI_Datatype type) {
   context = context_or_default(context);
+  require_particle_buffer_unbound(context, "oh_context_set_particle_mpi_type()");
   oh2_set_particle_mpi_type_state(context, type);
+  oh3_bind_context_particle_adapter(context);
   if (context_is_default(context)) oh1_sync_default_state();
 }
 
@@ -596,6 +936,8 @@ oh_context_bind_particles(struct oh_state *context, void *particles,
                           int maxlocalp, int ownership) {
   void *bound;
   context = context_or_default(context);
+  if (!context_is_default(context) && context->n_of_species<=0)
+    local_errstop("particle binding requires configured particles");
   free_context_level2_storage(context);
   bound = oh2_bind_particle_buffer_state(context, particles, maxlocalp,
                                          ownership);
@@ -622,10 +964,26 @@ oh_context_bind_region_ids(struct oh_state *context, int *sdid,
     local_errstop("invalid region id ownership flag");
   if (ownership==OH_PARTICLES_BORROWED && !sdid)
     local_errstop("borrowed region id binding requires a non-NULL array");
+  if (ownership==OH_PARTICLES_OWNED && sdid)
+    local_errstop("owned region id binding requires a NULL array");
 
   previous[0] = context->region_id ? context->region_id[0] : context->my_rank;
   previous[1] = context->region_id ? context->region_id[1] : -1;
   free_context_region_id_storage(context);
+
+  if (context_is_default(context)) {
+    if (ownership==OH_PARTICLES_OWNED) sdid = RegionId;
+    sdid[0] = previous[0];
+    sdid[1] = previous[1];
+    RegionId[0] = sdid[0];
+    RegionId[1] = sdid[1];
+    SubdomainId = sdid;
+    context->region_id = RegionId;
+    context->subdomain_id = SubdomainId;
+    context->owns_region_id = 0;
+    context->owns_subdomain_id = 0;
+    return sdid;
+  }
 
   if (ownership==OH_PARTICLES_OWNED && !sdid)
     sdid = (int*)mem_alloc(sizeof(int), 2, "SubdomainID");
@@ -654,6 +1012,17 @@ oh_context_unbind_region_ids(struct oh_state *context) {
   previous[0] = context->region_id ? context->region_id[0] : context->my_rank;
   previous[1] = context->region_id ? context->region_id[1] : -1;
   free_context_region_id_storage(context);
+
+  if (context_is_default(context)) {
+    RegionId[0] = previous[0];
+    RegionId[1] = previous[1];
+    SubdomainId = RegionId;
+    context->region_id = RegionId;
+    context->subdomain_id = SubdomainId;
+    context->owns_region_id = 0;
+    context->owns_subdomain_id = 0;
+    return;
+  }
 
   owned_ids = (int*)mem_alloc(sizeof(int), 2, "SubdomainID");
   owned_ids[0] = previous[0];
@@ -703,6 +1072,8 @@ oh_context_bind_particle_accounting_state(struct oh_state *state,
 
   ns = state->n_of_species;
   nn = state->n_of_nodes;
+  oh_context_validate_species_node_capacity(
+    nn, ns, "oh_context_bind_particle_accounting()");
 
   if (state->n_of_particles_local_ownership==OH_PARTICLES_OWNED &&
       state->n_of_particles_local)
@@ -793,6 +1164,8 @@ oh_context_bind_particle_accounting(struct oh_state *context, int **nphgram,
                                     int **totalp, int **pbase,
                                     int ownership) {
   context = context_or_default(context);
+  if (!pbase)
+    local_errstop("particle accounting binding requires a pbase slot");
   oh_context_bind_particle_accounting_state(context, nphgram, totalp, pbase,
                                             ownership);
   if (context_is_default(context)) oh1_sync_default_state();
@@ -833,8 +1206,9 @@ oh_context_max_local_particles_for_capacity(
              ? 0
              : (per_rank * (long long)capacity_percent - 1) / 100 + 1;
   if (margin < min_margin) margin = min_margin;
+  if (margin>INT_MAX || per_rank>(long long)INT_MAX-margin)
+    mem_alloc_error("Particles", 0);
   capacity = per_rank + margin;
-  if (capacity>INT_MAX) mem_alloc_error("Particles", 0);
   return (int)capacity;
 }
 
@@ -948,6 +1322,7 @@ oh_context_remove_injected_particle(struct oh_state *context, void *part) {
 void
 oh_context_grid_size(struct oh_state *context, double *size) {
   context = context_or_default(context);
+  if (!size) local_errstop("oh_context_grid_size() requires a size array");
   oh3_grid_size_state(context, size);
   if (context_is_default(context)) oh1_sync_default_state();
 }

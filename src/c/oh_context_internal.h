@@ -9,6 +9,7 @@
 
 struct oh_state {
   MPI_Comm comm;
+  int owns_comm;
   int n_of_nodes;
   int my_rank;
   int *region_id;
@@ -157,8 +158,23 @@ extern struct oh_state OhDefaultState;
 
 void oh1_sync_default_state(void);
 int oh_context_is_default_state(const struct oh_state *state);
+void oh_context_validate_species_node_capacity(int n_of_nodes, int nspec,
+                                               const char *api);
 void oh1_set_region_weights_state(struct oh_state *state,
                                   const double *weights);
+void oh_context_init_level1_state(struct oh_state *state, int **sdid,
+                                  int nspec, int maxfrac, int **nphgram,
+                                  int **totalp, int **rcounts,
+                                  int **scounts,
+                                  struct S_mycommc *mycommc,
+                                  struct S_mycommf *mycommf, int **nbor,
+                                  int *pcoord, int stats, int repiter,
+                                  int verbose);
+void oh_context_build_grid_neighbors(struct oh_state *state,
+                                     const int *pcoord,
+                                     int raw[OH_NEIGHBORS]);
+void oh_context_apply_neighbors(struct oh_state *state,
+                                const int raw[OH_NEIGHBORS]);
 void oh_context_bind_particle_accounting_state(struct oh_state *state,
                                                int **nphgram, int **totalp,
                                                int **pbase, int ownership);

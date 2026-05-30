@@ -50,6 +50,12 @@ legacy_sdoms_requests_active_decomposition(const int *sdoms) {
   return sdoms && sdoms[OH_LOWER] > sdoms[OH_UPPER];
 }
 
+static oh_context *
+require_fortran_context(oh_context *context, const char *api) {
+  if (!context) local_errstop("%s requires an associated context handle", api);
+  return context;
+}
+
 oh_context *
 oh_fortran_default_context(void) {
   return oh_default_context();
@@ -57,6 +63,14 @@ oh_fortran_default_context(void) {
 
 int
 oh_fortran_context_create(int fortran_comm, oh_context **context) {
+  int mpi_initialized = 0;
+  int mpi_finalized = 0;
+
+  if (!context) return MPI_ERR_ARG;
+  *context = NULL;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized) MPI_Finalized(&mpi_finalized);
+  if (!mpi_initialized || mpi_finalized) return MPI_ERR_OTHER;
   return oh_context_create(MPI_Comm_f2c(fortran_comm), context);
 }
 
@@ -68,51 +82,69 @@ oh_fortran_context_destroy(oh_context *context) {
 void
 oh_fortran_context_configure_particles(oh_context *context, int nspec,
                                        int maxfrac) {
+  context = require_fortran_context(context, "oh_context_configure_particles()");
   oh_context_configure_particles(context, nspec, maxfrac);
 }
 
 void
 oh_fortran_context_set_region_weights(oh_context *context,
-                                      const double *weights) {
+                                      const double *weights,
+                                      int weight_count) {
+  context = require_fortran_context(context, "oh_context_set_region_weights()");
+  if (weights && weight_count != context->n_of_nodes)
+    local_errstop("oh_context_set_region_weights() requires %d weights for this context, got %d",
+                  context->n_of_nodes, weight_count);
+  if (!weights && weight_count >= 0)
+    local_errstop("oh_context_set_region_weights() requires %d weights for this context, got %d",
+                  context->n_of_nodes, weight_count);
   oh_context_set_region_weights(context, weights);
 }
 
 void
 oh_fortran_context_set_particle_mpi_type(oh_context *context,
                                          int fortran_type) {
+  context = require_fortran_context(context,
+                                    "oh_context_set_particle_mpi_type()");
   oh_context_set_particle_mpi_type(context, fortran_type_or_null(fortran_type));
 }
 
 void
 oh_fortran_context_set_particle_adapter(
   oh_context *context, const oh_fortran_particle_adapter *adapter) {
+  context = require_fortran_context(context,
+                                    "oh_context_set_particle_adapter()");
   oh_context_set_particle_adapter(context, unwrap_const_adapter(adapter));
 }
 
 void *
 oh_fortran_context_bind_particles(oh_context *context, void *particles,
                                   int maxlocalp, int ownership) {
+  context = require_fortran_context(context, "oh_context_bind_particles()");
   return oh_context_bind_particles(context, particles, maxlocalp, ownership);
 }
 
 void
 oh_fortran_context_unbind_particles(oh_context *context) {
+  context = require_fortran_context(context, "oh_context_unbind_particles()");
   oh_context_unbind_particles(context);
 }
 
 int *
 oh_fortran_context_bind_region_ids(oh_context *context, int *sdid,
                                    int ownership) {
+  context = require_fortran_context(context, "oh_context_bind_region_ids()");
   return oh_context_bind_region_ids(context, sdid, ownership);
 }
 
 void
 oh_fortran_context_unbind_region_ids(oh_context *context) {
+  context = require_fortran_context(context, "oh_context_unbind_region_ids()");
   oh_context_unbind_region_ids(context);
 }
 
 void
 oh_fortran_context_get_region_ids(oh_context *context, int *sdid) {
+  context = require_fortran_context(context, "oh_context_get_region_ids()");
   oh_context_get_region_ids(context, sdid);
 }
 
@@ -120,12 +152,16 @@ void
 oh_fortran_context_bind_particle_accounting(
   oh_context *context, int **nphgram, int **totalp, int **pbase,
   int ownership) {
+  context = require_fortran_context(
+    context, "oh_context_bind_particle_accounting()");
   oh_context_bind_particle_accounting(context, nphgram, totalp, pbase,
                                       ownership);
 }
 
 void
 oh_fortran_context_unbind_particle_accounting(oh_context *context) {
+  context = require_fortran_context(
+    context, "oh_context_unbind_particle_accounting()");
   oh_context_unbind_particle_accounting(context);
 }
 
@@ -133,6 +169,8 @@ int
 oh_fortran_context_max_local_particles_for_capacity(
     oh_context *context, long long global_particle_limit,
     int capacity_percent, int min_margin) {
+  context = require_fortran_context(
+    context, "oh_context_max_local_particles_for_capacity()");
   return oh_context_max_local_particles_for_capacity(
       context, global_particle_limit, capacity_percent, min_margin);
 }
@@ -142,6 +180,7 @@ oh_fortran_context_configure_level3(
   oh_context *context, const int *pcoord, const int *sdoms,
   const int *scoord, int nbound, const int *bcond, const int *bounds,
   const int *ftypes, const int *cfields, const int *ctypes, int *fsizes) {
+  context = require_fortran_context(context, "oh_context_configure_level3()");
   oh_context_configure_level3(context, pcoord, sdoms, scoord, nbound, bcond,
                               bounds, ftypes, cfields, ctypes, fsizes);
 }
@@ -152,11 +191,14 @@ oh_fortran_context_configure_level3_legacy(
   const int *scoord, int nbound, const int *bcond, const int *bounds,
   const int *ftypes, const int *cfields, const int *ctypes, int *fsizes) {
   int active = legacy_sdoms_requests_active_decomposition(sdoms);
-  int nn = context ? context->n_of_nodes : 0;
+  int nn;
   int *bcond_zero = copy_boundary_ids_zero_based(
       bcond, OH_DIMENSION * 2, "Level 3 boundary conditions");
   int *bounds_zero = NULL;
 
+  context = require_fortran_context(context,
+                                    "oh_context_configure_level3_legacy()");
+  nn = context->n_of_nodes;
   if (!active && bounds) {
     if (nn <= 0)
       local_errstop("legacy Level 3 helper requires a configured context");
@@ -173,22 +215,26 @@ oh_fortran_context_configure_level3_legacy(
 
 int
 oh_fortran_context_transbound1(oh_context *context, int currmode, int stats) {
+  context = require_fortran_context(context, "oh_context_transbound1()");
   return oh_context_transbound1(context, currmode, stats);
 }
 
 int
 oh_fortran_context_transbound2(oh_context *context, int currmode, int stats) {
+  context = require_fortran_context(context, "oh_context_transbound2()");
   return oh_context_transbound2(context, currmode, stats);
 }
 
 int
 oh_fortran_context_transbound3(oh_context *context, int currmode, int stats) {
+  context = require_fortran_context(context, "oh_context_transbound3()");
   return oh_context_transbound3(context, currmode, stats);
 }
 
 void
 oh_fortran_context_broadcast(oh_context *context, void *pbuf, void *sbuf,
                              int pcount, int scount, int ptype, int stype) {
+  context = require_fortran_context(context, "oh_context_broadcast()");
   oh_context_broadcast(context, pbuf, sbuf, pcount, scount,
                        MPI_Type_f2c(ptype), MPI_Type_f2c(stype));
 }
@@ -197,6 +243,7 @@ void
 oh_fortran_context_all_reduce(oh_context *context, void *pbuf, void *sbuf,
                               int pcount, int scount, int ptype, int stype,
                               int pop, int sop) {
+  context = require_fortran_context(context, "oh_context_all_reduce()");
   oh_context_all_reduce(context, pbuf, sbuf, pcount, scount,
                         MPI_Type_f2c(ptype), MPI_Type_f2c(stype),
                         MPI_Op_f2c(pop), MPI_Op_f2c(sop));
@@ -206,6 +253,7 @@ void
 oh_fortran_context_reduce(oh_context *context, void *pbuf, void *sbuf,
                           int pcount, int scount, int ptype, int stype,
                           int pop, int sop) {
+  context = require_fortran_context(context, "oh_context_reduce()");
   oh_context_reduce(context, pbuf, sbuf, pcount, scount,
                     MPI_Type_f2c(ptype), MPI_Type_f2c(stype),
                     MPI_Op_f2c(pop), MPI_Op_f2c(sop));
@@ -213,67 +261,84 @@ oh_fortran_context_reduce(oh_context *context, void *pbuf, void *sbuf,
 
 void
 oh_fortran_context_set_total_particles(oh_context *context) {
+  context = require_fortran_context(context, "oh_context_set_total_particles()");
   oh_context_set_total_particles(context);
 }
 
 void
 oh_fortran_context_inject_particle(oh_context *context, void *part) {
+  context = require_fortran_context(context, "oh_context_inject_particle()");
   oh_context_inject_particle(context, part);
 }
 
 void *
 oh_fortran_context_inject_particle_get(oh_context *context, void *part) {
+  context = require_fortran_context(context,
+                                    "oh_context_inject_particle_get()");
   return oh_context_inject_particle_get(context, part);
 }
 
 void
 oh_fortran_context_remap_injected_particle(oh_context *context, void *part) {
+  context = require_fortran_context(context,
+                                    "oh_context_remap_injected_particle()");
   oh_context_remap_injected_particle(context, part);
 }
 
 void
 oh_fortran_context_remove_injected_particle(oh_context *context, void *part) {
+  context = require_fortran_context(context,
+                                    "oh_context_remove_injected_particle()");
   oh_context_remove_injected_particle(context, part);
 }
 
 void
 oh_fortran_context_grid_size(oh_context *context, double *size) {
+  context = require_fortran_context(context, "oh_context_grid_size()");
   oh_context_grid_size(context, size);
 }
 
 int
 oh_fortran_context_map_particle_to_neighbor(oh_context *context, double *x,
                                             double *y, double *z, int ps) {
+  context = require_fortran_context(context,
+                                    "oh_context_map_particle_to_neighbor()");
   return oh_context_map_particle_to_neighbor(context, x, y, z, ps);
 }
 
 int
 oh_fortran_context_map_particle_to_subdomain(oh_context *context, double x,
                                              double y, double z) {
+  context = require_fortran_context(context,
+                                    "oh_context_map_particle_to_subdomain()");
   return oh_context_map_particle_to_subdomain(context, x, y, z);
 }
 
 void
 oh_fortran_context_bcast_field(oh_context *context, void *pfld, void *sfld,
                                int ftype) {
+  context = require_fortran_context(context, "oh_context_bcast_field()");
   oh_context_bcast_field(context, pfld, sfld, ftype);
 }
 
 void
 oh_fortran_context_reduce_field(oh_context *context, void *pfld, void *sfld,
                                 int ftype) {
+  context = require_fortran_context(context, "oh_context_reduce_field()");
   oh_context_reduce_field(context, pfld, sfld, ftype);
 }
 
 void
 oh_fortran_context_allreduce_field(oh_context *context, void *pfld,
                                    void *sfld, int ftype) {
+  context = require_fortran_context(context, "oh_context_allreduce_field()");
   oh_context_allreduce_field(context, pfld, sfld, ftype);
 }
 
 void
 oh_fortran_context_exchange_borders(oh_context *context, void *pfld,
                                     void *sfld, int ctype, int bcast) {
+  context = require_fortran_context(context, "oh_context_exchange_borders()");
   oh_context_exchange_borders(context, pfld, sfld, ctype, bcast);
 }
 
@@ -285,16 +350,21 @@ oh_fortran_oh2_init_raw(
   int *sdid_ptr = sdid;
   int *nphgram_ptr = nphgram;
   int *totalp_ptr = totalp;
-  struct S_particle *particle_ptr = pbuf ? (struct S_particle*)*pbuf : NULL;
   int *pbase_ptr = pbase;
   int *nbor_ptr = nbor;
 
   if (!pbuf) local_errstop("oh2_init_raw requires a particle pointer slot");
+  if (!pbase) local_errstop("oh2_init_raw requires a particle base array");
+  if (!pcoord) local_errstop("oh2_init_raw requires a process grid array");
+  if (!sdid) local_errstop("oh2_init_raw requires a region id array");
+  if (!nphgram)
+    local_errstop("oh2_init_raw requires a particle histogram array");
+  if (!totalp)
+    local_errstop("oh2_init_raw requires a total particle array");
   specBase = 1;
-  init2(&sdid_ptr, nspec, maxfrac, &nphgram_ptr, &totalp_ptr, &particle_ptr,
+  init2(&sdid_ptr, nspec, maxfrac, &nphgram_ptr, &totalp_ptr, pbuf,
         &pbase_ptr, maxlocalp, NULL, mycomm, &nbor_ptr, pcoord, stats,
         repiter, verbose);
-  *pbuf = particle_ptr;
 }
 
 void
@@ -307,7 +377,6 @@ oh_fortran_oh3_init_raw(
   int *sdid_ptr = sdid;
   int *nphgram_ptr = nphgram;
   int *totalp_ptr = totalp;
-  struct S_particle *particle_ptr = pbuf ? (struct S_particle*)*pbuf : NULL;
   int *pbase_ptr = pbase;
   int *nbor_ptr = nbor;
   int *sdoms_ptr = sdoms;
@@ -315,12 +384,18 @@ oh_fortran_oh3_init_raw(
   int *fsizes_ptr = fsizes;
 
   if (!pbuf) local_errstop("oh3_init_raw requires a particle pointer slot");
+  if (!pbase) local_errstop("oh3_init_raw requires a particle base array");
+  if (!pcoord) local_errstop("oh3_init_raw requires a process grid array");
+  if (!sdid) local_errstop("oh3_init_raw requires a region id array");
+  if (!nphgram)
+    local_errstop("oh3_init_raw requires a particle histogram array");
+  if (!totalp)
+    local_errstop("oh3_init_raw requires a total particle array");
   specBase = 1;
   init3(&sdid_ptr, nspec, maxfrac, &nphgram_ptr, &totalp_ptr, NULL, NULL,
-        &particle_ptr, &pbase_ptr, maxlocalp, NULL, mycomm, &nbor_ptr,
+        pbuf, &pbase_ptr, maxlocalp, NULL, mycomm, &nbor_ptr,
         pcoord, &sdoms_ptr, scoord, nbound, bcond, &bounds_ptr, ftypes,
         cfields, -1, ctypes, &fsizes_ptr, stats, repiter, verbose, 0);
-  *pbuf = particle_ptr;
 }
 
 int
@@ -352,10 +427,12 @@ oh_fortran_particle_adapter_create_byte(
 void
 oh_fortran_particle_adapter_destroy(oh_fortran_particle_adapter *adapter) {
   int initialized = 0;
+  int finalized = 0;
 
   if (!adapter) return;
   MPI_Initialized(&initialized);
-  if (initialized && adapter->owns_mpi_type &&
+  if (initialized) MPI_Finalized(&finalized);
+  if (initialized && !finalized && adapter->owns_mpi_type &&
       adapter->adapter.mpi_type != MPI_DATATYPE_NULL)
     MPI_Type_free(&adapter->adapter.mpi_type);
   free(adapter);
@@ -370,7 +447,15 @@ oh_fortran_particle_adapter_validate(
 void
 oh_fortran_particle_adapter_set_mpi_type(oh_fortran_particle_adapter *adapter,
                                          int fortran_type) {
+  int initialized = 0;
+  int finalized = 0;
+
   if (!adapter) return;
+  MPI_Initialized(&initialized);
+  if (initialized) MPI_Finalized(&finalized);
+  if (initialized && !finalized && adapter->owns_mpi_type &&
+      adapter->adapter.mpi_type != MPI_DATATYPE_NULL)
+    MPI_Type_free(&adapter->adapter.mpi_type);
   adapter->adapter.mpi_type = fortran_type_or_null(fortran_type);
   adapter->owns_mpi_type = 0;
 }

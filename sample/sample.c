@@ -1,5 +1,8 @@
 /* File: sample.c
    Version 1.1.1 (2015/10/23)
+   Legacy v1/v1-compatible sample: this intentionally uses S_particle and
+   direct nid/spec fields. New v2 examples should use oh_context plus a
+   particle adapter instead.
    Copyright (C) 2009-2015  Hiroshi Nakashima <h.nakashima@media.kyoto-u.ac.jp>
                             (ACCMS, Kyoto University)
    This program can be freely used, redistributed and modified for non-
@@ -13,6 +16,8 @@
 #define MAXFRAC 20
 #define FEB     0
 #define FCD     1
+#define EPSILON 1.0
+#define MU      1.0
 
 int sdid[2];
 int **nphgram[2];
@@ -93,7 +98,7 @@ void pic(int nspec, int pcoord[OH_DIMENSION], int scoord[OH_DIMENSION][2],
   for (i=0; i<2; i++)  for (j=1; j<nspec; j++)
     nphgram[i][j] = nphgram[i][j-1] + n;
 
-  oh_init((int**)(&sdid), nspec, MAXFRAC, nphgram[0], totalp, &pbuf,
+  oh_init((int**)(&sdid), nspec, MAXFRAC, nphgram[0], totalp, (void**)&pbuf,
           (int**)(&pbase), oh_max_local_particles(npmax, MAXFRAC, 0), NULL,
           &nbor, pcoord, (int**)(&sdoms), &scoord[0][0], 1, &bcond[0][0],
           &bounds, ftypes[0], cfields, ctypes[0][0][0], (int**)(&fsizes),
@@ -263,7 +268,7 @@ void field_solve_b(struct ebfield *eb, int sdom[OH_DIMENSION][2],
   int x, y, z;
   double rot[OH_DIMENSION];
 
-  for (z=0; z<xu; z++)  for (y=0; y<xu; y++)  for (x=0; x<xu; x++) {
+  for (z=0; z<zu; z++)  for (y=0; y<yu; y++)  for (x=0; x<xu; x++) {
     rotate_e(eb, x, y, z, fsize, rot);
     eb[x+y*w+z*wd].bx += rot[0];
     eb[x+y*w+z*wd].by += rot[1];

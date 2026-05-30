@@ -36,6 +36,7 @@ struct oh_particle_adapter {
   size_t species_offset;
   size_t species_size;
   size_t position_offset[3];
+  int has_position_fields;
   int single_species;
   int species_base;
   oh_particle_get_region_fn get_region;

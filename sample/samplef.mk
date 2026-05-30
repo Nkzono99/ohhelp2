@@ -19,19 +19,19 @@ FOBJS           = simulator.o sample.o
 OBJS            = $(FOBJS) $(FMODS) $(OHOBJS)
 
 simulator:      $(OBJS)
-                $(LINKER) $(FFLAGS) $(LDFLAGS) $(OBJS) -o $@
+		$(LINKER) $(FFLAGS) $(LDFLAGS) $(OBJS) -o $@
 
 $(FOBJS):%.o:   %.F90 $(FMODS) $(FHDRS) $(COMMONHDRS)
-                $(FC) $(FFLAGS) -c $< -o $@
+		$(FC) $(FFLAGS) -c $< -o $@
 simulator.o:    sample.o
 $(FMODS):%.o:   %.F90 $(COMMONHDRS)
-                $(FC) $(FFLAGS) -c $< -o $@
+		$(FC) $(FFLAGS) -c $< -o $@
 oh_mod1.o:      oh_type.o
 oh_mod2.o:      oh_mod1.o
 oh_mod3.o:      oh_mod2.o
 oh_mod4p.o:     oh_mod3.o
 $(OHOBJS):%.o:  %.c $(COMMONHDRS) $(OHHDRS)
-                $(CC) $(CFLAGS) -c $< -o $@
+		$(CC) $(CFLAGS) -c $< -o $@
 
 clean:;
-                rm *.o *.mod
+		rm *.o *.mod

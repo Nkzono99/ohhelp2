@@ -48,7 +48,6 @@ static int   heap_key_greater(const struct S_heap_key *key, int left,
                               int right);
 static void  clear_stats(struct S_statstotal *stotal);
 static void  oh1_init_stats_state(struct oh_state *state, int key, int ps);
-static void  oh1_stats_time_state(struct oh_state *state, int key, int ps);
 static void  stats_primary_comm_state(struct oh_state *state, int currmode);
 static void  stats_secondary_comm_state(struct oh_state *state, int currmode,
                                         int reb);
@@ -65,31 +64,36 @@ static void  print_stats_state(struct oh_state *state,
                                struct S_statstotal *stotal, int cstep, int n);
 static void  stats_reduce_time(void* inarg, void* ioarg, int* len,
                                MPI_Datatype* type);
+static void  mem_alloc_invalid_size_error(char *varname, int esize,
+                                          int count);
 
 MPI_Comm
 oh1_comm(void) {
+  if (!fam_comm_initialized) return MPI_COMM_WORLD;
   return fam_comm;
 }
 
 void
-oh1_fam_comm_(MPI_Comm *fortran_comm) {
-  fam_comm = *fortran_comm;
+oh1_fam_comm_(MPI_Fint *fortran_comm) {
+  fam_comm = MPI_Comm_f2c(*fortran_comm);
+  fam_comm_initialized = 1;
 }
 
 void
 oh1_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
           int *totalp, int *rcounts, int *scounts, struct S_mycommf *mycomm,
           int *nbor, int *pcoord, int *stats, int *repiter, int *verbose) {
-  init1(&sdid, *nspec, *maxfrac, &nphgram, &totalp, &rcounts, &scounts,
-        NULL, mycomm, &nbor, pcoord, *stats, *repiter, *verbose);
+  init1_state(&OhDefaultState, &sdid, *nspec, *maxfrac, &nphgram, &totalp,
+              &rcounts, &scounts, NULL, mycomm, &nbor, pcoord, *stats,
+              *repiter, *verbose);
 }
 void
 oh1_init(int **sdid, int nspec, int maxfrac, int **nphgram,
          int **totalp, int **rcounts, int **scounts, void *mycomm,
          int **nbor, int *pcoord, int stats, int repiter, int verbose) {
-  init1(sdid, nspec, maxfrac, nphgram, totalp, rcounts, scounts,
-        (struct S_mycommc*)mycomm, NULL, nbor, pcoord, stats, repiter,
-        verbose);
+  init1_state(&OhDefaultState, sdid, nspec, maxfrac, nphgram, totalp, rcounts,
+              scounts, (struct S_mycommc*)mycomm, NULL, nbor, pcoord, stats,
+              repiter, verbose);
 }
 static int (*NeighborsShadow)[OH_NEIGHBORS] = NULL;
 static int *NeighborsTemp = NULL;
@@ -108,6 +112,9 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
   MPI_Comm_size(MCW, &nn);  nOfNodes = nn;
   MPI_Comm_rank(MCW, &me);  myRank = me;
   currMode = MODE_NORM_PRI;  accMode = 0;
+  if (nspec<=0) local_errstop("oh_init() requires nspec > 0");
+  if (maxfrac<0) local_errstop("oh_init() requires maxfrac >= 0");
+  oh_context_validate_species_node_capacity(nn, nspec, "oh_init()");
 
   verboseMode = verbose;
   Verbose(1, vprint("oh_init"));
@@ -265,6 +272,22 @@ init1(int **sdid, int nspec, int maxfrac, int **nphgram,
   OhDefaultState.particle_base_ownership = OH_PARTICLES_BORROWED;
 }
 void
+init1_state(struct oh_state *state, int **sdid, int nspec, int maxfrac,
+            int **nphgram, int **totalp, int **rcounts, int **scounts,
+            struct S_mycommc *mycommc, struct S_mycommf *mycommf,
+            int **nbor, int *pcoord, int stats, int repiter, int verbose) {
+  if (!state)
+    local_errstop("init1_state() requires a non-NULL context");
+  if (!oh_context_is_default_state(state)) {
+    oh_context_init_level1_state(state, sdid, nspec, maxfrac, nphgram,
+                                 totalp, rcounts, scounts, mycommc, mycommf,
+                                 nbor, pcoord, stats, repiter, verbose);
+    return;
+  }
+  init1(sdid, nspec, maxfrac, nphgram, totalp, rcounts, scounts,
+        mycommc, mycommf, nbor, pcoord, stats, repiter, verbose);
+}
+void
 oh1_set_region_weights_(double *weights) {
   oh1_set_region_weights(weights);
 }
@@ -298,11 +321,20 @@ oh1_set_region_weights(const double *weights) {
 }
 void*
 mem_alloc(int esize, int count, char* varname) {
+  size_t size;
 
-  size_t size = (size_t)esize*(size_t)count;
+  if (esize <= 0 || count < 0 ||
+      (count > 0 && (size_t)count > ((size_t)-1) / (size_t)esize))
+    mem_alloc_invalid_size_error(varname, esize, count);
+  size = (size_t)esize*(size_t)count;
   void* ptr = malloc(size);
   if (!ptr) mem_alloc_error(varname, size);
   return(ptr);
+}
+static void
+mem_alloc_invalid_size_error(char *varname, int esize, int count) {
+  errstop("invalid allocation size for %s: element size %d, count %d",
+          varname, esize, count);
 }
 void
 mem_alloc_error(char* varname, size_t size) {
@@ -374,6 +406,8 @@ set_total_particles_state(struct oh_state *state) {
   int *totalp=state->total_particles;
   int s, i, j, tpp, tps;
 
+  if (!state->particle_accounting_bound)
+    local_errstop("particle accounting is not bound");
   if (!totalp)
     totalp = state->total_particles =
       (int*)mem_alloc(sizeof(int), 2*ns, "TotalP");
@@ -552,7 +586,7 @@ try_primary1_state(struct oh_state *state, int currmode, int level, int stats) {
 
   subdomain_id[1] = region_id[1] = -1;
   if (oh_context_is_default_state(state)) oh1_sync_default_state();
-  if (Mode_PS(currmode) && FamIndex) {
+  if (oh_context_is_default_state(state) && Mode_PS(currmode) && FamIndex) {
     int *fidx = FamIndex,  *fmem = FamMembers;
     for (i=0; i<nn; i++)  fidx[i] = fmem[i] = i;
     fidx[nn] = nn;
@@ -584,7 +618,7 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
   struct S_node *node, *ch;
   int i;
 
-  if (stats) oh1_stats_time(STATS_TRY_STABLE, 0);
+  if (stats) oh1_stats_time_state(state, STATS_TRY_STABLE, 0);
   Verbose(2,vprint("try_stable"));
   if (state->weighted_load_balancing) return(FALSE);
   count_stay_state(state);
@@ -1109,7 +1143,7 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
   struct S_heap *greater_heap=&state->greater_heap;
   struct S_node *node, *mynode=nodes_next+me, *root;
 
-  if (stats) oh1_stats_time(STATS_REBALANCE, 0);
+  if (stats) oh1_stats_time_state(state, STATS_REBALANCE, 0);
   Verbose(2,vprint("rebalance"));
 
   if (weighted) {
@@ -1269,7 +1303,7 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
   nodes = state->nodes;
   nodes_next = state->nodes_next;
 
-  if (stats) oh1_stats_time(STATS_REB_COMM, 0);
+  if (stats) oh1_stats_time_state(state, STATS_REB_COMM, 0);
   for (i=0; i<comms->n; i++) {
     if (comms->body[i] != MPI_COMM_NULL)
       MPI_Comm_free(comms->body+i);
@@ -1297,7 +1331,7 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
   }
   comms->n = i;
 
-  if (FamIndex) {
+  if (oh_context_is_default_state(state) && FamIndex) {
     int *fidx = FamIndex,  *fmem = FamMembers;
     for (i=0,j=0; i<nn; i++) {
       fidx[i] = j;
@@ -1324,7 +1358,7 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
   }
   oh1_broadcast_state(state, state->neighbors[0], state->neighbors[nbridx],
                       OH_NEIGHBORS, OH_NEIGHBORS, MPI_INT, MPI_INT);
-  if (NeighborsShadow) {
+  if (oh_context_is_default_state(state) && NeighborsShadow) {
     int (*nb)[OH_NEIGHBORS] = NeighborsShadow;
     for (i=0; i<OH_NEIGHBORS; i++)  nb[2][i] = nb[1][i];
     oh1_broadcast_state(state, nb[0], nb[1], OH_NEIGHBORS, OH_NEIGHBORS,
@@ -1539,7 +1573,7 @@ void
 oh1_stats_time(int key, int ps) {
   oh1_stats_time_state(oh1_state(), key, ps);
 }
-static void
+void
 oh1_stats_time_state(struct oh_state *state, int key, int ps) {
   struct S_stats *stats=state->stats;
   double t;
@@ -1636,7 +1670,7 @@ static void
 update_stats_state(struct oh_state *state, struct S_statstotal *stotal,
                    int step, int currmode) {
   struct S_stats *stats=state->stats;
-  int i, j, k, ev, nn=state->n_of_nodes;
+  int i, j, k, nn=state->n_of_nodes;
   int evclr = stotal==&stats->total, reduce = state->stats_mode==1 || !evclr;
   struct S_statstime *st = stotal->time;
   struct S_statspart *sp = stotal->part;
@@ -1645,7 +1679,7 @@ update_stats_state(struct oh_state *state, struct S_statstotal *stotal,
   dint trans=stats->curr.part[transkey];
 
   for (i=0; i<STATS_TIMINGS<<1; i++) {
-    if ((ev=stats->curr.time.ev[i])) {
+    if (stats->curr.time.ev[i]) {
       double t = stats->curr.time.val[i];
       st[i].ev++;
       if (t<st[i].min) st[i].min = t;

@@ -9,55 +9,68 @@
 #define OH_LEVEL4_PARTICLE_REMOVED ((OH_nid_t)-1)
 #define OH_LEVEL4_BOUNDARY_EXCHANGE_MARKER ((OH_nid_t)-2)
 
-static inline struct S_particle*
+static inline void*
 level4_particle_at(struct oh_state* state, int index) {
     return oh_particle_buffer_at(state->particle_adapter,
                                  state->particles, index);
 }
 
 static inline int
-level4_particle_index(struct oh_state* state, const struct S_particle* part) {
-    return oh_particle_buffer_index(state->particle_adapter,
-                                    state->particles, part);
+level4_particle_index(struct oh_state* state, const void* part) {
+    return oh_particle_buffer_index_bounded(state->particle_adapter,
+                                            state->particles,
+                                            state->n_of_local_particles_limit,
+                                            part);
 }
 
 static inline int
 level4_particle_is_injected(struct oh_state* state,
-                            const struct S_particle* part) {
+                            const void* part) {
     return level4_particle_index(state, part) >= state->total_parts;
 }
 
 static inline OH_nid_t
-level4_particle_region(struct oh_state* state, const struct S_particle* part,
+level4_particle_region(struct oh_state* state, const void* part,
                        int primary_or_secondary) {
     return (OH_nid_t)state->particle_adapter->get_region(
         state->particle_adapter, part, primary_or_secondary);
 }
 
 static inline double*
-level4_particle_position(struct oh_state* state, struct S_particle* part,
+level4_particle_position(struct oh_state* state, void* part,
                          int dim) {
     return oh_particle_adapter_position(state->particle_adapter, part, dim);
 }
 
 static inline int
-level4_particle_species(struct oh_state* state, const struct S_particle* part) {
-    int species =
+level4_particle_species(struct oh_state* state, const void* part) {
+    int raw_species =
         state->particle_adapter->get_species(state->particle_adapter, part);
+    int species = raw_species;
+    int species_base = state->particle_adapter->species_base;
     if (!state->particle_adapter->single_species)
-        species -= state->particle_adapter->species_base;
-    return Particle_Spec(species);
+        species -= species_base;
+#ifdef OH_HAS_SPEC
+    species = Particle_Spec(species);
+#else
+    if (!state->use_custom_particle_adapter) return 0;
+#endif
+    if (species < 0 || species >= state->n_of_species)
+        local_errstop("particle species %d is outside configured range [%d,%d)",
+                      raw_species, species_base,
+                      species_base + state->n_of_species);
+    return species;
 }
 
 static inline void
-level4_set_particle_region(struct oh_state* state, struct S_particle* part,
+level4_set_particle_region(struct oh_state* state, void* part,
                            OH_nid_t region, int primary_or_secondary) {
     state->particle_adapter->set_region(state->particle_adapter, part, region,
                                         primary_or_secondary);
 }
 
 static inline void
-level4_mark_particle_removed(struct oh_state* state, struct S_particle* part,
+level4_mark_particle_removed(struct oh_state* state, void* part,
                              int primary_or_secondary) {
     level4_set_particle_region(state, part, OH_LEVEL4_PARTICLE_REMOVED,
                                primary_or_secondary);
@@ -65,7 +78,7 @@ level4_mark_particle_removed(struct oh_state* state, struct S_particle* part,
 
 static inline void
 level4_mark_boundary_exchange_particle(struct oh_state* state,
-                                       struct S_particle* part,
+                                       void* part,
                                        int primary_or_secondary) {
     level4_set_particle_region(state, part,
                                OH_LEVEL4_BOUNDARY_EXCHANGE_MARKER,
@@ -73,21 +86,19 @@ level4_mark_boundary_exchange_particle(struct oh_state* state,
 }
 
 static inline void
-level4_copy_particle(struct oh_state* state, struct S_particle* dst,
-                     const struct S_particle* src) {
+level4_copy_particle(struct oh_state* state, void* dst, const void* src) {
     oh_particle_buffer_copy(state->particle_adapter, dst, src);
 }
 
 static inline void
-level4_push_particle(struct oh_state* state, void** cursor,
-                     const struct S_particle* src) {
+level4_push_particle(struct oh_state* state, void** cursor, const void* src) {
     level4_copy_particle(state, *cursor, src);
     *cursor = oh_particle_buffer_at(state->particle_adapter, *cursor, 1);
 }
 
 static inline void
 level4_copy_particle_to_buffer(struct oh_state* state, void* base,
-                               int index, const struct S_particle* src) {
+                               int index, const void* src) {
     level4_copy_particle(state,
                          oh_particle_buffer_at(state->particle_adapter,
                                                base, index),
@@ -101,7 +112,7 @@ level4_init_particle_stride(void) {
     return sizeof(struct S_particle);
 }
 
-static inline struct S_particle*
+static inline void*
 level4_init_particle_at(void* base, int index) {
     if (useCustomParticleAdapter)
         return oh_particle_buffer_at(&CustomParticleAdapter, base, index);
@@ -144,7 +155,7 @@ level4_secondary_region_offset(struct oh_state* state) {
 }
 
 static inline int
-level4_primarize_particle(struct oh_state* state, struct S_particle* part) {
+level4_primarize_particle(struct oh_state* state, void* part) {
     const OH_nid_t offset = level4_secondary_region_offset(state);
     const OH_nid_t region = level4_particle_region(state, part, 1) - offset;
 
@@ -153,8 +164,7 @@ level4_primarize_particle(struct oh_state* state, struct S_particle* part) {
 }
 
 static inline void
-level4_primarize_particle_only(struct oh_state* state,
-                               struct S_particle* part) {
+level4_primarize_particle_only(struct oh_state* state, void* part) {
     const OH_nid_t offset = level4_secondary_region_offset(state);
 
     level4_set_particle_region(
@@ -162,7 +172,7 @@ level4_primarize_particle_only(struct oh_state* state,
 }
 
 static inline void
-level4_secondarize_particle(struct oh_state* state, struct S_particle* part) {
+level4_secondarize_particle(struct oh_state* state, void* part) {
     const OH_nid_t offset = level4_secondary_region_offset(state);
 
     level4_set_particle_region(

@@ -28,6 +28,10 @@
 #define OH_CTYPE_SIZE 2
 #define OH_CTYPE_N    3
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Prototypes for the functions called from simulator code */
 void oh3_grid_size(double size[OH_DIMENSION]);
 void oh3_particle_adapter_use_position_fields(oh_particle_adapter *adapter,
@@ -97,5 +101,9 @@ void oh13_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
                 int *ftypes, int *cfields, int *ctypes, int *fsizes,
                 int *stats, int *repiter, int *verbose);
 int  oh3_transbound_(int *currmode, int *stats);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

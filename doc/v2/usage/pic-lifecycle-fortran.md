@@ -43,6 +43,7 @@ call oh_particle_adapter_use_int_fields(adapter, region_offset, species_offset)
 call oh_particle_adapter_use_level3_position_fields(adapter, x_offset, &
                                                     y_offset, z_offset)
 call oh_context_set_particle_adapter(ctx, adapter)
+call oh_particle_adapter_destroy(adapter)
 ```
 
 The Fortran field helpers assume the particle `species` field is 1-based and
@@ -59,6 +60,10 @@ integer(c_int), target :: sdid(2)
 type(c_ptr) :: particles_ptr, sdid_ptr, nphgram_ptr, totalp_ptr, pbase_ptr
 
 sdid_ptr = c_loc(sdid(1))
+particles_ptr = c_loc(particles(1))
+nphgram_ptr = c_loc(nphgram(1))
+totalp_ptr = c_loc(totalp(1))
+pbase_ptr = c_loc(pbase(1))
 call oh_context_bind_region_ids(ctx, sdid_ptr, OH_PARTICLES_BORROWED)
 call oh_context_bind_particles(ctx, particles_ptr, maxlocalp, &
                                OH_PARTICLES_BORROWED)
@@ -73,6 +78,19 @@ the active primary region id. `sdid(2)` is the active secondary region id, or
 ## 4. Configure Level 3 Geometry
 
 ```fortran
+type(c_ptr) :: pcoord_ptr, sdoms_ptr, scoord_ptr
+type(c_ptr) :: bcond_ptr, bounds_ptr, ftypes_ptr, cfields_ptr, ctypes_ptr
+type(c_ptr) :: fsizes_ptr
+
+pcoord_ptr = c_loc(pcoord(1))
+sdoms_ptr = c_null_ptr
+scoord_ptr = c_loc(scoord(1))
+bcond_ptr = c_loc(bcond(1))
+bounds_ptr = c_null_ptr
+ftypes_ptr = c_loc(ftypes(1))
+cfields_ptr = c_loc(cfields(1))
+ctypes_ptr = c_loc(ctypes(1))
+fsizes_ptr = c_loc(fsizes(1))
 call oh_context_configure_level3(ctx, pcoord_ptr, sdoms_ptr, scoord_ptr, &
                                  nbound, bcond_ptr, bounds_ptr, ftypes_ptr, &
                                  cfields_ptr, ctypes_ptr, fsizes_ptr)
@@ -128,12 +146,13 @@ particle buffer, not Fortran lower-bound indices.
 ```fortran
 type(c_ptr) :: injected_copy
 
-call oh_context_inject_particle(ctx, particle_ptr)
 injected_copy = oh_context_inject_particle_get(ctx, particle_ptr)
 ```
 
 `oh_context_inject_particle_get` returns the injected copy as `type(c_ptr)`.
 Remove counted injected particles with `oh_context_remove_injected_particle()`.
+`oh_context_remap_injected_particle()` is additive; remove the previous count
+before remapping a counted injected copy.
 
 `oh_context_set_total_particles()` may be called after injection. In that case
 OhHelp finalizes the pending injected copies as ordinary local particles for
@@ -146,6 +165,15 @@ Existing code that already has v1-style init argument arrays can still stay on
 the v2 module:
 
 ```fortran
+pcoord_ptr = c_loc(pcoord(1))
+sdoms_ptr = c_null_ptr
+scoord_ptr = c_loc(scoord(1))
+bcond_ptr = c_loc(bcond(1))
+bounds_ptr = c_null_ptr
+ftypes_ptr = c_loc(ftypes(1))
+cfields_ptr = c_loc(cfields(1))
+ctypes_ptr = c_loc(ctypes(1))
+fsizes_ptr = c_loc(fsizes(1))
 call oh3_init_raw(sdid_ptr, nspec, maxfrac, nphgram_ptr, totalp_ptr, pbuf, &
                   pbase_ptr, maxlocalp, mycomm_ptr, nbor_ptr, pcoord_ptr, &
                   sdoms_ptr, scoord_ptr, nbound, bcond_ptr, bounds_ptr, &

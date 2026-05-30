@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <float.h>
+#include <limits.h>
 #include <math.h>
 #include <stddef.h>
 
@@ -10,16 +11,28 @@ main(void) {
   assert(oh_region_load(10, 2.5) == 25.0);
   assert(oh_region_load(0, 2.5) == 0.0);
   assert(oh_region_load(10, 0.0) == 0.0);
+  assert(oh_region_load(2, DBL_MAX) == DBL_MAX);
+  assert(oh_region_load(2, HUGE_VAL) == DBL_MAX);
+  assert(oh_region_load(2, NAN) == 0.0);
 
   assert(fabs(oh_load_limit(100.0, 20, 4) - 30.0) < 1.0e-12);
   assert(oh_load_limit(0.0, 20, 4) == 0.0);
   assert(oh_load_limit(100.0, 20, 0) == 0.0);
+  assert(oh_load_limit(DBL_MAX, 20, 1) == DBL_MAX);
+  assert(oh_load_limit(HUGE_VAL, 20, 1) == DBL_MAX);
+  assert(oh_load_limit(NAN, 20, 1) == 0.0);
 
   assert(oh_particles_for_load(10.0, 2.0, 100) == 5);
   assert(oh_particles_for_load(10.1, 2.0, 100) == 6);
   assert(oh_particles_for_load(0.1, 2.0, 100) == 1);
   assert(oh_particles_for_load(10.0, 2.0, 3) == 3);
   assert(oh_particles_for_load(10.0, 0.0, 100) == 0);
+  assert(oh_particles_for_load(DBL_MAX, DBL_MIN, 7) == 7);
+  assert(oh_particles_for_load(HUGE_VAL, 2.0, 9) == 9);
+  assert(oh_particles_for_load(DBL_MAX, DBL_MIN, (long long)INT_MAX + 10) ==
+         INT_MAX);
+  assert(oh_particles_for_load(NAN, 2.0, 100) == 0);
+  assert(oh_particles_for_load(10.0, HUGE_VAL, 100) == 0);
 
   assert(oh_load_after_transfer(25.0, 3, 2.0) == 19.0);
   assert(oh_load_after_transfer(25.0, 20, 2.0) == 0.0);

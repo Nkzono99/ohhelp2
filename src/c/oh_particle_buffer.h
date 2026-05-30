@@ -4,7 +4,9 @@
 #ifndef OH_PARTICLE_BUFFER_H
 #define OH_PARTICLE_BUFFER_H
 
+#include <limits.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "oh_particle_adapter.h"
@@ -29,11 +31,50 @@ oh_particle_buffer_const_at(const oh_particle_adapter *adapter,
 static inline int
 oh_particle_buffer_index(const oh_particle_adapter *adapter, const void *base,
                          const void *part) {
-  ptrdiff_t offset = (const char*)part - (const char*)base;
-  size_t stride = oh_particle_buffer_stride(adapter);
+  uintptr_t base_addr;
+  uintptr_t part_addr;
+  uintptr_t offset;
+  uintptr_t index;
+  size_t stride;
 
-  if (offset<0 || (size_t)offset%stride!=0) return -1;
-  return (int)((size_t)offset/stride);
+  if (!adapter || !base || !part) return -1;
+  stride = oh_particle_buffer_stride(adapter);
+  if (stride == 0) return -1;
+  base_addr = (uintptr_t)base;
+  part_addr = (uintptr_t)part;
+  if (part_addr < base_addr) return -1;
+  offset = part_addr - base_addr;
+  if (offset % stride != 0) return -1;
+  index = offset / stride;
+  if (index > (uintptr_t)INT_MAX) return -1;
+  return (int)index;
+}
+
+static inline int
+oh_particle_buffer_index_bounded(const oh_particle_adapter *adapter,
+                                 const void *base, int count,
+                                 const void *part) {
+  uintptr_t base_addr;
+  uintptr_t part_addr;
+  uintptr_t offset;
+  uintptr_t span;
+  uintptr_t index;
+  size_t stride;
+
+  if (!adapter || !base || !part || count < 0) return -1;
+  stride = oh_particle_buffer_stride(adapter);
+  if (stride == 0) return -1;
+  if ((uintptr_t)count > UINTPTR_MAX / (uintptr_t)stride) return -1;
+  span = (uintptr_t)count * (uintptr_t)stride;
+  base_addr = (uintptr_t)base;
+  if (span > UINTPTR_MAX - base_addr) return -1;
+  part_addr = (uintptr_t)part;
+  if (part_addr < base_addr || part_addr >= base_addr + span) return -1;
+  offset = part_addr - base_addr;
+  if (offset % stride != 0) return -1;
+  index = offset / stride;
+  if (index > (uintptr_t)INT_MAX) return -1;
+  return (int)index;
 }
 
 static inline void

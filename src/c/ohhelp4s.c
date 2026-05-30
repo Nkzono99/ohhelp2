@@ -110,7 +110,7 @@ static void state_set_sendbuf_disps4s(struct oh_state* state,
                                       const int nextmode, const int trans);
 static void state_xfer_particles4s(struct oh_state* state, const int trans,
                                    const int psnew, const int nextmode,
-                                   struct S_particle* sbuf);
+                                   void* sbuf);
 static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
                                       const int pcode, const int d);
 static void xfer_boundary_particles_h(struct oh_state* state, const int psnew);
@@ -233,12 +233,16 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     int(*ft)[OH_FTYPE_N] = (int(*)[OH_FTYPE_N])ftypes;
     int* cf = cfields;
     int(*ct)[2][OH_CTYPE_N] = (int(*)[2][OH_CTYPE_N])ctypes;
-    int nf, ne, c, b, size, ps, s, tr, i, x, y, z;
+    int nf, ne, c, b, size, ps, tr, i, x, y, z;
     int* nphgram = NULL;
     int* rnbr, * iptr;
     dint* npgdummy = NULL, * npgtdummy = NULL;
     const int ext = OH_PGRID_EXT, ext2 = ext << 1, ext3 = ext * 3;
-    struct S_particle pbufdummy, * pbufdummyptr = &pbufdummy;
+    /* Level 4s passes maxlocalp=0 through Level 3 here; this dummy pointer is
+       only a compatibility shim while Level 4 storage is migrated behind the
+       particle adapter. */
+    char pbufdummy;
+    void* pbufdummyptr = &pbufdummy;
     dint npl;
 
     if (OH_DIMENSION != 3)
@@ -247,6 +251,9 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     if (OH_PGRID_EXT != 1)
         errstop("boundary plane thickness %d is not 1 which level-4s extension "
                 "requires.", OH_PGRID_EXT);
+    if (maxdensity <= 0)
+        errstop("maximum particle density (%d) should be greater than 0",
+                maxdensity);
 
     MPI_Comm_size(MCW, &nn);  nnns = nn * nspec;  nnns2 = nnns << 1;
     TempArray = (int*)mem_alloc(sizeof(int), nn << 2, "TempArray");
@@ -292,26 +299,32 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     struct S_grid* grid = state->grid;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
 
-    size =
-        ((grid[OH_DIM_X].size + ext2) * (grid[OH_DIM_Y].size + ext2) *
-         (grid[OH_DIM_Z].size + ext2) -
-         grid[OH_DIM_X].size * grid[OH_DIM_Y].size * grid[OH_DIM_Z].size) +
-        grid[OH_DIM_X].size * grid[OH_DIM_Y].size;
+    npl =
+        (((dint)grid[OH_DIM_X].size + ext2) *
+         ((dint)grid[OH_DIM_Y].size + ext2) *
+         ((dint)grid[OH_DIM_Z].size + ext2) -
+         (dint)grid[OH_DIM_X].size * grid[OH_DIM_Y].size *
+         grid[OH_DIM_Z].size) +
+        (dint)grid[OH_DIM_X].size * grid[OH_DIM_Y].size;
     npl = (dint)oh2_max_local_particles(npmax, maxfrac, minmargin) +
-        2 * maxdensity * size;
-    if (npl > INT_MAX) mem_alloc_error("Particles", 0);
-    nOfLocalPLimitShadow = *maxlocalp = npl;
-    size =
-        2 * maxdensity * grid[OH_DIM_Z].size *
-        ((grid[OH_DIM_X].size + ext2) * (grid[OH_DIM_Y].size + ext2) -
-         grid[OH_DIM_X].size * grid[OH_DIM_Y].size);
+        2 * (dint)maxdensity * npl;
+    if (npl > INT_MAX / 2) mem_alloc_error("Particles", 0);
+    nOfLocalPLimitShadow = *maxlocalp = (int)npl;
+    npl =
+        2 * (dint)maxdensity * grid[OH_DIM_Z].size *
+        (((dint)grid[OH_DIM_X].size + ext2) *
+         ((dint)grid[OH_DIM_Y].size + ext2) -
+         (dint)grid[OH_DIM_X].size * grid[OH_DIM_Y].size);
+    if (npl > INT_MAX) mem_alloc_error("BoundarySendBuf", 0);
+    size = (int)npl;
     state->level4_boundary_send_buffer = BoundarySendBuf =
-        (struct S_particle*)mem_alloc(
-            oh_particle_buffer_stride(state->particle_adapter), size,
-            "BoundarySendBuf");
+        mem_alloc(oh_particle_buffer_stride(state->particle_adapter), size,
+                  "BoundarySendBuf");
     size = grid[OH_DIM_X].size + ext2;
     if (size < grid[OH_DIM_Y].size)  size = grid[OH_DIM_Y].size;
-    *cbufsize = 2 * maxdensity * grid[OH_DIM_Z].size * size;
+    npl = 2 * (dint)maxdensity * grid[OH_DIM_Z].size * size;
+    if (npl > INT_MAX) mem_alloc_error("CellBuffer", 0);
+    *cbufsize = (int)npl;
 
     state->level4_pbuf_index = PbufIndex = NULL;
     me = state->my_rank;
@@ -471,13 +484,16 @@ void oh4s_particle_buffer(const int maxlocalp, void** pbuf) {
         errstop("argument maxlocalp %d given to oh4s_particle_buffer() is less "
                 "than that calculated by oh4s_init() %d",
                 maxlocalp, nOfLocalPLimitShadow);
+    if (!pbuf)
+        local_errstop("oh4s_particle_buffer() requires a particle pointer slot");
+    if (maxlocalp < 0 || maxlocalp > INT_MAX / 2)
+        mem_alloc_error("Particles", 0);
     if (*pbuf)
-        state->particles = Particles = (struct S_particle*)*pbuf;
+        state->particles = Particles = *pbuf;
     else
         state->particles = Particles =
-            (struct S_particle*)mem_alloc(
-                oh_particle_buffer_stride(state->particle_adapter),
-                maxlocalp << 1, "Particles");
+            mem_alloc(oh_particle_buffer_stride(state->particle_adapter),
+                      maxlocalp * 2, "Particles");
     *pbuf = Particles;
     state->send_buffer = SendBuf =
         oh_particle_buffer_at(state->particle_adapter,
@@ -516,13 +532,14 @@ static int transbound4s(int currmode, int stats, const int level) {
     int ret = MODE_NORM_SEC;
     struct oh_state* state;
     int nn, ns, ns2, nnns2;
-    struct S_particle* tmp;
+    void* tmp;
     int i, ps, s, tp;
     int (*z_bound)[2];
     Decl_For_All_Grid();
 
     state = oh4s_state();
     stats = stats && state->stats_mode;
+    level4_fail_if_weighted_secondary_transbound(state, currmode);
     currmode = transbound1_state(state, currmode, stats, level);
     state = oh4s_state();
     nn = state->n_of_nodes;  ns = state->n_of_species;
@@ -604,7 +621,7 @@ static void rebalance4s(const int currmode, const int level, const int stats) {
     if (ninj && amode && oldp != newp) {
         int* sinj = state->injected_particles + ns;
         int i;
-        struct S_particle* p;
+        void* p;
         for (s = 0; s < ns; s++)  sinj[s] = 0;
         if (newp >= 0) {
             for (i = 0, p = level4_particle_at(state, state->total_parts);
@@ -734,7 +751,7 @@ static void count_population(struct oh_state* state, const int nextmode,
     const int ns = state->n_of_species, exti = OH_PGRID_EXT;
     Decl_For_All_Grid();
 
-    if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);
+    if (stats) oh1_stats_time_state(state, STATS_TB_SORT, nextmode);
     for (ps = 0, t = 0, j = 0, tp = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, t++) {
             dint* npgs = state->level4_particle_grid[ps][s];
@@ -744,7 +761,7 @@ static void count_population(struct oh_state* state, const int nextmode,
             For_All_Grid(ps, -exti, -exti, -exti, exti, exti, exti)
                 npgs[The_Grid()] = 0;
             for (i = 0; i < tpn; i++, j++) {
-                struct S_particle* p = level4_particle_at(state, j);
+                void* p = level4_particle_at(state, j);
                 const int g = level4_grid_position(
                     state, level4_particle_region(state, p, ps));
                 npgs[g]++;
@@ -946,7 +963,6 @@ static void sched_recv(struct oh_state* state, const int reb, const int get,
     dint nptotal = context->nptotal;
     dint nplimit = context->nplimit;
     struct S_commlist* cptr = context->cptr;
-    const int ns = state->n_of_species;
     dint* npgz = state->level4_particle_grid_z;
     int z;
     const int zz = state->level4_grid_desc[0].z;
@@ -1100,7 +1116,7 @@ static int make_send_sched_body(struct oh_state* state, const int ps,
     const int nx = n % 3, ny = n / 3 % 3, nz = n / 9;
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     int xl, xu, yl, yu, zl, zu, zn;
-    int rlz = rlist->region, rid, ridp = -1, ridn = -1, nofsbase;
+    int rlz = rlist->region, rid, nofsbase;
     int nsend = 0;
     const int zmax = (state->subdomains[sdid][OH_DIM_Z][OH_UPPER] -
                       state->subdomains[sdid][OH_DIM_Z][OH_LOWER]) - 1;
@@ -1222,7 +1238,6 @@ static void make_send_sched_hplane(struct oh_state* state, const int psor2,
                                    int* buf) {
     const int ns = state->n_of_species, exti = OH_PGRID_EXT;
     const int ps = psor2 == 0 ? 0 : 1, nsor0 = ps ? ns : 0;
-    struct S_griddesc* GridDesc = state->level4_grid_desc;
     int nacc = *naccptr, s;
     Decl_For_All_Grid();
 
@@ -1243,8 +1258,6 @@ static void make_send_sched_hplane(struct oh_state* state, const int psor2,
 
 static void update_descriptors(struct oh_state* state, const int oldp,
                                const int newp) {
-    int n;
-
     if (oldp != newp) {
         if (oldp >= 0)  state_clear_border_exchange(state);
         if (newp >= 0) {
@@ -1663,10 +1676,10 @@ static void move_to_sendbuf_4s(const int nextmode, const int psold, const int ps
     int ps, s, t, i;
     int* nofr;
     int ninjp = 0, ninjs = nplim;
-    struct S_particle* sb = state->send_buffer, * p;
+    void *sb = state->send_buffer, *p;
     struct S_interiorp* interior_parts = state->level4_interior_parts;
 
-    if (stats) oh1_stats_time(STATS_TB_MOVE, nextmode);
+    if (stats) oh1_stats_time_state(state, STATS_TB_MOVE, nextmode);
     state_set_sendbuf_disps4s(state, nextmode, trans);
 
     for (ps = 0, t = 0, nofr = state->n_of_recv; ps < 2; ps++) {
@@ -1744,9 +1757,9 @@ static void move_to_sendbuf_uw4s(struct oh_state* state, const int ps,
     const int* ctp = state->total_particles + nsor0;
     const int* ntp = state->total_particles_next + nsor0;
     struct S_interiorp* ip = state->level4_interior_parts + nsor0;
-    struct S_particle* p;
+    void* p;
     void** rbb = state->recv_buffer_bases + nsor0;
-    struct S_particle* sb = state->send_buffer;
+    void* sb = state->send_buffer;
     int s, c, d, cn, dn;
 
     for (s = 0, c = cbase, d = nbase; s < ns; s++, c = cn, d = dn) {
@@ -1764,12 +1777,12 @@ static void move_to_sendbuf_uw4s(struct oh_state* state, const int ps,
             ip[s].size += d - ip[s].head;
         } else if (dn <= cn) {
             const int cb = c;
-            int cm, dm;
+            int dm;
             for (; c < d; c++) {
                 p = level4_particle_at(state, c);
                 Move_Or_Do(p, ps, mysd, 0, (d++), 0);
             }
-            cm = c - 1;  dm = d - 1;
+            dm = d - 1;
             for (; c < cn; c++) {
                 p = level4_particle_at(state, c);
                 Move_Or_Do(p, ps, mysd, 1,
@@ -1796,7 +1809,7 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
     const int* ctp = state->total_particles + nsor0;
     const int* ntp = state->total_particles_next + nsor0;
     struct S_interiorp* ip = state->level4_interior_parts + nsor0;
-    struct S_particle* sb = state->send_buffer, * p;
+    void *sb = state->send_buffer, *p;
     void** rbb = state->recv_buffer_bases + nsor0;
     int s, c, d, cn, dn;
 
@@ -1842,10 +1855,10 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
 static void sort_particles(struct oh_state* state, const int nextmode,
                            const int psnew, const int stats) {
     const int ns = state->n_of_species;
-    struct S_particle* p, * sb = state->send_buffer;
+    void *p, *sb = state->send_buffer;
     int ps, s, t, i;
 
-    if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);
+    if (stats) oh1_stats_time_state(state, STATS_TB_SORT, nextmode);
     for (ps = 0, t = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, t++) {
             dint* npg = state->level4_particle_grid[ps][s];
@@ -1868,15 +1881,14 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
     const int mysubdom[2] = { me, oldp }, ninj = state->n_of_injections;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
-    struct S_particle* p;
-    struct S_particle* sb = oh_particle_buffer_at(state->particle_adapter,
-                                                  state->send_buffer,
-                                                  nacc[1]);
+    void* p;
+    void* sb = oh_particle_buffer_at(state->particle_adapter,
+                                     state->send_buffer,
+                                     nacc[1]);
     int* nofr;
     int ps, s, t, i, pidx, rbb_index;
-    Decl_For_All_Grid();
 
-    if (stats) oh1_stats_time(STATS_TB_MOVE, nextmode);
+    if (stats) oh1_stats_time_state(state, STATS_TB_MOVE, nextmode);
     state_set_sendbuf_disps4s(state, nextmode, 0);
     for (ps = 0, t = 0, nofr = state->n_of_recv, rbb_index = 0;
          ps <= psnew; ps++) {
@@ -1926,17 +1938,17 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
                                     const int psnew, const int stats) {
     const int ns = state->n_of_species;
     int ps, s, pidx = 0;
-    struct S_particle* sb = state->send_buffer;
+    void* sb = state->send_buffer;
     void** rbb = state->recv_buffer_bases + 1;
 
-    if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);
+    if (stats) oh1_stats_time_state(state, STATS_TB_SORT, nextmode);
     for (ps = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, rbb++) {
             dint* npg = state->level4_particle_grid[ps][s];
             dint* npgt = state->level4_particle_grid_total[ps][s];
             const int rbtail = level4_particle_index(state, *rbb);
             for (; pidx < rbtail; pidx++) {
-                struct S_particle* p = level4_particle_at(state, pidx);
+                void* p = level4_particle_at(state, pidx);
                 Sort_Particle(p);
             }
         }
@@ -1965,7 +1977,7 @@ static void state_set_sendbuf_disps4s(struct oh_state* state,
 
 static void state_xfer_particles4s(struct oh_state* state, const int trans,
                                    const int psnew, const int nextmode,
-                                   struct S_particle* sbuf) {
+                                   void* sbuf) {
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     struct S_realneighbor (*real_dst)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
@@ -1977,7 +1989,7 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
         const int n = real_src[trans][ps].n;
         const int* nbor = real_src[trans][ps].nbor;
         for (s = 0; s < ns; s++, t++, nofr += nn) {
-            struct S_particle* rbuf = state->recv_buffer_bases[t];
+            void* rbuf = state->recv_buffer_bases[t];
             for (i = 0; i < n; i++) {
                 const int nid = nbor[i];
                 const int nrecv = nofr[nid];
@@ -2021,10 +2033,10 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
     const int vphead = vplane_head[vphi], vptail = vplane_head[vphi + 2 * 2];
     struct S_griddesc* GridDesc = state->level4_grid_desc;
     int (*z_bound)[2] = (int (*)[2])state->level4_z_bound;
-    struct S_particle* boundary_send_buffer = state->level4_boundary_send_buffer;
+    void* boundary_send_buffer = state->level4_boundary_send_buffer;
     int i, s, req = 0, ps;
     struct S_vplane* vp;
-    struct S_particle* p;
+    void* p;
     Decl_For_All_Grid();
 
     if (vphead == vptail)  return;
@@ -2076,7 +2088,7 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
                         const dint dst = npg[g];
                         int i;
                         if (Is_Pillar_Voxel(dst)) {
-                            struct S_particle* q = p;
+                            void* q = p;
                             int j = Pillar_Upper(dst) - 1;
                             for (i = npgi[g]; i < tail; i++) {
                                 level4_copy_particle_to_buffer(
@@ -2086,7 +2098,7 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
                             }
                         }
                         for (i = npgi[g]; i < tail; i++) {
-                            struct S_particle* sp =
+                            void* sp =
                                 oh_particle_buffer_at(state->particle_adapter,
                                                       state->send_buffer, i);
                             level4_copy_particle(state, sp, p);
@@ -2286,7 +2298,6 @@ static void exchange_border_data_h(struct oh_state* state, void* buf,
     struct S_hplane (*hplanes)[2] =
         (struct S_hplane (*)[2])state->level4_horizontal_planes;
     int ps, ud, s, req = 0;
-    Decl_For_All_Grid();
 
     for (ps = 0; ps <= pscurr; ps++) {
         for (ud = OH_LOWER; ud <= OH_UPPER; ud++) {
@@ -2322,7 +2333,7 @@ static void exchange_border_data_h(struct oh_state* state, void* buf,
 }
 
 static void check_particle_location4s(struct oh_state* state,
-                                      const struct S_particle* part,
+                                      const void* part,
                                       const int ps, const int s,
                                       const int inj) {
 #ifndef OH_NO_CHECK
@@ -2332,7 +2343,8 @@ static void check_particle_location4s(struct oh_state* state,
     if (ps < 0 || ps > 1 || s < 0 || s >= ns ||
         (state->level4_pbuf_index &&
          (inj ? ((ps && state->region_id[1] < 0) ||
-                 pidx >= state->total_parts + state->n_of_injections)
+                (dint)pidx >=
+                (dint)state->total_parts + state->n_of_injections)
               : (pidx < state->level4_pbuf_index[t] ||
                  pidx >= state->level4_pbuf_index[t + 1])))) {
         local_errstop("'part' argument pointing %c%d%c of the particle buffer is "
@@ -2394,7 +2406,7 @@ int oh4s_map_particle_to_neighbor_(struct S_particle* part, const int* ps,
 int oh4s_map_particle_to_neighbor(void* particle, const int ps,
                                   const int s) {
     struct oh_state* state = oh4s_state();
-    struct S_particle* part = (struct S_particle*)particle;
+    void* part = particle;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
     const int inj = level4_particle_is_injected(state, part);
     struct S_griddesc* grid_desc = state->level4_grid_desc;
@@ -2530,7 +2542,7 @@ int oh4s_map_particle_to_subdomain_(struct S_particle* part, const int* ps,
 int oh4s_map_particle_to_subdomain(void* particle, const int ps,
                                    const int s) {
     struct oh_state* state = oh4s_state();
-    struct S_particle* part = (struct S_particle*)particle;
+    void* part = particle;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
     const int inj = level4_particle_is_injected(state, part);
     struct S_subdomdesc* subdomain_desc = state->subdomain_desc;
@@ -2601,22 +2613,25 @@ int oh4s_inject_particle_(const struct S_particle* part, const int* ps) {
 
 int oh4s_inject_particle(const void* particle, const int ps) {
     struct oh_state* state = oh4s_state();
-    const struct S_particle* part = (const struct S_particle*)particle;
-    const int ns = state->n_of_species;
-    int inj = state->total_parts + state->n_of_injections++;
-    struct S_particle* p = level4_particle_at(state, inj);
+    const void* part = particle;
+    dint inj = (dint)state->total_parts + state->n_of_injections;
+    void* p;
     int s = level4_particle_species(state, part);
     int sd;
 
 #ifndef OH_HAS_SPEC
+    const int ns = state->n_of_species;
+
     if (!state->use_custom_particle_adapter && ns != 1)
         local_errstop("particles cannot be injected when S_particle does not "
                       "have 'spec' element and you have two or more species");
 #endif
 
-    nOfInjections = state->n_of_injections;
-    if (inj >= state->n_of_local_particles_limit)
+    if (inj < 0 || inj > INT_MAX || inj >= state->n_of_local_particles_limit)
         local_errstop("injection causes local particle buffer overflow");
+    state->n_of_injections++;
+    nOfInjections = state->n_of_injections;
+    p = level4_particle_at(state, (int)inj);
     level4_copy_particle(state, p, part);
     sd = oh4s_map_particle_to_neighbor(p, ps, s);
     if (sd < 0) {
@@ -2632,7 +2647,7 @@ void oh4s_remove_mapped_particle_(struct S_particle* part, const int* ps,
 void oh4s_remove_mapped_particle(void* particle, const int ps,
                                  const int s) {
     struct oh_state* state = oh4s_state();
-    struct S_particle* part = (struct S_particle*)particle;
+    void* part = particle;
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     const int inj = level4_particle_is_injected(state, part);
     int sd, g, psreal = ps, mysd, t;

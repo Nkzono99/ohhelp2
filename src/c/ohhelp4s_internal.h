@@ -24,7 +24,7 @@ struct S_vplane {
 
 EXTERN struct S_vplane* VPlane;                         /* [2*nn+6] */
 EXTERN int VPlaneHead[2 * 2 * 2 + 1];
-EXTERN struct S_particle* BoundarySendBuf;
+EXTERN void* BoundarySendBuf;
 
 struct S_interiorp {
     int head, size;

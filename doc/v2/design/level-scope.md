@@ -33,9 +33,18 @@ mapping across subdomains and field halo exchange.
 
 ## Level 4p/4s
 
-Level 4p/4s are not v2.0 supported APIs. They remain under compile coverage and
-internal migration guardrails. Full custom-layout support for their packed-grid
-semantics is a v2.x target.
+Level 4p/4s are not v2.0 supported APIs. They remain under compile coverage,
+runtime migration smoke, and internal guardrails. Full custom-layout support for
+their packed-grid semantics is a v2.x target.
+
+The current Level 4 implementation still binds a default-context state bridge.
+Adapter helpers and `struct oh_state` fields in the Level 4 source are migration
+guardrails, not heap-owned context support and not a guarantee that non-uniform
+weighted Level 4 schedules are supported.
+
+The migration smoke covers the default-context Level 4 default/custom adapter
+paths and the first weighted scheduling decision. Weighted secondary transbound
+is intentionally rejected until Level 4 has a real weighted accounting lifecycle.
 
 The fpm package may compile all C translation units even when a downstream
 project only uses Level 1-3. The Level 4 source bodies are therefore enabled

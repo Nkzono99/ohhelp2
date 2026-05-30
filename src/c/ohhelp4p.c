@@ -24,7 +24,7 @@
 
 static struct oh_state* oh4p_state(void);
 static void init4p(int** sdid, const int nspec, const int maxfrac,
-                   int** totalp, struct S_particle** pbuf, int** pbase,
+                   int** totalp, void** pbuf, int** pbase,
                    int maxlocalp, struct S_mycommc* mycommc,
                    struct S_mycommf* mycommf, int** nbor, int* pcoord,
                    int** sdoms, int* scoord, const int nbound, int* bcond,
@@ -124,7 +124,7 @@ static void move_and_sort_secondary(const int psold, const int psnew,
                                     const int* nacc, const int stats);
 static void state_set_sendbuf_disps4p(struct oh_state* state, const int trans);
 static void state_xfer_particles4p(struct oh_state* state, const int trans,
-                                   const int psnew, struct S_particle* sbuf);
+                                   const int psnew, void* sbuf);
 
 static struct oh_state*
 oh4p_state(void) {
@@ -211,10 +211,12 @@ void oh4p_init_(int* sdid, const int* nspec, const int* maxfrac, int* totalp,
                 int* scoord, const int* nbound, int* bcond, int* bounds,
                 int* ftypes, int* cfields, int* ctypes, int* fsizes,
                 const int* stats, const int* repiter, const int* verbose) {
+    void* raw_pbuf = pbuf;
+
     specBase = 1;
-    init4p(&sdid, *nspec, *maxfrac, &totalp, &pbuf, &pbase, *maxlocalp, NULL,
-           mycomm, &nbor, pcoord, &sdoms, scoord, *nbound, bcond, &bounds,
-           ftypes, cfields, -1, ctypes, &fsizes,
+    init4p(&sdid, *nspec, *maxfrac, &totalp, &raw_pbuf, &pbase, *maxlocalp,
+           NULL, mycomm, &nbor, pcoord, &sdoms, scoord, *nbound, bcond,
+           &bounds, ftypes, cfields, -1, ctypes, &fsizes,
            *stats, *repiter, *verbose);
 }
 
@@ -225,7 +227,7 @@ void oh4p_init(int** sdid, const int nspec, const int maxfrac, int** totalp,
                int* cfields, int* ctypes, int** fsizes,
                const int stats, const int repiter, const int verbose) {
     specBase = 0;
-    init4p(sdid, nspec, maxfrac, totalp, (struct S_particle**)pbuf, pbase,
+    init4p(sdid, nspec, maxfrac, totalp, pbuf, pbase,
            maxlocalp, (struct S_mycommc*)mycomm, NULL, nbor, pcoord, sdoms,
            scoord, nbound, bcond, bounds, ftypes, cfields, 0, ctypes, fsizes,
            stats, repiter, verbose);
@@ -252,7 +254,7 @@ void oh4p_init(int** sdid, const int nspec, const int maxfrac, int** totalp,
 static int nOfLocalPLimitShadow = -1;
 
 static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
-                   struct S_particle** pbuf, int** pbase, int maxlocalp,
+                   void** pbuf, int** pbase, int maxlocalp,
                    struct S_mycommc* mycommc, struct S_mycommf* mycommf,
                    int** nbor, int* pcoord, int** sdoms, int* scoord,
                    const int nbound, int* bcond, int** bounds, int* ftypes, int* cfields,
@@ -271,12 +273,16 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
 
     MPI_Comm_size(MCW, &nn);  nnns = nn * nspec;  nnns2 = nnns << 1;
     TempArray = (int*)mem_alloc(sizeof(int), nn << 2, "TempArray");
+    if (maxlocalp < 0 || maxlocalp > INT_MAX / 2)
+        mem_alloc_error("Particles", 0);
     if (*pbuf)
         Particles = *pbuf;
-    else
-        Particles = *pbuf =
-        (struct S_particle*)mem_alloc(level4_init_particle_stride(),
-                                      maxlocalp << 1, "Particles");
+    else {
+        Particles =
+            mem_alloc(level4_init_particle_stride(), maxlocalp * 2,
+                      "Particles");
+        *pbuf = Particles;
+    }
     SendBuf = level4_init_particle_at(Particles, maxlocalp);
 
     for (nf = 0; ft[nf][OH_FTYPE_ES] > 0; nf++);
@@ -314,8 +320,8 @@ static void init4p(int** sdid, const int nspec, const int maxfrac, int** totalp,
 
     init3(sdid, nspec, maxfrac, &nphgram, totalp, NULL, NULL, pbuf, pbase,
           maxlocalp, mycommc, mycommf, nbor, pcoord, sdoms, scoord, nbound,
-          bcond, bounds, (int*)ft, cf, cfid, (int*)BoundaryCommTypes, fsizes,
-          stats, repiter, verbose, 0);
+          bcond, bounds, (int*)ft, cf, cfid,
+          (int*)BoundaryCommTypes, fsizes, stats, repiter, verbose, 0);
 
     if (nOfLocalPLimitShadow < 0)
         errstop("oh4p_max_local_particles() has to be called before oh4p_init()");
@@ -427,12 +433,16 @@ int oh4p_max_local_particles_(const dint* npmax, const int* maxfrac,
 
 int oh4p_max_local_particles(const dint npmax, const int maxfrac,
                              const int minmargin, const int hsthresh) {
-    const dint npl = (dint)oh2_max_local_particles(npmax, maxfrac, minmargin) +
-        ((gridOverflowLimit = hsthresh << 1) << 1);
-    const int nplint = npl;
+    const int base = oh2_max_local_particles(npmax, maxfrac, minmargin);
+    dint npl;
 
-    if (npl > INT_MAX) mem_alloc_error("Particles", 0);
-    return((nOfLocalPLimitShadow = nplint));
+    if (hsthresh <= 0)
+        errstop("hotspot threshold (%d) should be greater than 0", hsthresh);
+    if (hsthresh > INT_MAX / 2) mem_alloc_error("Particles", 0);
+    gridOverflowLimit = hsthresh * 2;
+    npl = (dint)base + (dint)gridOverflowLimit * 2;
+    if (npl > INT_MAX / 2) mem_alloc_error("Particles", 0);
+    return((nOfLocalPLimitShadow = (int)npl));
 }
 
 void oh4p_per_grid_histogram_(int* pghgram) {
@@ -460,12 +470,13 @@ static int transbound4p(int currmode, int stats, const int level) {
     int ret = MODE_NORM_SEC;
     struct oh_state* state;
     int nn, ns, ns2, nnns2;
-    struct S_particle* tmp;
+    void* tmp;
     int i, ps, s, tp;
     Decl_For_All_Grid();
 
     state = oh4p_state();
     stats = stats && state->stats_mode;
+    level4_fail_if_weighted_secondary_transbound(state, currmode);
     currmode = transbound1_state(state, currmode, stats, level);
     state = oh4p_state();
     nn = state->n_of_nodes;  ns = state->n_of_species;
@@ -536,7 +547,7 @@ static int try_primary4p(const int currmode, const int level, const int stats) {
             exchange_primary_particles_state(state, currmode, stats);
             sort_particles(oh4p_state(), npg, 0, 0, stats);
         } else {
-            struct S_particle* sbuf = state->send_buffer;
+            void* sbuf = state->send_buffer;
             move_and_sort_primary(state, npg, (oldp >= 0 ? 1 : 0), stats);
             SendBuf = state->send_buffer =
                 oh_particle_buffer_at(state->particle_adapter,
@@ -578,7 +589,7 @@ static void rebalance4p(const int currmode, const int level, const int stats) {
     if (ninj && amode && oldp != newp) {
         int* sinj = state->injected_particles + ns;
         int i;
-        struct S_particle* p;
+        void* p;
         for (s = 0; s < ns; s++)  sinj[s] = 0;
         if (newp >= 0) {
             for (i = 0, p = level4_particle_at(state, state->total_parts);
@@ -858,27 +869,42 @@ static struct S_commlist* make_recv_list(const int currmode, const int level, co
     return(state->comm_list + rlidx);
 }
 
-#define Sched_Recv_Check(INLOOP, G) {\
+#define Sched_Recv_Save_Position() {\
+  context->x = Grid_X();  context->y = Grid_Y();  context->z = Grid_Z();\
+  context->g = The_Grid();\
+}
+
+#define Sched_Recv_Return() {\
+  context->nptotal = nptotal;  context->carryover = carryover;\
+  context->cptr = cptr + 1;\
+  return;\
+}
+
+#define Sched_Recv_Check(G) {\
   if (nptotal>=nplimit) {\
     cptr->region = G;\
     if (nptotal-nplimit>ovflimit) {\
       const int thresh = ovflimit>>1;\
       const int count = (((nplimit-(nptotal-npt)-1)/thresh) + 1) * thresh;\
       cptr->count = count;  carryover = npt - count;\
-      Sched_Recv_Return(INLOOP);\
+      Sched_Recv_Save_Position();\
+      Sched_Recv_Return();\
     } else\
       ret = 1;\
   }\
 }
 
-#define Sched_Recv_Return(INLOOP) {\
-  if (INLOOP) {\
-    context->x = Grid_X();  context->y = Grid_Y();  context->z = Grid_Z();\
-    context->g = The_Grid();\
+#define Sched_Recv_Check_Initial(G) {\
+  if (nptotal>=nplimit) {\
+    cptr->region = G;\
+    if (nptotal-nplimit>ovflimit) {\
+      const int thresh = ovflimit>>1;\
+      const int count = (((nplimit-(nptotal-npt)-1)/thresh) + 1) * thresh;\
+      cptr->count = count;  carryover = npt - count;\
+      Sched_Recv_Return();\
+    } else\
+      ret = 1;\
   }\
-  context->nptotal = nptotal;  context->carryover = carryover;\
-  context->cptr = cptr + 1;\
-  return;\
 }
 
 #define For_All_Grid_From(X0, Y0, Z0)\
@@ -906,11 +932,10 @@ static void sched_recv(struct oh_state* state, const int currmode,
     dint carryover = context->carryover;
     dint** npg = state->level4_particle_grid_total[0];
     struct S_commlist* cptr = context->cptr;
-    struct S_griddesc* GridDesc = state->level4_grid_desc;
     const int ns = state->n_of_species;
     int s, npt = carryover, ret = 0;
     Decl_For_All_Grid();
-    int fag_x0, fag_y0, fag_z0;
+    int fag_x0, fag_y0;
 
     if (!Mode_Acc(currmode) && reb && tag)
         nplimit += get;
@@ -921,7 +946,7 @@ static void sched_recv(struct oh_state* state, const int currmode,
     if (nptotal - carryover >= nplimit)  return;
     cptr->rid = nid;  cptr->tag = tag;  cptr->sid = context->hs;
     cptr->count = 0;
-    Sched_Recv_Check(0, g);
+    Sched_Recv_Check_Initial(g);
     if (carryover) {
         cptr->count = carryover;  cptr->sid = -1;  context->hs++;
         if (!ret) {
@@ -932,12 +957,13 @@ static void sched_recv(struct oh_state* state, const int currmode,
     }
     For_All_Grid_From(x0, y0, z0) {
         if (carryover) { carryover = 0;  continue; }
-        if (ret) Sched_Recv_Return(1);
+        if (ret) { Sched_Recv_Save_Position();  Sched_Recv_Return(); }
         for (s = 0, npt = 0; s < ns; s++)  npt += npg[s][The_Grid()];
         nptotal += npt;
-        Sched_Recv_Check(1, The_Grid());
+        Sched_Recv_Check(The_Grid());
     }
-    Sched_Recv_Return(1);
+    Sched_Recv_Save_Position();
+    Sched_Recv_Return();
 }
 
 static void make_send_sched(const int currmode, const int reb, const int pcode,
@@ -1340,8 +1366,6 @@ static void scatter_hspot_recv_body(struct oh_state* state, const int hsidx,
 
 static void update_descriptors(struct oh_state* state, const int oldp,
                                const int newp) {
-    int n;
-
     if (oldp != newp) {
         if (oldp >= 0)  state_clear_border_exchange(state);
         if (newp >= 0) {
@@ -1547,7 +1571,7 @@ static void count_population(struct oh_state* state, const int nextmode,
     const int ns = state->n_of_species, exti = OH_PGRID_EXT;
     Decl_For_All_Grid();
 
-    if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);
+    if (stats) oh1_stats_time_state(state, STATS_TB_SORT, nextmode);
     for (ps = 0, t = 0, j = 0, tp = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, t++) {
             dint* npgs = state->level4_particle_grid[ps][s];
@@ -1557,7 +1581,7 @@ static void count_population(struct oh_state* state, const int nextmode,
             For_All_Grid(ps, -exti, -exti, -exti, exti, exti, exti)
                 npgs[The_Grid()] = 0;
             for (i = 0; i < tpn; i++, j++) {
-                struct S_particle* p = level4_particle_at(state, j);
+                void* p = level4_particle_at(state, j);
                 const int g = level4_grid_position(
                     state, level4_particle_region(state, p, ps));
                 npgs[g]++;
@@ -1577,11 +1601,11 @@ static void sort_particles(struct oh_state* state, dint*** npg,
                            const int nextmode, const int psnew,
                            const int stats) {
     const int ns = state->n_of_species;
-    struct S_particle* p = state->particles;
+    void* p = state->particles;
     int ps, s, t, i, npt;
     Decl_For_All_Grid();
 
-    if (stats) oh1_stats_time(STATS_TB_SORT, nextmode ? 1 : 0);
+    if (stats) oh1_stats_time_state(state, STATS_TB_SORT, nextmode ? 1 : 0);
     if (!npg)  npg = state->level4_particle_grid;
     for (ps = 0, t = 0, npt = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, t++) {
@@ -1617,11 +1641,11 @@ static void move_and_sort_primary(struct oh_state* state, dint*** npg,
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     const int nnns = nn * ns, me = state->my_rank;
     const int ninj = state->n_of_injections;
-    struct S_particle* p;
+    void* p;
     int ps, s, t, i, nacc, mysd, send_base, rbb_index, * sbd;
     Decl_For_All_Grid();
 
-    if (stats) oh1_stats_time(STATS_TB_MOVE, 0);
+    if (stats) oh1_stats_time_state(state, STATS_TB_MOVE, 0);
     for (s = 0, t = 0, nacc = 0, rbb_index = 0;
          s < ns; s++, t += nn) {
         int n, tpn;
@@ -1700,13 +1724,13 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
     int ps, s, pidx = 0;
     void** rbb = state->recv_buffer_bases + 1;
 
-    if (stats) oh1_stats_time(STATS_TB_SORT, nextmode);
+    if (stats) oh1_stats_time_state(state, STATS_TB_SORT, nextmode);
     for (ps = 0; ps <= psnew; ps++) {
         for (s = 0; s < ns; s++, rbb++) {
             dint* npgt = state->level4_particle_grid_total[ps][s];
             const int rbtail = level4_particle_index(state, *rbb);
             for (; pidx < rbtail; pidx++) {
-                struct S_particle* p = level4_particle_at(state, pidx);
+                void* p = level4_particle_at(state, pidx);
                 const int g = level4_grid_position(
                     state, level4_particle_region(state, p, ps));
                 level4_copy_particle_to_buffer(state, state->send_buffer,
@@ -1750,9 +1774,9 @@ static void move_to_sendbuf_sec4p(const int psold, const int trans, const int ol
     const int ninj = state->n_of_injections;
     const int nplim = state->n_of_local_particles_limit;
     int ninjp = 0, ninjs = nplim, i;
-    struct S_particle* sb = state->send_buffer, * p;
+    void *sb = state->send_buffer, *p;
 
-    if (stats) oh1_stats_time(STATS_TB_MOVE, 1);
+    if (stats) oh1_stats_time_state(state, STATS_TB_MOVE, 1);
     state_set_sendbuf_disps4p(state, trans);
 
     for (i = 0, p = level4_particle_at(state, state->total_parts);
@@ -1815,9 +1839,9 @@ static void move_to_sendbuf_uw4p(struct oh_state* state, const int ps,
     const int nsor0 = ps ? ns : 0;
     const int* ctp = state->total_particles + nsor0;
     const int* ntp = state->total_particles_next + nsor0;
-    struct S_particle* p;
+    void* p;
     void** rbb = state->recv_buffer_bases + nsor0;
-    struct S_particle* sb = state->send_buffer;
+    void* sb = state->send_buffer;
     int s, c, d, cn, dn;
 
     for (s = 0, c = cbase, d = nbase; s < ns; s++, c = cn, d = dn) {
@@ -1835,12 +1859,12 @@ static void move_to_sendbuf_uw4p(struct oh_state* state, const int ps,
             rbb[s] = level4_particle_at(state, d);
         } else {
             const int cb = c;
-            int cm, dm;
+            int dm;
             for (; c < d; c++) {
                 p = level4_particle_at(state, c);
                 Move_Or_Do(p, ps, mysd, -1, (d++));
             }
-            cm = c - 1;  dm = d - 1;
+            dm = d - 1;
             for (; c < cn; c++) {
                 p = level4_particle_at(state, c);
                 Move_Or_Do(p, ps, mysd, 1,
@@ -1865,7 +1889,7 @@ static void move_to_sendbuf_dw4p(struct oh_state* state, const int ps,
     const int nsor0 = ps ? ns : 0;
     const int* ctp = state->total_particles + nsor0;
     const int* ntp = state->total_particles_next + nsor0;
-    struct S_particle* sb = state->send_buffer, * p;
+    void *sb = state->send_buffer, *p;
     int s, c, d, cn, dn;
 
     cn = ctail;  dn = ntail;
@@ -1890,15 +1914,15 @@ static void move_and_sort_secondary(const int psold, const int psnew, const int 
     const int mysubdom[2] = { me, oldp }, ninj = state->n_of_injections;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
-    struct S_particle* p;
-    struct S_particle* sb = oh_particle_buffer_at(state->particle_adapter,
-                                                  state->send_buffer,
-                                                  nacc[0] + nacc[1]);
+    void* p;
+    void* sb = oh_particle_buffer_at(state->particle_adapter,
+                                     state->send_buffer,
+                                     nacc[0] + nacc[1]);
     int* nofr;
     int ps, s, t, npt, i, pidx, rbb_index;
     Decl_For_All_Grid();
 
-    if (stats) oh1_stats_time(STATS_TB_MOVE, 1);
+    if (stats) oh1_stats_time_state(state, STATS_TB_MOVE, 1);
     state_set_sendbuf_disps4p(state, trans);
     for (ps = 0, t = 0, nofr = state->n_of_recv, rbb_index = 0, npt = 0;
          ps <= psnew; ps++) {
@@ -1971,7 +1995,7 @@ static void state_set_sendbuf_disps4p(struct oh_state* state, const int trans) {
 }
 
 static void state_xfer_particles4p(struct oh_state* state, const int trans,
-                                   const int psnew, struct S_particle* sbuf) {
+                                   const int psnew, void* sbuf) {
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     struct S_realneighbor (*real_dst)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
@@ -1983,7 +2007,7 @@ static void state_xfer_particles4p(struct oh_state* state, const int trans,
         const int n = real_src[trans][ps].n;
         const int* nbor = real_src[trans][ps].nbor;
         for (s = 0; s < ns; s++, t++, nofr += nn) {
-            struct S_particle* rbuf = state->recv_buffer_bases[t];
+            void* rbuf = state->recv_buffer_bases[t];
             for (i = 0; i < n; i++) {
                 const int nid = nbor[i];
                 const int nrecv = nofr[nid];
@@ -2019,7 +2043,7 @@ static void state_xfer_particles4p(struct oh_state* state, const int trans,
 }
 
 static void check_particle_location4p(struct oh_state* state,
-                                      const struct S_particle* part,
+                                      const void* part,
                                       const int ps, const int s,
                                       const int inj) {
 #ifndef OH_NO_CHECK
@@ -2029,7 +2053,8 @@ static void check_particle_location4p(struct oh_state* state,
     if (ps < 0 || ps > 1 || s < 0 || s >= ns ||
         (state->level4_pbuf_index &&
          (inj ? ((ps && state->region_id[1] < 0) ||
-                 pidx >= state->total_parts + state->n_of_injections)
+                (dint)pidx >=
+                (dint)state->total_parts + state->n_of_injections)
               : (pidx < state->level4_pbuf_index[t] ||
                  pidx >= state->level4_pbuf_index[t + 1])))) {
         local_errstop("'part' argument pointing %c%d%c of the particle buffer is "
@@ -2089,7 +2114,7 @@ int oh4p_map_particle_to_neighbor_(struct S_particle* part, const int* ps, const
 
 int oh4p_map_particle_to_neighbor(void* particle, const int ps, const int s) {
     struct oh_state* state = oh4p_state();
-    struct S_particle* part = (struct S_particle*)particle;
+    void* part = particle;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
     const int inj = level4_particle_is_injected(state, part);
     struct S_griddesc* grid_desc = state->level4_grid_desc;
@@ -2225,7 +2250,7 @@ int oh4p_map_particle_to_subdomain_(struct S_particle* part, const int* ps,
 int oh4p_map_particle_to_subdomain(void* particle, const int ps,
                                    const int s) {
     struct oh_state* state = oh4p_state();
-    struct S_particle* part = (struct S_particle*)particle;
+    void* part = particle;
     const int ns = state->n_of_species, nn = state->n_of_nodes;
     const int inj = level4_particle_is_injected(state, part);
     struct S_subdomdesc* subdomain_desc = state->subdomain_desc;
@@ -2296,21 +2321,24 @@ int oh4p_inject_particle_(const struct S_particle* part, const int* ps) {
 
 int oh4p_inject_particle(const void* particle, const int ps) {
     struct oh_state* state = oh4p_state();
-    const struct S_particle* part = (const struct S_particle*)particle;
-    const int ns = state->n_of_species;
-    int inj = state->total_parts + state->n_of_injections++;
-    struct S_particle* p = level4_particle_at(state, inj);
+    const void* part = particle;
+    dint inj = (dint)state->total_parts + state->n_of_injections;
+    void* p;
     int s = level4_particle_species(state, part);
     int sd;
 
 #ifndef OH_HAS_SPEC
+    const int ns = state->n_of_species;
+
     if (!state->use_custom_particle_adapter && ns != 1)
         local_errstop("particles cannot be injected when S_particle does not "
                       "have 'spec' element and you have two or more species");
 #endif
-    nOfInjections = state->n_of_injections;
-    if (inj >= state->n_of_local_particles_limit)
+    if (inj < 0 || inj > INT_MAX || inj >= state->n_of_local_particles_limit)
         local_errstop("injection causes local particle buffer overflow");
+    state->n_of_injections++;
+    nOfInjections = state->n_of_injections;
+    p = level4_particle_at(state, (int)inj);
     level4_copy_particle(state, p, part);
     sd = oh4p_map_particle_to_neighbor(p, ps, s);
     if (sd < 0) {
@@ -2326,7 +2354,7 @@ void oh4p_remove_mapped_particle_(struct S_particle* part, const int* ps, const 
 
 void oh4p_remove_mapped_particle(void* particle, const int ps, const int s) {
     struct oh_state* state = oh4p_state();
-    struct S_particle* part = (struct S_particle*)particle;
+    void* part = particle;
     const int nn = state->n_of_nodes, ns = state->n_of_species;
     const int inj = level4_particle_is_injected(state, part);
     int sd, g, psreal = ps, mysd, t;

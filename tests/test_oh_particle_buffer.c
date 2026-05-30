@@ -40,9 +40,25 @@ main(int argc, char **argv) {
   second = oh_particle_buffer_at(&adapter, source_base, 1);
   assert(second == &source[1].particle);
   assert(oh_particle_buffer_const_at(&adapter, source_base, 1) == second);
+  assert(oh_particle_buffer_index(0, source_base, second) == -1);
+  assert(oh_particle_buffer_index(&adapter, 0, second) == -1);
+  assert(oh_particle_buffer_index(&adapter, source_base, 0) == -1);
   assert(oh_particle_buffer_index(&adapter, source_base, second) == 1);
+  assert(oh_particle_buffer_index_bounded(&adapter, source_base, 3,
+                                          second) == 1);
   assert(oh_particle_buffer_index(&adapter, source_base,
                                   (struct S_particle*)((char*)second+1)) == -1);
+  assert(oh_particle_buffer_index_bounded(
+           &adapter, source_base, 3,
+           (struct S_particle*)((char*)second+1)) == -1);
+  assert(oh_particle_buffer_index_bounded(&adapter, source_base, 1,
+                                          second) == -1);
+  assert(oh_particle_buffer_index_bounded(&adapter, source_base, -1,
+                                          second) == -1);
+  assert(oh_particle_buffer_index(&adapter, second, source_base) == -1);
+  adapter.stride = 0;
+  assert(oh_particle_buffer_index(&adapter, source_base, second) == -1);
+  adapter.stride = sizeof(struct padded_particle);
 
   oh_particle_buffer_copy_n(&adapter, (struct S_particle*)dest, source_base, 3);
   assert(dest[1].particle.nid == 17);

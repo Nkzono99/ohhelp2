@@ -20,6 +20,10 @@
 #define Particle_Spec(S) (0)
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Prototypes for the functions called from simulator code */
 void oh2_set_total_particles();
 int  oh2_max_local_particles(dint npmax, int maxfrac, int minmargin);
@@ -48,5 +52,9 @@ void oh2_init_(int *sdid, int *nspec, int *maxfrac, int *nphgram,
                int *maxlocalp, struct S_mycommf *mycomm, int *nbor,
                int *pcoord, int *stats, int *repiter, int *verbose);
 int  oh2_transbound_(int *currmode, int *stats);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

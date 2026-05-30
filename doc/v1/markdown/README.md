@@ -13,8 +13,19 @@ The documents are split by chapter or section. Long sections are further split o
 
 From the repository root:
 
-```powershell
-.\.venv\Scripts\python.exe scripts\convert_pdfs_to_md.py
+```sh
+python3 scripts/convert_pdfs_to_md.py
 ```
 
-Python dependencies are listed in `requirements-doc.txt`.
+To verify that the committed files match a fresh conversion:
+
+```sh
+bash scripts/check-v1-markdown.sh
+```
+
+Use Python 3.10 or newer. Dependencies are listed in `requirements-doc.txt`.
+If the default `python3` is older, set `PYTHON`:
+
+```sh
+PYTHON=python3.11 bash scripts/check-v1-markdown.sh
+```

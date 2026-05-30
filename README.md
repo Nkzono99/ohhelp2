@@ -15,7 +15,8 @@ is useful for cleaner context handling, external particle layouts, and weighted
 load balancing.
 
 The current v2 line supports Level 1-3. Level 4p/4s source files are kept under
-compile coverage, but the supported v2 API for Level 4 is deferred to v2.x.
+compile and migration-smoke coverage, but the supported v2 API for Level 4 is
+deferred to v2.x.
 
 Fortran v2 users should use the `ohhelp_v2` module for the Level 1-3 context
 facade, opaque particle adapter handles, and raw init bridge. Arbitrary
@@ -40,6 +41,32 @@ ohhelp2 = { git = "https://github.com/Nkzono99/ohhelp2" }
 - PIC integration lifecycle: [C](doc/v2/usage/pic-lifecycle.md), [Fortran](doc/v2/usage/pic-lifecycle-fortran.md)
 - API by OhHelp level: [C](doc/v2/usage/api-by-level.md), [Fortran](doc/v2/usage/api-by-level-fortran.md)
 - v2 particle layout and weighted load: [C](doc/v2/usage/v2-particle-and-weight.md), [Fortran](doc/v2/usage/v2-particle-and-weight-fortran.md)
+
+## Development checks
+
+Run the standard local gate from the repository root:
+
+```sh
+bash scripts/test.sh
+```
+
+This gate expects MPI C, Fortran, and C++ compiler wrappers (`mpicc` or
+`MPICC`, `mpifort` or `MPIFC`, `mpic++` or `MPICXX`), `mpirun` or `MPIRUN`,
+and `timeout`. MPI test timeout defaults to `60s` and can be overridden with
+`TEST_TIMEOUT`.
+
+Historical v1 Markdown is generated from PDFs with Python 3.10 or newer. Check
+reproducibility separately after installing `requirements-doc.txt`:
+
+```sh
+bash scripts/check-v1-markdown.sh
+```
+
+If the default `python3` is older, pass a newer interpreter explicitly:
+
+```sh
+PYTHON=python3.11 bash scripts/check-v1-markdown.sh
+```
 
 ## License notice
 

@@ -8,6 +8,7 @@
 #endif
 
 EXTERN MPI_Comm fam_comm;
+EXTERN int fam_comm_initialized;
 
 /* Basic process configuration variables */
 EXTERN int nOfNodes;
@@ -116,11 +117,17 @@ void  init1(int **sdid, int nspec, int maxfrac, int **nphgram,
             int **totalp, int **rcounts, int **scounts,
             struct S_mycommc *mycommc, struct S_mycommf *mycommf, int **nbor,
             int *pcoord, int stats, int repiter, int verbose);
+void  init1_state(struct oh_state *state, int **sdid, int nspec, int maxfrac,
+                  int **nphgram, int **totalp, int **rcounts, int **scounts,
+                  struct S_mycommc *mycommc, struct S_mycommf *mycommf,
+                  int **nbor, int *pcoord, int stats, int repiter,
+                  int verbose);
 void* mem_alloc(int esize, int count, char* varname);
 void  mem_alloc_error(char* varname, size_t size);
 void  errstop(char* format, ...);
 void  local_errstop(char* format, ...);
 void  set_total_particles_state(struct oh_state *state);
+void  oh1_stats_time_state(struct oh_state *state, int key, int ps);
 int   transbound1_state(struct oh_state *state, int currmode, int stats,
                         int level);
 int   try_primary1_state(struct oh_state *state, int currmode, int level,

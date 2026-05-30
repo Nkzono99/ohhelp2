@@ -1,5 +1,44 @@
 # Changelog
 
+## v2.2.0 - 2026-05-30
+
+This minor release advances the v2 context and particle-adapter migration while
+keeping the supported public v2 scope at Level 1-3. Level 4 sources now live
+only in the normal `src/` and `include/` tree and remain covered as migration
+and compile-smoke paths.
+
+### Added
+
+- Added broader C and Fortran runtime coverage for context lifecycle, raw
+  Fortran initialization, legacy Fortran compatibility entry points, public
+  header C++ compatibility, and Level 4 capacity/runtime smoke checks.
+- Added v2 Level 2 custom-particle samples for C and Fortran.
+- Added repository-local `scripts/test.sh` as the standard release gate.
+- Added v1 Markdown reproducibility checking through
+  `scripts/check-v1-markdown.sh`.
+
+### Changed
+
+- Strengthened context ownership, particle-buffer, accounting, and default
+  particle-type guards around the v2 adapter contract.
+- Expanded weighted-load and particle-adapter tests so layout, callback, and
+  accounting assumptions are checked directly.
+- Updated C and Fortran usage documentation for context lifecycle, particle
+  adapter ownership, injected-particle accounting, and API scope by level.
+- Updated sample makefiles and Docker build checks to cover the current sample
+  set and migration smoke paths.
+
+### Removed
+
+- Removed stale duplicate Level 4 source copies from `bag_src/`; canonical
+  Level 4 sources are under `src/c`, `src/fortran`, and `include`.
+
+### Verification
+
+- `bash scripts/test.sh`
+- `git diff --check`
+- `PYTHON=/tmp/ohhelp2-doc-check-venv/bin/python bash scripts/check-v1-markdown.sh`
+
 ## v2.1.3 - 2026-05-24
 
 This patch release publishes the repository with clarified licensing and keeps

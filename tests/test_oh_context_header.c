@@ -45,7 +45,6 @@ main(void) {
   oh_context_reduce(context, primary, secondary, 0, 0, MPI_DOUBLE,
                     MPI_DOUBLE, MPI_SUM, MPI_SUM);
   oh_context_set_total_particles(context);
-  oh_context_inject_particle(context, particle);
   injected = oh_context_inject_particle_get(context, particle);
   oh_context_remap_injected_particle(context, injected);
   oh_context_remove_injected_particle(context, injected);

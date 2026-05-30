@@ -100,7 +100,7 @@ oh_fortran_context_set_region_weights(oh_context *context,
   if (!weights && weight_count >= 0)
     local_errstop("oh_context_set_region_weights() requires %d weights for this context, got %d",
                   context->n_of_nodes, weight_count);
-  oh_context_set_region_weights(context, weights);
+  oh_context_set_region_weights_n(context, weights, weight_count);
 }
 
 int

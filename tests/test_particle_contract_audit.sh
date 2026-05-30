@@ -1547,6 +1547,12 @@ check_present 'oh_context_is_level3_configured(ctx)' \
   doc/v2/design/load-balancing.md
 check_present 'oh_context_region_count' include/oh_context.h
 check_present 'oh_context_is_level3_configured' include/oh_context.h
+check_present 'oh_context_set_region_weights_n' include/oh_context.h
+check_present 'oh_context_set_region_weights_n' src/c/oh_context.c
+check_present 'oh_context_set_region_weights_n(context, weights' \
+  tests/test_public_headers_cxx.cpp
+check_present 'short-weights-n' tests/test_oh_context_particle_layout_guard.c
+check_present 'short-weights-n' scripts/docker-build-test.sh
 check_present 'oh_fortran_context_region_count' include/oh_fortran_v2.h
 check_present 'oh_fortran_context_is_level3_configured' include/oh_fortran_v2.h
 check_present 'oh_context_region_count(context)' tests/test_oh_v2_fortran.F90

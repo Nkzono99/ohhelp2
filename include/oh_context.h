@@ -33,6 +33,8 @@ int oh_context_is_level3_configured(const oh_context *context);
 /* Passing NULL weights resets all weights to 1.0 on the selected context.
    Passing a NULL context selects the default context. */
 void oh_context_set_region_weights(oh_context *context, const double *weights);
+void oh_context_set_region_weights_n(oh_context *context,
+                                     const double *weights, int weight_count);
 /* Passing MPI_DATATYPE_NULL resets to the default byte datatype. */
 void oh_context_set_particle_mpi_type(oh_context *context, MPI_Datatype type);
 /* Passing NULL resets particle movement to the default S_particle adapter. */

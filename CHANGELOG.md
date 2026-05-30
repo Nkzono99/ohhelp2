@@ -6,6 +6,7 @@
 
 - Added context query APIs for region count and Level 3 configuration state in
   C and Fortran.
+- Added a counted C region-weight setter for size-safe weight updates.
 - Added explicit Level 3 neighbor-position and subdomain-position adapter
   helpers so applications can avoid ambiguous position-field side effects.
 

@@ -31,6 +31,7 @@ main(void) {
                                       OH_PARTICLES_OWNED);
   oh_context_unbind_particle_accounting(context);
   oh_context_set_region_weights(context, weights);
+  oh_context_set_region_weights_n(context, weights, 1);
   (void)oh_context_transbound1(context, OH_MODE_NORMAL_PRIMARY, 0);
   (void)oh_context_transbound2(context, OH_MODE_NORMAL_PRIMARY, 0);
   (void)oh_context_transbound3(context, OH_MODE_NORMAL_PRIMARY, 0);

@@ -409,6 +409,12 @@ expect_mpi_failure_log_contains \
   "expected invalid C context region weight failure message" \
   -n 1 build/docker/test_oh_context_particle_layout_guard zero-weight
 expect_mpi_failure_log_contains \
+  "expected counted C context short region weights to fail" \
+  build/docker/c_context_short_weights_n.err \
+  "oh_context_set_region_weights_n() requires 1 weights for this context, got 0" \
+  "expected counted C context short region weights failure message" \
+  -n 1 build/docker/test_oh_context_particle_layout_guard short-weights-n
+expect_mpi_failure_log_contains \
   "expected negative C context region weight to fail" \
   build/docker/c_context_negative_weight.err \
   "region weight[0] must be finite and greater than zero" \

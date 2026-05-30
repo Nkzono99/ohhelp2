@@ -95,6 +95,11 @@ main(int argc, char **argv) {
 
     oh_context_set_region_weights(context, weights);
   }
+  if (argc > 1 && strcmp(argv[1], "short-weights-n") == 0) {
+    double weights[1] = {1.0};
+
+    oh_context_set_region_weights_n(context, weights, 0);
+  }
   if (argc > 1 && strcmp(argv[1], "negative-region-weight") == 0) {
     double weights[1] = {-1.0};
 

@@ -48,6 +48,8 @@ main(int argc, char **argv) {
   std::vector<double> weights(static_cast<std::size_t>(nprocs), 1.0);
   if (!weights.empty()) weights[0] = 2.0;
   oh_context_set_region_weights(context, weights.data());
+  oh_context_set_region_weights_n(context, weights.data(),
+                                  static_cast<int>(weights.size()));
   oh_context_set_region_weights(context, nullptr);
 
   assert(oh_particle_adapter_make_byte_type(sizeof(CustomParticle),

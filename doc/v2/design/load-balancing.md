@@ -30,7 +30,7 @@ weight and caps the result by the donor's available integer particle count.
 ```c
 double weights[nregions];
 /* fill weights; pass NULL to reset all weights to 1.0 */
-oh_context_set_region_weights(ctx, weights);
+oh_context_set_region_weights_n(ctx, weights, nregions);
 ```
 
 `oh_context_region_count(ctx)` returns the required array length. Setting
@@ -39,6 +39,8 @@ weights requires configured region storage, which is established by
 Level-1/2/3 initialization path. It does not require Level 3 geometry.
 `oh_context_is_level3_configured(ctx)` can be used separately when an
 application needs to gate geometry-dependent work.
+`oh_context_set_region_weights(ctx, weights)` remains as an uncounted
+compatibility shim; new C code should prefer the counted form.
 
 ## Fortran
 

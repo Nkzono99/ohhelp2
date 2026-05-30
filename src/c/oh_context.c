@@ -915,6 +915,17 @@ oh_context_set_region_weights(struct oh_state *context, const double *weights) {
   }
 }
 
+void
+oh_context_set_region_weights_n(struct oh_state *context,
+                                const double *weights, int weight_count) {
+  context = context_or_default(context);
+  if (weights && weight_count != context->n_of_nodes)
+    local_errstop("oh_context_set_region_weights_n() requires %d weights for "
+                  "this context, got %d", context->n_of_nodes,
+                  weight_count);
+  oh_context_set_region_weights(context, weights);
+}
+
 int
 oh_context_region_count(const struct oh_state *context) {
   if (!context) context = oh1_state();

@@ -626,8 +626,29 @@ try_stable1_state(struct oh_state *state, int currmode, int level, int stats) {
 
   if (stats) oh1_stats_time_state(state, STATS_TRY_STABLE, 0);
   Verbose(2,vprint("try_stable"));
-  if (state->weighted_load_balancing) return(FALSE);
   count_stay_state(state);
+  if (state->weighted_load_balancing) {
+    int stable = TRUE, global_stable;
+
+    /* Reuse the weighted secondary tree only when no region has particles
+       outside its current primary/secondary family. */
+    for (i=0; i<nn; i++) {
+      if (totalp_global[i] != nofp_to_stay[i]) {
+        stable = FALSE;
+        break;
+      }
+    }
+    MPI_Allreduce(&stable, &global_stable, 1, MPI_INT, MPI_MIN,
+                  state->comm);
+    if (!global_stable) return(FALSE);
+
+    Verbose(2,vprint("try_stable=TRUE"));
+    if (Special_Pexc_Sched(level)) return(TRUE);
+    schedule_particle_exchange_state(state, currmode==MODE_NORM_SEC ? 0 : -1);
+    make_comm_count_state(state, currmode, level, 0,
+                          nodes[state->my_rank].parentid, stats);
+    return(TRUE);
+  }
 
   for (i=0; ; i++) {                    /* bottom up traversal of node tree */
     int nid, stayprime, staysec;

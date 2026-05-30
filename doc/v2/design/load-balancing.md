@@ -61,6 +61,9 @@ metric to particle-count balancing. The current migration code keeps this case
 on the count-equivalent compatibility path; non-uniform positive weights select
 the weighted-load rebalance path.
 
-Weighted mode deliberately does not use the old stable secondary shortcut yet.
-Until a weighted stable check exists, repeated weighted transfers rebalance
-again instead of reusing a count-based stable schedule.
+Weighted mode reuses the current secondary schedule when every region's
+particles are still inside the existing primary/secondary family. That stable
+check avoids rebuilding a weighted rebalance schedule on repeated `transbound`
+calls with unchanged particle ownership. If weighted particles have crossed out
+of the existing family, the migration path still falls back to weighted
+rebalance instead of applying the count-based stable shortcut.

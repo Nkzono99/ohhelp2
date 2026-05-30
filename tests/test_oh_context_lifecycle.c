@@ -996,8 +996,23 @@ run_weighted_load_rebalance_test(int rank, int n, MPI_Datatype pic_type,
       assert(totalp[1] == 1);
     }
   }
-  assert(oh_context_transbound3(context, OH_MODE_REBALANCE_SECONDARY, 0) ==
-         OH_MODE_NORMAL_PRIMARY);
+  if (n == 2) {
+    memset(nphgram, 0, sizeof(nphgram));
+    if (rank == 0) {
+      sdid[1] = -1;
+    } else {
+      sdid[1] = 0;
+      nphgram[rank] = 1;
+      nphgram[n] = 1;
+    }
+    assert(oh_context_transbound3(context, OH_MODE_REBALANCE_SECONDARY, 0) ==
+           OH_MODE_NORMAL_SECONDARY);
+    assert(oh_context_transbound3(context, OH_MODE_NORMAL_SECONDARY, 0) ==
+           OH_MODE_NORMAL_PRIMARY);
+  } else {
+    assert(oh_context_transbound3(context, OH_MODE_REBALANCE_SECONDARY, 0) ==
+           OH_MODE_NORMAL_PRIMARY);
+  }
   oh_context_get_region_ids(context, copied_sdid);
   assert(copied_sdid[1] == -1);
 

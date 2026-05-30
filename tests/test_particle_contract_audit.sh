@@ -1593,7 +1593,7 @@ check_present '`size(weights)` must match the number of regions/nodes in the con
   doc/v2/usage/v2-particle-and-weight-fortran.md
 check_present 'count-equivalent compatibility path' \
   doc/v2/design/load-balancing.md
-check_present 'Weighted mode deliberately does not use the old stable secondary shortcut yet' \
+check_present 'Weighted mode reuses the current secondary schedule' \
   doc/v2/design/load-balancing.md
 check_present 'rounds up the receiver.s load deficit' \
   doc/v2/design/load-balancing.md
@@ -1749,6 +1749,7 @@ check_present 'try_stable1_state(context, OH_MODE_NORMAL_SECONDARY, 1, 0)' \
 check_present 'OH_MODE_REBALANCE_SECONDARY' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_transbound3(context, OH_MODE_REBALANCE_SECONDARY, 0)' \
   tests/test_oh_context_lifecycle.c
+check_present 'OH_MODE_NORMAL_SECONDARY' tests/test_oh_context_lifecycle.c
 check_present 'OH_MODE_NORMAL_PRIMARY' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_bind_particles' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_bind_region_ids' tests/test_oh_context_lifecycle.c

@@ -1,0 +1,2 @@
+int gridMask;
+int logGrid;

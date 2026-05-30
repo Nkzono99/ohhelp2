@@ -162,3 +162,23 @@ boundary IDs を持っている場合は、`oh_context_configure_level3_legacy()
 boundary IDs を context API の 0-based 表現へ変換します。field operation
 の `ftype` / `ctype` は別の call-site 引数なので、この legacy helper では
 変換されません。
+
+## Level 4p/4s
+
+Level 4p/4s の Fortran entry points は historical modules
+`ohhelp4p` / `ohhelp4s` から使います。`OH_LIB_LEVEL_4P` または
+`OH_LIB_LEVEL_4S` を選び、対応する C core も同じ define で compile して
+ください。Level 4 の C core は position-aware state を持つため、Level 1-3
+向けに compile した object を流用しないでください。
+
+historical Fortran Level 4 API は Level 3 と同じく one-based の boundary
+condition id を受け取ります。wrapper は Level 4 内部の mapping boundary
+table へ保存するときに zero-based id へ変換します。C と同じ非 periodic
+boundary type を明示して挙動を比較する場合は、Fortran では `nbound = 2`
+として `bcond(:,:) = 2` を渡します。
+
+`oh4p_transbound()` / `oh4s_transbound()` は weighted secondary path を含めて
+`OH_MODE_REBALANCE_SECONDARY` を返すことがあります。その場合は secondary
+region の `sdid(2)` と `pbase` / `totalp` を読んだあと、
+`OH_MODE_REBALANCE_SECONDARY` でもう一度 `transbound` して通常 primary
+mode へ戻します。

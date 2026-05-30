@@ -1826,6 +1826,12 @@ check_present 'run_mpi -n 2 build/docker/test_oh4p_runtime_smoke weighted-load' 
   scripts/docker-build-test.sh
 check_present 'run_mpi -n 2 build/docker/test_oh4p_runtime_smoke weighted-secondary' \
   scripts/docker-build-test.sh
+check_present 'tests/test_oh4p_fortran_runtime\.F90' scripts/docker-build-test.sh
+check_present 'tests/test_oh4_runtime_globals\.c' scripts/docker-build-test.sh
+check_present 'run_mpi -n 2 build/docker/test_oh4p_fortran_runtime' \
+  scripts/docker-build-test.sh
+check_present 'run_mpi -n 2 build/docker/test_oh4p_fortran_runtime weighted-secondary' \
+  scripts/docker-build-test.sh
 check_present 'tests/test_oh4s_runtime_smoke\.c' scripts/docker-build-test.sh
 check_present 'src/c/ohhelp1\.c src/c/ohhelp2\.c src/c/ohhelp3\.c src/c/ohhelp4s\.c' \
   scripts/docker-build-test.sh
@@ -1836,6 +1842,11 @@ check_present 'run_mpi -n 2 build/docker/test_oh4s_runtime_smoke custom-adapter'
 check_present 'run_mpi -n 2 build/docker/test_oh4s_runtime_smoke weighted-load' \
   scripts/docker-build-test.sh
 check_present 'run_mpi -n 2 build/docker/test_oh4s_runtime_smoke weighted-secondary' \
+  scripts/docker-build-test.sh
+check_present 'tests/test_oh4s_fortran_runtime\.F90' scripts/docker-build-test.sh
+check_present 'run_mpi -n 2 build/docker/test_oh4s_fortran_runtime' \
+  scripts/docker-build-test.sh
+check_present 'run_mpi -n 2 build/docker/test_oh4s_fortran_runtime weighted-secondary' \
   scripts/docker-build-test.sh
 check_present 'strcmp(argv\[1\], "custom-adapter")' \
   tests/test_oh4p_runtime_smoke.c
@@ -1852,6 +1863,11 @@ check_present 'OH_MODE_REBALANCE_SECONDARY' tests/test_oh4p_runtime_smoke.c
 check_present 'totalp\[1\] == 1' tests/test_oh4p_runtime_smoke.c
 check_present 'oh4p_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
   tests/test_oh4p_runtime_smoke.c
+check_present 'oh4p_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
+  tests/test_oh4p_fortran_runtime.F90
+check_present 'call oh4p_per_grid_histogram\(pghgram\)' \
+  tests/test_oh4p_fortran_runtime.F90
+check_present 'int\* allocated = NULL' src/c/ohhelp4p.c
 check_absent 'level4_fail_if_weighted_secondary_transbound' \
   src/c/ohhelp4p.c
 check_present 'oh2_set_particle_adapter(adapter)' \
@@ -1878,6 +1894,14 @@ check_present 'OH_MODE_REBALANCE_SECONDARY' tests/test_oh4s_runtime_smoke.c
 check_present 'totalp\[1\] == 2' tests/test_oh4s_runtime_smoke.c
 check_present 'oh4s_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
   tests/test_oh4s_runtime_smoke.c
+check_present 'oh4s_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
+  tests/test_oh4s_fortran_runtime.F90
+check_present 'call oh4s_per_grid_histogram\(pghgram, pgindex\)' \
+  tests/test_oh4s_fortran_runtime.F90
+check_present 'allocated_hgram' src/c/ohhelp4s.c
+check_present 'allocated_index' src/c/ohhelp4s.c
+check_present 'src_boundary_condition\[d\]\[side\] - boundary_base' \
+  src/c/ohhelp4p.c src/c/ohhelp4s.c
 check_absent 'level4_fail_if_weighted_secondary_transbound' \
   src/c/ohhelp4s.c src/c/ohhelp4_internal.h
 check_present 'oh2_set_particle_adapter(adapter)' \

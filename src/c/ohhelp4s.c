@@ -466,7 +466,13 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     if (!SubDomainDesc) {
         int (*boundary_condition)[2] =
             (int (*)[2])state->level4_boundary_condition;
-        memcpy(boundary_condition, bcond, sizeof(int) * OH_DIMENSION * 2);
+        int (*src_boundary_condition)[2] = (int (*)[2])bcond;
+        const int boundary_base = -cfid;
+        int d, side;
+        for (d = 0; d < OH_DIMENSION; d++)
+            for (side = OH_LOWER; side <= OH_UPPER; side++)
+                boundary_condition[d][side] =
+                    src_boundary_condition[d][side] - boundary_base;
     }
     oh4s_state();
 }
@@ -504,7 +510,11 @@ void oh4s_particle_buffer(const int maxlocalp, void** pbuf) {
 }
 
 void oh4s_per_grid_histogram_(int* pghgram, int* pgindex) {
-    oh4s_per_grid_histogram(&pghgram, &pgindex);
+    int* allocated_hgram = NULL;
+    int* allocated_index = NULL;
+    (void)pghgram;
+    (void)pgindex;
+    oh4s_per_grid_histogram(&allocated_hgram, &allocated_index);
 }
 
 void oh4s_per_grid_histogram(int** pghgram, int** pgindex) {

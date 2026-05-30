@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.3.1 - 2026-05-30
+
+### Added
+
+- Added Level 4p/4s Fortran runtime transbound coverage for default and
+  weighted secondary paths.
+
+### Fixed
+
+- Made Level 4p/4s Fortran per-grid histogram wrappers allocate their internal
+  grids safely instead of treating a Fortran scalar argument as an offset
+  C-side grid buffer.
+- Converted Level 4p/4s Fortran boundary condition ids before storing the
+  Level 4 mapping boundary table.
+
+### Verification
+
+- `git diff --check`
+- `bash tests/test_particle_contract_audit.sh`
+- `bash -n scripts/docker-build-test.sh`
+- KUDPC `tssrun` two-rank smoke tests for Level 4p/4s Fortran default and
+  weighted-secondary paths.
+
 ## v2.3.0 - 2026-05-30
 
 This minor release promotes Level 4p/4s into the supported v2 API surface and

@@ -6,6 +6,8 @@ REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 cd "$REPO_ROOT"
 
 mkdir -p build/docker
+mkdir -p build/docker/oh4p-fortran
+mkdir -p build/docker/oh4s-fortran
 mkdir -p build/docker/posaware
 mkdir -p build/docker/dim1f
 mkdir -p build/docker/dim2f
@@ -745,6 +747,37 @@ run_mpi -n 2 build/docker/test_oh4p_runtime_smoke
 run_mpi -n 2 build/docker/test_oh4p_runtime_smoke custom-adapter
 run_mpi -n 2 build/docker/test_oh4p_runtime_smoke weighted-load
 run_mpi -n 2 build/docker/test_oh4p_runtime_smoke weighted-secondary
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c tests/test_oh4_runtime_globals.c \
+  -o build/docker/oh4p-fortran/test_oh4_runtime_globals.o
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/oh_load_balance.c \
+  -o build/docker/oh4p-fortran/oh_load_balance.o
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/oh_particle_adapter.c \
+  -o build/docker/oh4p-fortran/oh_particle_adapter.o
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/oh_context.c \
+  -o build/docker/oh4p-fortran/oh_context.o
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/ohhelp1.c \
+  -o build/docker/oh4p-fortran/ohhelp1.o
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/ohhelp2.c \
+  -o build/docker/oh4p-fortran/ohhelp2.o
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/ohhelp3.c \
+  -o build/docker/oh4p-fortran/ohhelp3.o
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/ohhelp4p.c \
+  -o build/docker/oh4p-fortran/ohhelp4p.o
+$FC $FC_MPI_COMPILE_FLAGS -cpp -DOH_LIB_LEVEL_4P -Iinclude -Ibuild/docker \
+  $FC_MOD_MAIN tests/test_oh4p_fortran_runtime.F90 \
+  build/docker/oh4p-fortran/test_oh4_runtime_globals.o \
+  build/docker/oh_type.o build/docker/oh_mod1.o build/docker/oh_mod2.o \
+  build/docker/oh_mod3.o build/docker/oh_mod4p.o \
+  build/docker/oh4p-fortran/oh_context.o \
+  build/docker/oh4p-fortran/oh_particle_adapter.o \
+  build/docker/oh4p-fortran/oh_load_balance.o \
+  build/docker/oh4p-fortran/ohhelp1.o \
+  build/docker/oh4p-fortran/ohhelp2.o \
+  build/docker/oh4p-fortran/ohhelp3.o \
+  build/docker/oh4p-fortran/ohhelp4p.o \
+  -o build/docker/test_oh4p_fortran_runtime
+run_mpi -n 2 build/docker/test_oh4p_fortran_runtime
+run_mpi -n 2 build/docker/test_oh4p_fortran_runtime weighted-secondary
 $MPICC -DOH_LIB_LEVEL_4S -Iinclude tests/test_oh4s_runtime_smoke.c \
   src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c src/c/ohhelp4s.c \
@@ -753,6 +786,37 @@ run_mpi -n 2 build/docker/test_oh4s_runtime_smoke
 run_mpi -n 2 build/docker/test_oh4s_runtime_smoke custom-adapter
 run_mpi -n 2 build/docker/test_oh4s_runtime_smoke weighted-load
 run_mpi -n 2 build/docker/test_oh4s_runtime_smoke weighted-secondary
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c tests/test_oh4_runtime_globals.c \
+  -o build/docker/oh4s-fortran/test_oh4_runtime_globals.o
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/oh_load_balance.c \
+  -o build/docker/oh4s-fortran/oh_load_balance.o
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/oh_particle_adapter.c \
+  -o build/docker/oh4s-fortran/oh_particle_adapter.o
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/oh_context.c \
+  -o build/docker/oh4s-fortran/oh_context.o
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/ohhelp1.c \
+  -o build/docker/oh4s-fortran/ohhelp1.o
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/ohhelp2.c \
+  -o build/docker/oh4s-fortran/ohhelp2.o
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/ohhelp3.c \
+  -o build/docker/oh4s-fortran/ohhelp3.o
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/ohhelp4s.c \
+  -o build/docker/oh4s-fortran/ohhelp4s.o
+$FC $FC_MPI_COMPILE_FLAGS -cpp -DOH_LIB_LEVEL_4S -Iinclude -Ibuild/docker \
+  $FC_MOD_MAIN tests/test_oh4s_fortran_runtime.F90 \
+  build/docker/oh4s-fortran/test_oh4_runtime_globals.o \
+  build/docker/oh_type.o build/docker/oh_mod1.o build/docker/oh_mod2.o \
+  build/docker/oh_mod3.o build/docker/oh_mod4s.o \
+  build/docker/oh4s-fortran/oh_context.o \
+  build/docker/oh4s-fortran/oh_particle_adapter.o \
+  build/docker/oh4s-fortran/oh_load_balance.o \
+  build/docker/oh4s-fortran/ohhelp1.o \
+  build/docker/oh4s-fortran/ohhelp2.o \
+  build/docker/oh4s-fortran/ohhelp3.o \
+  build/docker/oh4s-fortran/ohhelp4s.o \
+  -o build/docker/test_oh4s_fortran_runtime
+run_mpi -n 2 build/docker/test_oh4s_fortran_runtime
+run_mpi -n 2 build/docker/test_oh4s_fortran_runtime weighted-secondary
 $MPICC -DOH_POS_AWARE -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
   src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c \

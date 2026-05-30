@@ -1224,6 +1224,8 @@ check_present 'oh3_init' tests/test_oh_legacy_fortran_runtime.F90
 check_present 'oh1_fam_comm' tests/test_oh_legacy_fortran_runtime.F90
 check_present_re '^run_mpi\(\)[[:space:]]*\{' scripts/docker-build-test.sh
 check_present 'timeout "\$TEST_TIMEOUT" "\$MPIRUN"' scripts/docker-build-test.sh
+check_present 'MPIRUN_FLAGS' scripts/docker-build-test.sh
+check_present 'MPIRUN_FLAGS: "--oversubscribe"' .github/workflows/ci.yml
 check_present_re '^expect_mpi_failure_log_contains\(\)[[:space:]]*\{' \
   scripts/docker-build-test.sh
 check_present_re '^expect_mpi_failure_log_cases\(\)[[:space:]]*\{' \

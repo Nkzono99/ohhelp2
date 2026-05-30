@@ -13,10 +13,11 @@ mkdir -p build/docker/dim1f
 mkdir -p build/docker/dim2f
 
 MPIRUN=${MPIRUN:-mpirun}
+MPIRUN_FLAGS=${MPIRUN_FLAGS:-}
 TEST_TIMEOUT=${TEST_TIMEOUT:-60s}
 
 run_mpi() {
-  timeout "$TEST_TIMEOUT" "$MPIRUN" "$@"
+  timeout "$TEST_TIMEOUT" "$MPIRUN" $MPIRUN_FLAGS "$@"
 }
 
 expect_mpi_failure_log_contains() {

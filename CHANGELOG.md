@@ -16,6 +16,7 @@
   becomes heap-context owned.
 - Added a GitHub Actions CI gate and made the standard local gate include fpm
   package-build coverage.
+- Added `MPIRUN_FLAGS` support for constrained CI MPI launchers.
 
 ### Fixed
 

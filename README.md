@@ -56,6 +56,8 @@ This gate expects MPI C, Fortran, and C++ compiler wrappers (`mpicc` or
 with `TEST_TIMEOUT`. The fpm gate is a package build check; runtime coverage
 comes from `scripts/docker-build-test.sh`. Set `OH_CHECK_FPM=0` only for local
 environments that do not have fpm installed.
+If OpenMPI reports too few slots in a constrained CI runner, set
+`MPIRUN_FLAGS=--oversubscribe`.
 
 Historical v1 Markdown is generated from PDFs with Python 3.10 or newer. Check
 reproducibility separately after installing `requirements-doc.txt`:

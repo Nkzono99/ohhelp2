@@ -126,8 +126,8 @@ the total local particle count / end offset.
 
 ## Level 4p/4s
 
-Level 4p/4s are not v2.0 supported APIs. They remain under compile coverage and
-runtime migration smoke, and are documented as a v2.x target in
-[Level Scope](../design/level-scope.md). Their current state bridge is
-default-context-only; heap-owned context and non-uniform weighted Level 4
-secondary schedules are not part of the supported v2.0 surface.
+Level 4p/4s are supported v2 APIs through the Level 4 C/Fortran entry points.
+Use `OH_LIB_LEVEL_4P` or `OH_LIB_LEVEL_4S` to select the Level 4 implementation
+at build time. The supported path includes the v2 particle adapter contract,
+default and custom particle layouts, injected-particle accounting, and weighted
+primary and secondary transbound schedules.

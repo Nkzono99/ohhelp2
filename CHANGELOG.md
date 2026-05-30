@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.3.0 - 2026-05-30
+
+This minor release promotes Level 4p/4s into the supported v2 API surface and
+adds runtime coverage for weighted secondary transbound.
+
+### Changed
+
+- Promoted Level 4p/4s from migration-smoke coverage to supported v2 API
+  coverage through the Level 4 C/Fortran entry points.
+- Added successful Level 4 weighted secondary transbound coverage for both
+  4p and 4s.
+
+### Fixed
+
+- Preserved Level 4s send counts separately from send-buffer cursors so
+  weighted secondary transbound posts matching particle transfers.
+
+### Verification
+
+- `git diff --check`
+- `bash tests/test_particle_contract_audit.sh`
+- KUDPC `tssrun` two-rank smoke tests for Level 4p/4s default,
+  custom-adapter, weighted-load, and weighted-secondary paths.
+
 ## v2.2.0 - 2026-05-30
 
 This minor release advances the v2 context and particle-adapter migration while

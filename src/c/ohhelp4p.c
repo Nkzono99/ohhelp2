@@ -476,7 +476,6 @@ static int transbound4p(int currmode, int stats, const int level) {
 
     state = oh4p_state();
     stats = stats && state->stats_mode;
-    level4_fail_if_weighted_secondary_transbound(state, currmode);
     currmode = transbound1_state(state, currmode, stats, level);
     state = oh4p_state();
     nn = state->n_of_nodes;  ns = state->n_of_species;
@@ -528,7 +527,8 @@ static int try_primary4p(const int currmode, const int level, const int stats) {
 
     if (!try_primary1_state(state, currmode, level, stats)) return(FALSE);
     state = oh4p_state();
-    if (Mode_PS(currmode))  update_real_neighbors(state, URN_PRI, 0, -1, -1);
+    if (Mode_PS(currmode))
+        update_real_neighbors(state, URN_PRI, Mode_PS(currmode), -1, -1);
     if (Mode_Acc(currmode)) {
         move_to_sendbuf_primary_state(state, Mode_PS(currmode), stats);
         exchange_primary_particles_state(state, currmode, stats);

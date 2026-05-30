@@ -1,8 +1,7 @@
 # Level Scope
 
 OhHelp levels describe how much of a PIC integration is delegated to the
-library. v2.0 supports Level 1-3 as the public target. Level 4p/4s are v2.x
-work.
+library. The v2 public target covers Level 1-4.
 
 For v1 level descriptions, see [`../../v1/`](../../v1/).
 
@@ -33,18 +32,19 @@ mapping across subdomains and field halo exchange.
 
 ## Level 4p/4s
 
-Level 4p/4s are not v2.0 supported APIs. They remain under compile coverage,
-runtime migration smoke, and internal guardrails. Full custom-layout support for
-their packed-grid semantics is a v2.x target.
+Level 4p/4s are supported v2 APIs through the Level 4 C/Fortran entry points.
+They remain implemented through the default-context state bridge, but the
+bridge is part of the supported Level 4 surface rather than a temporary
+compile-only path.
 
-The current Level 4 implementation still binds a default-context state bridge.
-Adapter helpers and `struct oh_state` fields in the Level 4 source are migration
-guardrails, not heap-owned context support and not a guarantee that non-uniform
-weighted Level 4 schedules are supported.
+Adapter helpers and `struct oh_state` fields keep packed-grid ids, species, and
+coordinates behind the particle adapter boundary. The runtime coverage includes
+default particle storage, custom adapter storage, injected-particle accounting,
+and weighted primary and secondary transbound for Level 4p/4s.
 
-The migration smoke covers the default-context Level 4 default/custom adapter
-paths and the first weighted scheduling decision. Weighted secondary transbound
-is intentionally rejected until Level 4 has a real weighted accounting lifecycle.
+Weighted secondary transbound is part of the supported Level 4 path. Transfer
+schedules still move integer particle counts, while the balancing decision uses
+per-region weights when configured.
 
 The fpm package may compile all C translation units even when a downstream
 project only uses Level 1-3. The Level 4 source bodies are therefore enabled

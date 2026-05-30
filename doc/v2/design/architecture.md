@@ -70,11 +70,13 @@ See [Weighted Load Balancing](load-balancing.md).
 
 ## Supported Scope
 
-v2.0 focuses on Level 1-3:
+v2 focuses on Level 1-4:
 
 - Level 1: communicator and rebalance schedule.
 - Level 2: particle buffer transfer.
 - Level 3: geometry mapping and field-border exchange.
+- Level 4p/4s: packed-grid particle mapping and border exchange.
 
-Level 4p/4s remain in the source tree and under compile coverage, but complete
-v2 support for their packed-grid semantics is a v2.x target.
+Level 4p/4s use the v2 particle adapter boundary for default and custom
+particle layouts and are covered by runtime checks for weighted primary and
+secondary transbound.

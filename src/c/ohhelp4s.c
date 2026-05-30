@@ -103,7 +103,8 @@ static void move_to_sendbuf_dw4s(struct oh_state* state, const int ps,
 static void sort_particles(struct oh_state* state, const int nextmode,
                            const int psnew, const int stats);
 static void move_and_sort(const int nextmode, const int psold, const int psnew,
-                          const int oldp, const int* nacc, const int stats);
+                          const int trans, const int oldp, const int* nacc,
+                          const int stats);
 static void sort_received_particles(struct oh_state* state, const int nextmode,
                                     const int psnew, const int stats);
 static void state_set_sendbuf_disps4s(struct oh_state* state,
@@ -539,7 +540,6 @@ static int transbound4s(int currmode, int stats, const int level) {
 
     state = oh4s_state();
     stats = stats && state->stats_mode;
-    level4_fail_if_weighted_secondary_transbound(state, currmode);
     currmode = transbound1_state(state, currmode, stats, level);
     state = oh4s_state();
     nn = state->n_of_nodes;  ns = state->n_of_species;
@@ -591,8 +591,9 @@ static int try_primary4s(const int currmode, const int level, const int stats) {
 
     if (!try_primary1_state(state, currmode, level, stats)) return(FALSE);
     state = oh4s_state();
+    if (Mode_PS(currmode))
+        update_real_neighbors(state, URN_PRI, Mode_PS(currmode), -1, -1);
     exchange_particles4s(currmode, 0, level, 0, oldp, -1, stats);
-    if (Mode_PS(currmode))  update_real_neighbors(state, URN_PRI, 0, -1, -1);
     return(TRUE);
 }
 
@@ -723,7 +724,7 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
             }
         }
     }
-    if (trans || (dint)nacc[1] + (dint)nsend >
+    if (Mode_PS(currmode) || trans || (dint)nacc[1] + (dint)nsend >
         (dint)state->n_of_local_particles_limit) {
         move_to_sendbuf_4s(nextmode, psold, psnew, trans, oldp, nacc, nsend,
                            stats);
@@ -732,8 +733,8 @@ static void exchange_particles4s(int currmode, const int nextmode, const int lev
         make_bxfer_sched(state, trans, psnew, rlist, rlidx);
         sort_particles(state, nextmode, psnew, stats);
     } else {
-        make_bxfer_sched(state, 0, psnew, rlist, rlidx);
-        move_and_sort(nextmode, psold, psnew, oldp, nacc, stats);
+        make_bxfer_sched(state, trans, psnew, rlist, rlidx);
+        move_and_sort(nextmode, psold, psnew, trans, oldp, nacc, stats);
         state_xfer_particles4s(state, trans, psnew, nextmode,
                                oh_particle_buffer_at(state->particle_adapter,
                                                      state->send_buffer,
@@ -1443,8 +1444,20 @@ static void state_exchange_xfer_amount4s(struct oh_state* state,
     const struct S_realneighbor* snbr = real_src[trans];
     const struct S_realneighbor* dnbr = real_dst[trans];
     const int nnns = state->n_of_nodes * state->n_of_species;
+    const int send_count_slots = 2 * nnns;
     int ps, tag, req;
 
+    if (state->level4_send_counts_size < send_count_slots) {
+        free(state->level4_send_counts);
+        state->level4_send_counts =
+            (int*)mem_alloc(sizeof(int), send_count_slots, "Level4SendCounts");
+        state->level4_send_counts_size = send_count_slots;
+    }
+    for (ps = 0, tag = 0; ps <= nextmode; ps++, tag += nnns) {
+        int i;
+        int* scbase = state->level4_send_counts + tag;
+        for (i = 0; i < nnns; i++) scbase[i] = 0;
+    }
     for (ps = 0, tag = 0, req = 0; ps <= psnew; ps++, tag += nnns) {
         const int n = snbr[ps].n;
         const int* nbor = snbr[ps].nbor;
@@ -1461,6 +1474,10 @@ static void state_exchange_xfer_amount4s(struct oh_state* state,
         int i, * nsbase = state->n_of_send + tag;
         for (i = 0; i < n; i++, req++) {
             const int nid = nbor[i];
+            int s;
+            for (s = 0; s < state->n_of_species; s++)
+                state->level4_send_counts[tag + s * state->n_of_nodes + nid] =
+                    nsbase[s * state->n_of_nodes + nid];
             MPI_Isend(nsbase + nid, 1, state->level4_histogram_half_type, nid,
                       tag, state->comm, state->requests + req);
         }
@@ -1874,7 +1891,8 @@ static void sort_particles(struct oh_state* state, const int nextmode,
 }
 
 static void move_and_sort(const int nextmode, const int psold, const int psnew,
-                          const int oldp, const int* nacc, const int stats) {
+                          const int trans, const int oldp, const int* nacc,
+                          const int stats) {
     struct oh_state* state = oh4s_state();
     const int me = state->my_rank, ns = state->n_of_species;
     const int nn = state->n_of_nodes;
@@ -1889,11 +1907,11 @@ static void move_and_sort(const int nextmode, const int psold, const int psnew,
     int ps, s, t, i, pidx, rbb_index;
 
     if (stats) oh1_stats_time_state(state, STATS_TB_MOVE, nextmode);
-    state_set_sendbuf_disps4s(state, nextmode, 0);
+    state_set_sendbuf_disps4s(state, nextmode, trans);
     for (ps = 0, t = 0, nofr = state->n_of_recv, rbb_index = 0;
          ps <= psnew; ps++) {
-        const int nnbr = real_src[0][ps].n;
-        const int* rnbr = real_src[0][ps].nbor;
+        const int nnbr = real_src[trans][ps].n;
+        const int* rnbr = real_src[trans][ps].nbor;
         for (s = 0; s < ns; s++, t++, nofr += nn) {
             int n, nrec;
             for (n = 0, nrec = 0; n < nnbr; n++)  nrec += nofr[rnbr[n]];
@@ -1983,7 +2001,7 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
         (struct S_realneighbor (*)[2])state->level4_real_dst_neighbors;
     struct S_realneighbor (*real_src)[2] =
         (struct S_realneighbor (*)[2])state->level4_real_src_neighbors;
-    int ps, s, t, i, req, sdisp, * nofr, * nofs;
+    int ps, s, t, i, req, * nofr, * nofs, * nsend_counts;
 
     for (ps = 0, t = 0, nofr = state->n_of_recv, req = 0; ps <= psnew; ps++) {
         const int n = real_src[trans][ps].n;
@@ -2002,14 +2020,20 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
             }
         }
     }
-    for (ps = 0, t = 0, sdisp = 0, nofs = state->n_of_send; ps <= nextmode; ps++) {
+    for (ps = 0, t = 0, nofs = state->n_of_send,
+         nsend_counts = state->level4_send_counts;
+         ps <= nextmode; ps++) {
         const int n = real_dst[trans][ps].n;
         const int* nbor = real_dst[trans][ps].nbor;
-        for (s = 0; s < ns; s++, t++, nofs += nn) {
+        for (s = 0; s < ns; s++, t++, nofs += nn, nsend_counts += nn) {
             for (i = 0; i < n; i++) {
                 const int nid = nbor[i];
                 const int sdnxt = nofs[nid];
-                const int nsend = sdnxt - sdisp;
+                const int nsend = nsend_counts[nid];
+                const int sdisp = sdnxt - nsend;
+                if (sdisp < 0)
+                    local_errstop("Level 4 send count exceeds send buffer "
+                                  "displacement");
                 nofs[nid] = 0;
                 if (nsend) {
                     MPI_Isend(oh_particle_buffer_at(state->particle_adapter,
@@ -2017,7 +2041,6 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
                               nsend, state->particle_mpi_type, nid, t,
                               state->comm, state->requests + req++);
                 }
-                sdisp = sdnxt;
             }
         }
     }

@@ -113,6 +113,8 @@ struct oh_state {
   struct S_borderexc *border_exchange;
   struct S_griddesc *level4_grid_desc;
   int *level4_pbuf_index;
+  int *level4_send_counts;
+  int level4_send_counts_size;
   dint **level4_particle_grid[2];
   dint **level4_particle_grid_total[2];
   int **level4_particle_grid_out[2];

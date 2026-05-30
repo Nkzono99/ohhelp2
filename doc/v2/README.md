@@ -11,5 +11,6 @@ adapter contract, and weighted-load behavior.
 - [`design/index-conventions.md`](design/index-conventions.md) summarizes
   zero-based context API indices and v1-style Fortran conversion points.
 
-The supported v2 surface currently focuses on Level 1-3. Level 4p/4s source
-files remain under compile coverage while full v2 support continues separately.
+The supported v2 surface covers Level 1-4. Level 4p/4s are selected with
+`OH_LIB_LEVEL_4P` or `OH_LIB_LEVEL_4S` and are covered by runtime checks for
+default/custom particle layouts and weighted transbound.

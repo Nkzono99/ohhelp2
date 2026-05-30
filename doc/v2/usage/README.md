@@ -4,7 +4,7 @@
 v1 の PDF 由来資料は [`../../v1/`](../../v1/) に分離しています。v2 では
 context API、particle adapter、weighted load を主役として説明します。
 
-Fortran からも Level 1-3 は利用対象です。v2 の Fortran 利用では
+Fortran からも Level 1-4 は利用対象です。v2 の Fortran 利用では
 `ohhelp_v2` module だけを使います。v1 style API は
 [`../../v1/`](../../v1/) を入口に参照してください。
 
@@ -48,12 +48,13 @@ bridge には `oh2_init_raw()` / `oh3_init_raw()` があります。
 | region weight | supported | `ohhelp_v2` から supported |
 | custom particle adapter | supported | `ohhelp_v2` から supported |
 | 任意 layout の粒子配列を init に渡す経路 | supported | `oh2_init_raw()` / `oh3_init_raw()` |
-| Level 4p/4s | v2.x 対象 | v2.x 対象 |
+| Level 4p/4s | supported | Level 4 module から supported |
 
-## v2.0 の対象範囲
+## v2 の対象範囲
 
-v2.0 は Level 1-3 を利用可能な範囲として固めます。通常の PIC 利用では
-Level 3 を標準選択とし、粒子転送だけを任せたい場合は Level 2、既存の
-粒子通信を維持したい場合は Level 1 を選びます。
+v2 は Level 1-4 を利用可能な範囲として扱います。通常の PIC 利用では
+Level 3 を標準選択とし、packed-grid 粒子管理まで OhHelp に任せたい場合は
+Level 4p/4s、粒子転送だけを任せたい場合は Level 2、既存の粒子通信を
+維持したい場合は Level 1 を選びます。
 
 設計上の詳細は [`../design/`](../design/README.md) にまとめています。

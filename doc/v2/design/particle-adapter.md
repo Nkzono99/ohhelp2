@@ -152,8 +152,8 @@ There is no current `original` particle field or hidden original-particle flag.
 
 ## Level 4 Boundary
 
-Level 4p/4s are not part of the v2.0 supported surface. Their remaining
-semantics are documented here so the adapter boundary does not regress:
+Level 4p/4s are part of the supported v2 surface. Their packed-grid semantics
+are documented here so the adapter boundary does not regress:
 
 - packed-grid id operations,
 - `OH_BIG_SPACE` region width,
@@ -161,8 +161,9 @@ semantics are documented here so the adapter boundary does not regress:
 - boundary plane thickness,
 - default context layout constraints for Level 4 state binding.
 
-Level 4 code should keep packed-id representation details behind local helper
-functions until the v2.x adapter contract is finalized.
+Level 4 code keeps packed-id representation details behind local helper
+functions and uses the v2 particle adapter for region, species, coordinate, and
+copy operations.
 
 Level 4 still treats `state->particles`, `state->send_buffer`,
 `state->recv_buffer_bases`, and `state->level4_boundary_send_buffer` as

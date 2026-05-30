@@ -14,9 +14,9 @@ The v2 line intentionally changes APIs and implementation boundaries where that
 is useful for cleaner context handling, external particle layouts, and weighted
 load balancing.
 
-The current v2 line supports Level 1-3. Level 4p/4s source files are kept under
-compile and migration-smoke coverage, but the supported v2 API for Level 4 is
-deferred to v2.x.
+The current v2 line supports Level 1-4. Level 4p/4s are available through the
+Level 4 C/Fortran API with the v2 particle adapter and weighted-load
+scheduling support.
 
 Fortran v2 users should use the `ohhelp_v2` module for the Level 1-3 context
 facade, opaque particle adapter handles, and raw init bridge. Arbitrary

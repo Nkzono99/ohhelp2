@@ -108,7 +108,7 @@ run_default_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase,
 
 static void
 run_weighted_load_path(void *pbuf, int rank, int *sdid, int *pbase,
-                       int *totalp, int expect_secondary_unsupported) {
+                       int *totalp, int run_secondary_transbound) {
   struct S_particle *particles = (struct S_particle*)pbuf;
   double weights[2] = {4.0, 1.0};
   int mapped;
@@ -127,7 +127,6 @@ run_weighted_load_path(void *pbuf, int rank, int *sdid, int *pbase,
   mapped = oh4s_map_particle_to_subdomain(&particles[0], 0, 0);
   assert(mapped == rank);
   oh1_set_region_weights(weights);
-  /* Level 4 weighted-load coverage is a migration smoke for scheduling only. */
   mode = oh4s_transbound(OH_MODE_NORMAL_PRIMARY, 0);
   assert(mode == OH_MODE_REBALANCE_SECONDARY);
   if (rank == 0) {
@@ -145,8 +144,11 @@ run_weighted_load_path(void *pbuf, int rank, int *sdid, int *pbase,
     assert(totalp[0] == 2);
     assert(totalp[1] == 2);
   }
-  if (expect_secondary_unsupported)
-    (void)oh4s_transbound(OH_MODE_REBALANCE_SECONDARY, 0);
+  if (run_secondary_transbound) {
+    mode = oh4s_transbound(OH_MODE_REBALANCE_SECONDARY, 0);
+    assert(mode == OH_MODE_NORMAL_PRIMARY);
+    assert(sdid[1] == -1);
+  }
   oh1_set_region_weights(NULL);
 }
 
@@ -236,7 +238,7 @@ main(int argc, char **argv) {
   int cbufsize = 0;
   int use_custom_adapter;
   int use_weighted_load;
-  int expect_weighted_secondary_unsupported;
+  int run_weighted_secondary;
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -244,8 +246,8 @@ main(int argc, char **argv) {
   assert(nranks == 2);
   use_custom_adapter = argc > 1 && strcmp(argv[1], "custom-adapter") == 0;
   use_weighted_load = argc > 1 && strcmp(argv[1], "weighted-load") == 0;
-  expect_weighted_secondary_unsupported =
-    argc > 1 && strcmp(argv[1], "weighted-secondary-unsupported") == 0;
+  run_weighted_secondary =
+    argc > 1 && strcmp(argv[1], "weighted-secondary") == 0;
   if (use_custom_adapter)
     configure_custom_particle_adapter(&adapter, &custom_type);
 
@@ -271,9 +273,9 @@ main(int argc, char **argv) {
   assert(pghgram != NULL);
   assert(pgindex != NULL);
 
-  if (use_weighted_load || expect_weighted_secondary_unsupported)
+  if (use_weighted_load || run_weighted_secondary)
     run_weighted_load_path(pbuf, rank, sdid, pbase, totalp,
-                           expect_weighted_secondary_unsupported);
+                           run_weighted_secondary);
   else if (use_custom_adapter)
     run_custom_particle_path(pbuf, maxlocalp, rank, pbase, totalp);
   else

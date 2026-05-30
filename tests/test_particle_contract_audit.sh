@@ -239,6 +239,7 @@ check_present_literal 'void *send_buffer;' src/c/oh_context_internal.h
 check_present_literal 'void **recv_buffer_bases;' src/c/oh_context_internal.h
 check_present_literal 'void *level4_boundary_send_buffer;' \
   src/c/oh_context_internal.h
+check_present_literal 'int *level4_send_counts;' src/c/oh_context_internal.h
 check_present_literal 'int *recv_counts;' src/c/oh_context_internal.h
 check_present_literal 'int *send_counts;' src/c/oh_context_internal.h
 check_present_literal 'EXTERN void *Particles;' src/c/ohhelp2_internal.h
@@ -1233,7 +1234,7 @@ check_present 'ffree-line-length-none' scripts/docker-build-test.sh
 check_present 'EPSILON=1\.0d0,MU=1\.0d0' sample/sample.F90
 check_present 'particle adapter handles' README.md
 check_present 'oh2_init_raw().*oh3_init_raw()' README.md
-check_present 'Fortran からも Level 1-3 は利用対象' doc/v2/usage/README.md
+check_present 'Fortran からも Level 1-4 は利用対象' doc/v2/usage/README.md
 check_present 'ohhelp_v2` module' doc/v2/usage/README.md
 check_present '任意の Fortran 粒子 layout' doc/v2/usage/README.md
 check_present 'oh2_init_raw().*oh3_init_raw()' doc/v2/usage/README.md
@@ -1823,8 +1824,7 @@ check_present 'run_mpi -n 2 build/docker/test_oh4p_runtime_smoke custom-adapter'
   scripts/docker-build-test.sh
 check_present 'run_mpi -n 2 build/docker/test_oh4p_runtime_smoke weighted-load' \
   scripts/docker-build-test.sh
-check_present 'weighted-secondary-unsupported' scripts/docker-build-test.sh
-check_present 'Level 4 weighted secondary transbound is not supported' \
+check_present 'run_mpi -n 2 build/docker/test_oh4p_runtime_smoke weighted-secondary' \
   scripts/docker-build-test.sh
 check_present 'tests/test_oh4s_runtime_smoke\.c' scripts/docker-build-test.sh
 check_present 'src/c/ohhelp1\.c src/c/ohhelp2\.c src/c/ohhelp3\.c src/c/ohhelp4s\.c' \
@@ -1835,14 +1835,13 @@ check_present 'run_mpi -n 2 build/docker/test_oh4s_runtime_smoke custom-adapter'
   scripts/docker-build-test.sh
 check_present 'run_mpi -n 2 build/docker/test_oh4s_runtime_smoke weighted-load' \
   scripts/docker-build-test.sh
-check_present 'weighted-secondary-unsupported' scripts/docker-build-test.sh
-check_present 'Level 4 weighted secondary transbound is not supported' \
+check_present 'run_mpi -n 2 build/docker/test_oh4s_runtime_smoke weighted-secondary' \
   scripts/docker-build-test.sh
 check_present 'strcmp(argv\[1\], "custom-adapter")' \
   tests/test_oh4p_runtime_smoke.c
 check_present 'strcmp(argv\[1\], "weighted-load")' \
   tests/test_oh4p_runtime_smoke.c
-check_present 'strcmp(argv\[1\], "weighted-secondary-unsupported")' \
+check_present 'strcmp(argv\[1\], "weighted-secondary")' \
   tests/test_oh4p_runtime_smoke.c
 check_present 'run_weighted_load_path' tests/test_oh4p_runtime_smoke.c
 check_present 'oh1_set_region_weights\(weights\)' \
@@ -1853,7 +1852,7 @@ check_present 'OH_MODE_REBALANCE_SECONDARY' tests/test_oh4p_runtime_smoke.c
 check_present 'totalp\[1\] == 1' tests/test_oh4p_runtime_smoke.c
 check_present 'oh4p_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
   tests/test_oh4p_runtime_smoke.c
-check_present 'level4_fail_if_weighted_secondary_transbound(state, currmode)' \
+check_absent 'level4_fail_if_weighted_secondary_transbound' \
   src/c/ohhelp4p.c
 check_present 'oh2_set_particle_adapter(adapter)' \
   tests/test_oh4p_runtime_smoke.c
@@ -1868,7 +1867,7 @@ check_present 'strcmp(argv\[1\], "custom-adapter")' \
   tests/test_oh4s_runtime_smoke.c
 check_present 'strcmp(argv\[1\], "weighted-load")' \
   tests/test_oh4s_runtime_smoke.c
-check_present 'strcmp(argv\[1\], "weighted-secondary-unsupported")' \
+check_present 'strcmp(argv\[1\], "weighted-secondary")' \
   tests/test_oh4s_runtime_smoke.c
 check_present 'run_weighted_load_path' tests/test_oh4s_runtime_smoke.c
 check_present 'oh1_set_region_weights\(weights\)' \
@@ -1879,12 +1878,8 @@ check_present 'OH_MODE_REBALANCE_SECONDARY' tests/test_oh4s_runtime_smoke.c
 check_present 'totalp\[1\] == 2' tests/test_oh4s_runtime_smoke.c
 check_present 'oh4s_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
   tests/test_oh4s_runtime_smoke.c
-check_present 'level4_fail_if_weighted_secondary_transbound(state, currmode)' \
-  src/c/ohhelp4s.c
-check_present 'level4_fail_if_weighted_secondary_transbound' \
-  src/c/ohhelp4_internal.h
-check_present 'Level 4 weighted secondary transbound is not supported' \
-  src/c/ohhelp4_internal.h
+check_absent 'level4_fail_if_weighted_secondary_transbound' \
+  src/c/ohhelp4s.c src/c/ohhelp4_internal.h
 check_present 'oh2_set_particle_adapter(adapter)' \
   tests/test_oh4s_runtime_smoke.c
 check_present 'oh2_set_particle_adapter(NULL)' \
@@ -1943,19 +1938,19 @@ check_present 'level4_init_particle_stride()' src/c/ohhelp4p.c
 check_present 'SendBuf = level4_init_particle_at(Particles, maxlocalp)' \
   src/c/ohhelp4p.c
 check_absent '\(struct S_particle\*\*\)pbuf' src/c/ohhelp4p.c
+check_present 'level4_send_counts' src/c/ohhelp4s.c
 check_present 'default-context state bridge' doc/v2/design/level-scope.md
-check_present 'not heap-owned context support' doc/v2/design/level-scope.md
-check_present 'not a guarantee that non-uniform' \
+check_absent 'not heap-owned context support' doc/v2/design/level-scope.md
+check_absent 'not a guarantee that non-uniform' \
   doc/v2/design/level-scope.md
-check_present 'runtime migration smoke' doc/v2/design/level-scope.md
-check_present 'first weighted scheduling decision' doc/v2/design/level-scope.md
+check_present 'runtime coverage' doc/v2/design/level-scope.md
+check_present 'weighted primary and secondary transbound' \
+  doc/v2/design/level-scope.md
 check_present 'Weighted secondary transbound' \
   doc/v2/design/level-scope.md
-check_present 'runtime migration smoke' doc/v2/usage/api-by-level.md
-check_present 'migration smoke for scheduling only' \
-  tests/test_oh4p_runtime_smoke.c
-check_present 'migration smoke for scheduling only' \
-  tests/test_oh4s_runtime_smoke.c
+check_present 'supported v2 API' doc/v2/usage/api-by-level.md
+check_absent 'migration smoke for scheduling only' \
+  tests/test_oh4p_runtime_smoke.c tests/test_oh4s_runtime_smoke.c
 check_absent 'oh_context_transbound4' include/oh_context.h src/fortran/oh_v2.F90
 check_present 'expected Level 4p zero hotspot threshold to fail' \
   scripts/docker-build-test.sh

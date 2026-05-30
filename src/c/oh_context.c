@@ -217,6 +217,7 @@ free_context_level1_storage(struct oh_state *context) {
   free(context->n_of_send);
   free(context->recv_counts);
   free(context->send_counts);
+  free(context->level4_send_counts);
   free(context->nodes);
   free(context->nodes_next);
   free(context->node_queue);
@@ -244,6 +245,8 @@ free_context_level1_storage(struct oh_state *context) {
   context->n_of_send = NULL;
   context->recv_counts = NULL;
   context->send_counts = NULL;
+  context->level4_send_counts = NULL;
+  context->level4_send_counts_size = 0;
   context->nodes = NULL;
   context->nodes_next = NULL;
   context->node_queue = NULL;

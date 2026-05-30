@@ -22,12 +22,4 @@ EXTERN int FirstNeighbor[OH_NEIGHBORS], GridOffset[2][OH_NEIGHBORS];
 EXTERN struct S_realneighbor RealDstNeighbors[2][2], RealSrcNeighbors[2][2];
 EXTERN int BoundaryCondition[OH_DIMENSION][2];
 
-static inline void
-level4_fail_if_weighted_secondary_transbound(struct oh_state* state,
-                                             int currmode) {
-    if (state->weighted_load_balancing && Mode_PS(state->curr_mode) &&
-        Mode_PS(currmode))
-        local_errstop("Level 4 weighted secondary transbound is not supported");
-}
-
 #endif

@@ -744,12 +744,7 @@ $MPICC -DOH_LIB_LEVEL_4P -Iinclude tests/test_oh4p_runtime_smoke.c \
 run_mpi -n 2 build/docker/test_oh4p_runtime_smoke
 run_mpi -n 2 build/docker/test_oh4p_runtime_smoke custom-adapter
 run_mpi -n 2 build/docker/test_oh4p_runtime_smoke weighted-load
-expect_mpi_failure_log_contains \
-  "expected Level 4p weighted secondary transbound to fail" \
-  build/docker/oh4p_weighted_secondary.err \
-  "Level 4 weighted secondary transbound is not supported" \
-  "expected Level 4p weighted secondary failure message" \
-  -n 2 build/docker/test_oh4p_runtime_smoke weighted-secondary-unsupported
+run_mpi -n 2 build/docker/test_oh4p_runtime_smoke weighted-secondary
 $MPICC -DOH_LIB_LEVEL_4S -Iinclude tests/test_oh4s_runtime_smoke.c \
   src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c src/c/ohhelp4s.c \
@@ -757,12 +752,7 @@ $MPICC -DOH_LIB_LEVEL_4S -Iinclude tests/test_oh4s_runtime_smoke.c \
 run_mpi -n 2 build/docker/test_oh4s_runtime_smoke
 run_mpi -n 2 build/docker/test_oh4s_runtime_smoke custom-adapter
 run_mpi -n 2 build/docker/test_oh4s_runtime_smoke weighted-load
-expect_mpi_failure_log_contains \
-  "expected Level 4s weighted secondary transbound to fail" \
-  build/docker/oh4s_weighted_secondary.err \
-  "Level 4 weighted secondary transbound is not supported" \
-  "expected Level 4s weighted secondary failure message" \
-  -n 2 build/docker/test_oh4s_runtime_smoke weighted-secondary-unsupported
+run_mpi -n 2 build/docker/test_oh4s_runtime_smoke weighted-secondary
 $MPICC -DOH_POS_AWARE -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
   src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c \

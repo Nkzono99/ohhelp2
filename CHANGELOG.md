@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## v2.3.3 - 2026-05-31
+
+### Fixed
+
+- Guarded unweighted secondary stable transfer reuse with the same
+  primary/secondary-family validity check used by weighted stable reuse, so a
+  stale family tree triggers rebalance instead of producing an invalid particle
+  transfer schedule.
+
+### Verification
+
+- `git diff --check`
+- GitHub Actions `standard-gate`
+- KUDPC `tssrun` `scripts/test.sh` with `MPIRUN_FLAGS=--oversubscribe`
+- KUDPC `tssrun` `scripts/fpm-build-test.sh`
+
 ## v2.3.2 - 2026-05-30
 
 ### Added

@@ -20,6 +20,8 @@
 
 ### Fixed
 
+- Removed duplicate Level 4 test definitions of `gridMask`/`logGrid` so GCC
+  `-fno-common` CI builds link cleanly.
 - Preserved Level 4p send counts separately from send-buffer cursors before
   particle exchange.
 - Improved injection overflow diagnostics with rank, particle counts,

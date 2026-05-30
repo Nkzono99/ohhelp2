@@ -7,9 +7,6 @@
 #include "ohhelp3.h"
 #include "ohhelp4s.h"
 
-int gridMask;
-int logGrid;
-
 int
 main(int argc, char **argv) {
   int *sdid = NULL;

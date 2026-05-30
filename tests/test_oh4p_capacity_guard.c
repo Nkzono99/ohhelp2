@@ -6,9 +6,6 @@
 #include "ohhelp1.h"
 #include "ohhelp4p.h"
 
-int gridMask;
-int logGrid;
-
 int
 main(int argc, char **argv) {
   int capacity;

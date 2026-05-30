@@ -11,9 +11,6 @@
 #include "ohhelp3.h"
 #include "ohhelp4s.h"
 
-int gridMask;
-int logGrid;
-
 struct level4_custom_particle {
   double x, y, z;
   long long region;

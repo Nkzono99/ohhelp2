@@ -1226,6 +1226,7 @@ check_present_re '^run_mpi\(\)[[:space:]]*\{' scripts/docker-build-test.sh
 check_present 'timeout "\$TEST_TIMEOUT" "\$MPIRUN"' scripts/docker-build-test.sh
 check_present 'MPIRUN_FLAGS' scripts/docker-build-test.sh
 check_present 'MPIRUN_FLAGS: "--oversubscribe"' .github/workflows/ci.yml
+check_present 'FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"' .github/workflows/ci.yml
 check_absent '^int (gridMask|logGrid);' \
   tests/test_oh4_runtime_globals.c \
   tests/test_oh4p_runtime_smoke.c \

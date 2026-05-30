@@ -17,6 +17,7 @@
 - Added a GitHub Actions CI gate and made the standard local gate include fpm
   package-build coverage.
 - Added `MPIRUN_FLAGS` support for constrained CI MPI launchers.
+- Opted the GitHub Actions CI job into Node.js 24 action execution.
 
 ### Fixed
 

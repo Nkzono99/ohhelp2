@@ -8,21 +8,26 @@ jobs:
   standard-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install MPI toolchain
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            g++ gfortran make openmpi-bin libopenmpi-dev
+            ca-certificates curl g++ gfortran make openmpi-bin libopenmpi-dev
 
       - name: Install fpm
-        uses: fortran-lang/setup-fpm@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          FPM_VERSION: "0.11.0"
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL \
+            "https://github.com/fortran-lang/fpm/releases/download/v${FPM_VERSION}/fpm-${FPM_VERSION}-linux-x86_64-gcc-12" \
+            -o "$HOME/.local/bin/fpm"
+          chmod +x "$HOME/.local/bin/fpm"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/fpm" --version
 
       - name: Run standard test gate
         env:

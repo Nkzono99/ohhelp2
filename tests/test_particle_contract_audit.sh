@@ -1087,7 +1087,9 @@ check_present 'bash scripts/docker-build-test\.sh' scripts/test.sh
 check_present '"\$FPM" build --compiler "\$FC" --c-compiler "\$CC"' \
   scripts/fpm-build-test.sh
 check_absent '"\$FPM" test' scripts/fpm-build-test.sh
-check_present 'setup-fpm' .github/workflows/ci.yml
+check_present 'actions/checkout@v6' .github/workflows/ci.yml
+check_absent 'fortran-lang/setup-fpm' .github/workflows/ci.yml
+check_present 'linux-x86_64-gcc-12' .github/workflows/ci.yml
 check_present 'bash scripts/test\.sh' .github/workflows/ci.yml
 check_present 'convert_pdfs_to_md\.py' scripts/check-v1-markdown.sh
 check_present '--out-dir' scripts/check-v1-markdown.sh
@@ -1226,7 +1228,7 @@ check_present_re '^run_mpi\(\)[[:space:]]*\{' scripts/docker-build-test.sh
 check_present 'timeout "\$TEST_TIMEOUT" "\$MPIRUN"' scripts/docker-build-test.sh
 check_present 'MPIRUN_FLAGS' scripts/docker-build-test.sh
 check_present 'MPIRUN_FLAGS: "--oversubscribe"' .github/workflows/ci.yml
-check_present 'FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"' .github/workflows/ci.yml
+check_absent 'FORCE_JAVASCRIPT_ACTIONS_TO_NODE24' .github/workflows/ci.yml
 check_absent '^int (gridMask|logGrid);' \
   tests/test_oh4_runtime_globals.c \
   tests/test_oh4p_runtime_smoke.c \

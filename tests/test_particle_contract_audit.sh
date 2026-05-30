@@ -196,7 +196,8 @@ check_present 'extern "C"' include/ohhelp3.h
 check_present 'extern "C"' include/ohhelp4p.h
 check_present 'extern "C"' include/ohhelp4s.h
 
-for executable_script in scripts/test.sh scripts/check-v1-markdown.sh; do
+for executable_script in scripts/test.sh scripts/check-v1-markdown.sh \
+                         scripts/fpm-build-test.sh; do
   if [ ! -x "$executable_script" ]; then
     fail "$executable_script must be executable"
   fi
@@ -204,12 +205,15 @@ done
 
 check_present 'set -euo pipefail' scripts/test.sh
 check_present 'set -euo pipefail' scripts/check-v1-markdown.sh
+check_present 'set -euo pipefail' scripts/fpm-build-test.sh
 check_present 'set -euo pipefail' scripts/docker-build-test.sh
 check_present 'set -euo pipefail' tests/test_particle_contract_audit.sh
 check_present 'BASH_SOURCE\[0\]' scripts/test.sh
 check_present 'cd "\$REPO_ROOT"' scripts/test.sh
 check_present 'BASH_SOURCE\[0\]' scripts/check-v1-markdown.sh
 check_present 'cd "\$REPO_ROOT"' scripts/check-v1-markdown.sh
+check_present 'BASH_SOURCE\[0\]' scripts/fpm-build-test.sh
+check_present 'cd "\$REPO_ROOT"' scripts/fpm-build-test.sh
 check_present 'BASH_SOURCE\[0\]' scripts/docker-build-test.sh
 check_present 'cd "\$REPO_ROOT"' scripts/docker-build-test.sh
 check_present 'build/docker/negative/\$suite' scripts/docker-build-test.sh
@@ -1077,7 +1081,14 @@ check_present 'test_particle_contract_audit\.sh' scripts/test.sh
 check_present 'bash tests/test_particle_contract_audit\.sh' scripts/test.sh
 check_present 'OH_CHECK_V1_MARKDOWN' scripts/test.sh
 check_present 'bash scripts/check-v1-markdown\.sh' scripts/test.sh
+check_present 'OH_CHECK_FPM' scripts/test.sh
+check_present 'bash scripts/fpm-build-test\.sh' scripts/test.sh
 check_present 'bash scripts/docker-build-test\.sh' scripts/test.sh
+check_present '"\$FPM" build --compiler "\$FC" --c-compiler "\$CC"' \
+  scripts/fpm-build-test.sh
+check_absent '"\$FPM" test' scripts/fpm-build-test.sh
+check_present 'setup-fpm' .github/workflows/ci.yml
+check_present 'bash scripts/test\.sh' .github/workflows/ci.yml
 check_present 'convert_pdfs_to_md\.py' scripts/check-v1-markdown.sh
 check_present '--out-dir' scripts/check-v1-markdown.sh
 check_present '--out-dir' scripts/convert_pdfs_to_md.py
@@ -2002,6 +2013,13 @@ check_absent '\(struct S_particle\*\*\)pbuf' src/c/ohhelp4p.c
 check_present 'level4_send_counts' src/c/ohhelp4p.c
 check_present 'level4_send_counts' src/c/ohhelp4s.c
 check_present 'Level 4 send count exceeds send buffer' src/c/ohhelp4p.c
+check_present 'Level 4p is a default-context API' include/ohhelp4p.h
+check_present 'Level 4s is a default-context API' include/ohhelp4s.h
+check_present 'intentionally no context-owned Level 4 transbound API' \
+  include/oh_context.h
+check_present 'default-context state bridge' doc/v2/usage/api-by-level.md
+check_present 'default-context state bridge' \
+  doc/v2/usage/api-by-level-fortran.md
 check_present 'default-context state bridge' doc/v2/design/level-scope.md
 check_absent 'not heap-owned context support' doc/v2/design/level-scope.md
 check_absent 'not a guarantee that non-uniform' \

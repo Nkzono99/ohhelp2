@@ -12,6 +12,10 @@
 - Documented the supported scope of `oh_context_configure_level3_legacy()` and
   the recommended `oh3_init_raw()` migration path for historical Fortran field
   descriptors.
+- Clarified that Level 4p/4s remain default-context APIs until Level 4 storage
+  becomes heap-context owned.
+- Added a GitHub Actions CI gate and made the standard local gate include fpm
+  package-build coverage.
 
 ### Fixed
 
@@ -28,6 +32,7 @@
 
 - `git diff --check`
 - `bash tests/test_particle_contract_audit.sh`
+- `bash scripts/fpm-build-test.sh`
 - `bash scripts/test.sh`
 
 ## v2.3.1 - 2026-05-30

@@ -135,3 +135,9 @@ Use `OH_LIB_LEVEL_4P` or `OH_LIB_LEVEL_4S` to select the Level 4 implementation
 at build time. The supported path includes the v2 particle adapter contract,
 default and custom particle layouts, injected-particle accounting, and weighted
 primary and secondary transbound schedules.
+
+Level 4p/4s currently operate through the default-context state bridge. Use
+`oh4p_*` / `oh4s_*` entry points and configure adapters or region weights
+through the default-context Level 1-3 APIs before initialization. There is
+intentionally no `oh_context_transbound4*` API until Level 4 storage is
+heap-context owned.

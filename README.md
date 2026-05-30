@@ -52,8 +52,10 @@ bash scripts/test.sh
 
 This gate expects MPI C, Fortran, and C++ compiler wrappers (`mpicc` or
 `MPICC`, `mpifort` or `MPIFC`, `mpic++` or `MPICXX`), `mpirun` or `MPIRUN`,
-and `timeout`. MPI test timeout defaults to `60s` and can be overridden with
-`TEST_TIMEOUT`.
+`fpm`, and `timeout`. MPI test timeout defaults to `60s` and can be overridden
+with `TEST_TIMEOUT`. The fpm gate is a package build check; runtime coverage
+comes from `scripts/docker-build-test.sh`. Set `OH_CHECK_FPM=0` only for local
+environments that do not have fpm installed.
 
 Historical v1 Markdown is generated from PDFs with Python 3.10 or newer. Check
 reproducibility separately after installing `requirements-doc.txt`:

@@ -10,4 +10,7 @@ bash tests/test_particle_contract_audit.sh
 if [ "${OH_CHECK_V1_MARKDOWN:-0}" = "1" ]; then
   bash scripts/check-v1-markdown.sh
 fi
+if [ "${OH_CHECK_FPM:-1}" = "1" ]; then
+  bash scripts/fpm-build-test.sh
+fi
 bash scripts/docker-build-test.sh

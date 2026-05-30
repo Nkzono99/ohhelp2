@@ -69,6 +69,9 @@ void oh_context_configure_level3(oh_context *context, const int *pcoord,
                                  const int *cfields, const int *ctypes,
                                  int *fsizes);
 
+/* Level 4p/4s entry points are still default-context APIs. There is
+   intentionally no context-owned Level 4 transbound API until Level 4 storage
+   is fully heap-context owned. */
 int oh_context_transbound1(oh_context *context, int currmode, int stats);
 int oh_context_transbound2(oh_context *context, int currmode, int stats);
 int oh_context_transbound3(oh_context *context, int currmode, int stats);

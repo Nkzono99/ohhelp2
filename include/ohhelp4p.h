@@ -16,7 +16,9 @@
 extern "C" {
 #endif
 
-/* Prototypes for the functions called from simulator code */
+/* Level 4p is a default-context API. Configure adapters and region weights
+   through the default-context/legacy Level 1-3 entry points before calling
+   these functions; heap-owned oh_context Level 4 APIs are not exposed yet. */
 void oh4p_init(int** sdid, const int nspec, const int maxfrac, int** totalp,
     void** pbuf, int** pbase, const int maxlocalp,
     void* mycomm, int** nbor, int* pcoord, int** sdoms, int* scoord,

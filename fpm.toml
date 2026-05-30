@@ -6,7 +6,7 @@ maintainer = "Jin Nakazono <nakazono.jin@port.kobe-u.ac.jp>"
 copyright = "Copyright (C) 2009-2015 Hiroshi Nakashima; Copyright (C) 2023 Jin Nakazono"
 
 [build]
-auto-tests = true
+auto-tests = false
 auto-examples = true
 module-naming = false
 

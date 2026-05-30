@@ -179,6 +179,10 @@ Level 4p/4s の Fortran entry points は historical modules
 ください。Level 4 の C core は position-aware state を持つため、Level 1-3
 向けに compile した object を流用しないでください。
 
+Level 4p/4s の historical modules は default-context state bridge を使い、
+`oh_context_handle` を受け取りません。adapter や region weights は Level 4
+初期化前に default-context 側の API で設定してください。
+
 historical Fortran Level 4 API は Level 3 と同じく one-based の boundary
 condition id を受け取ります。wrapper は Level 4 内部の mapping boundary
 table へ保存するときに zero-based id へ変換します。C と同じ非 periodic

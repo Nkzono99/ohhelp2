@@ -24,22 +24,22 @@ module ohhelp4s
             integer*8, intent(in)  :: npmax
             integer, intent(in)    :: minmargin
             integer, intent(in)    :: maxdensity
-            integer, intent(out)   :: totalp(:, :)
+            integer, intent(out)   :: totalp(nspec, 2)
             integer, intent(out)   :: pbase(3)
             integer, intent(out)   :: maxlocalp
             integer, intent(out)   :: cbufsize
             type(oh_mycomm), intent(out) :: mycomm
             integer, intent(inout) :: nbor(3, 3, 3)
             integer, intent(in)    :: pcoord(OH_DIMENSION)
-            integer, intent(inout) :: sdoms(:, :, :)
+            integer, intent(inout) :: sdoms(2, OH_DIMENSION, *)
             integer, intent(in)    :: scoord(2, OH_DIMENSION)
             integer, intent(in)    :: nbound
             integer, intent(in)    :: bcond(2, OH_DIMENSION)
-            integer, intent(inout) :: bounds(:, :, :)
-            integer, intent(in)    :: ftypes(:, :)
-            integer, intent(in)    :: cfields(:)
-            integer, intent(in)    :: ctypes(:, :, :, :)
-            integer, intent(out)   :: fsizes(:, :, :)
+            integer, intent(inout) :: bounds(2, OH_DIMENSION, *)
+            integer, intent(in)    :: ftypes(7, *)
+            integer, intent(in)    :: cfields(*)
+            integer, intent(in)    :: ctypes(3, 2, nbound, *)
+            integer, intent(out)   :: fsizes(2, OH_DIMENSION, *)
             integer, intent(out)   :: zbound(2, 2)
             integer, intent(in)    :: stats
             integer, intent(in)    :: repiter
@@ -48,7 +48,7 @@ module ohhelp4s
         subroutine oh4s_particle_buffer(maxlocalp, pbuf)
             import oh_particle
             integer, intent(in)   :: maxlocalp
-            type(oh_particle), intent(inout) :: pbuf(:)
+            type(oh_particle), intent(inout) :: pbuf(*)
         end subroutine
         subroutine oh4s_per_grid_histogram(pghgram, pgindex)
             implicit none

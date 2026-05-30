@@ -22,6 +22,12 @@
 
 - Removed duplicate Level 4 test definitions of `gridMask`/`logGrid` so GCC
   `-fno-common` CI builds link cleanly.
+- Initialized Level 4 position-aware field exchange tables on the context state
+  so Fortran Level 4 initialization does not dereference NULL state pointers.
+- Changed legacy Level 4 Fortran interfaces to pass raw contiguous arrays to
+  the C implementation on gfortran instead of assumed-shape descriptors.
+- Changed legacy Level 1/2/3 Fortran init interfaces to pass raw contiguous
+  arrays to the C implementation on gfortran.
 - Preserved Level 4p send counts separately from send-buffer cursors before
   particle exchange.
 - Improved injection overflow diagnostics with rank, particle counts,

@@ -1232,6 +1232,11 @@ check_absent '^int (gridMask|logGrid);' \
   tests/test_oh4p_capacity_guard.c \
   tests/test_oh4s_runtime_smoke.c \
   tests/test_oh4s_capacity_guard.c
+check_present 'integer,intent(inout) :: nphgram(*)' src/fortran/oh_mod1.F90
+check_present 'integer,intent(inout) :: nphgram(*)' src/fortran/oh_mod2.F90
+check_present 'integer,intent(inout) :: nphgram(*)' src/fortran/oh_mod3.F90
+check_present 'integer,intent(inout) :: sdoms(2,OH_DIMENSION,*)' \
+  src/fortran/oh_mod3.F90
 check_present_re '^expect_mpi_failure_log_contains\(\)[[:space:]]*\{' \
   scripts/docker-build-test.sh
 check_present_re '^expect_mpi_failure_log_cases\(\)[[:space:]]*\{' \
@@ -1888,6 +1893,11 @@ check_present 'run_mpi -n 2 build/docker/test_oh4p_fortran_runtime' \
   scripts/docker-build-test.sh
 check_present 'run_mpi -n 2 build/docker/test_oh4p_fortran_runtime weighted-secondary' \
   scripts/docker-build-test.sh
+check_present 'type(oh_particle),intent(inout) :: pbuf(*)' src/fortran/oh_mod4p.F90
+check_present 'integer,intent(inout) :: sdoms(2,OH_DIMENSION,*)' \
+  src/fortran/oh_mod4p.F90
+check_present 'integer,intent(in)    :: ctypes(3,2,nbound,*)' \
+  src/fortran/oh_mod4p.F90
 check_present 'tests/test_oh4s_runtime_smoke\.c' scripts/docker-build-test.sh
 check_present 'src/c/ohhelp1\.c src/c/ohhelp2\.c src/c/ohhelp3\.c src/c/ohhelp4s\.c' \
   scripts/docker-build-test.sh
@@ -1904,6 +1914,11 @@ check_present 'run_mpi -n 2 build/docker/test_oh4s_fortran_runtime' \
   scripts/docker-build-test.sh
 check_present 'run_mpi -n 2 build/docker/test_oh4s_fortran_runtime weighted-secondary' \
   scripts/docker-build-test.sh
+check_present 'type(oh_particle), intent(inout) :: pbuf(*)' src/fortran/oh_mod4s.F90
+check_present 'integer, intent(inout) :: sdoms(2, OH_DIMENSION, *)' \
+  src/fortran/oh_mod4s.F90
+check_present 'integer, intent(in)    :: ctypes(3, 2, nbound, *)' \
+  src/fortran/oh_mod4s.F90
 check_present 'strcmp(argv\[1\], "custom-adapter")' \
   tests/test_oh4p_runtime_smoke.c
 check_present 'strcmp(argv\[1\], "weighted-load")' \

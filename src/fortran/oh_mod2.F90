@@ -18,9 +18,9 @@ module ohhelp2
       integer,intent(out)   :: sdid(2)
       integer,intent(in)    :: nspec
       integer,intent(in)    :: maxfrac
-      integer,intent(inout) :: nphgram(:,:,:)
-      integer,intent(out)   :: totalp(:,:)
-      type(oh_particle),intent(inout) :: pbuf(:)
+      integer,intent(inout) :: nphgram(*)
+      integer,intent(out)   :: totalp(nspec,2)
+      type(oh_particle),intent(inout) :: pbuf(*)
       integer,intent(out)   :: pbase(3)
       integer,intent(in)    :: maxlocalp
       type(oh_mycomm),intent(out) :: mycomm

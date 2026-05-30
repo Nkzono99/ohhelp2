@@ -20,9 +20,9 @@ module ohhelp3
       integer,intent(out)   :: sdid(2)
       integer,intent(in)    :: nspec
       integer,intent(in)    :: maxfrac
-      integer,intent(inout) :: nphgram(:,:,:)
-      integer,intent(out)   :: totalp(:,:)
-      type(oh_particle),intent(inout) :: pbuf(:)
+      integer,intent(inout) :: nphgram(*)
+      integer,intent(out)   :: totalp(nspec,2)
+      type(oh_particle),intent(inout) :: pbuf(*)
       integer,intent(out)   :: pbase(3)
       integer,intent(in)    :: maxlocalp
       type(oh_mycomm),intent(out) :: mycomm
@@ -36,15 +36,15 @@ module ohhelp3
 #endif
 #endif
       integer,intent(in)    :: pcoord(OH_DIMENSION)
-      integer,intent(inout) :: sdoms(:,:,:)
+      integer,intent(inout) :: sdoms(2,OH_DIMENSION,*)
       integer,intent(in)    :: scoord(2,OH_DIMENSION)
       integer,intent(in)    :: nbound
       integer,intent(in)    :: bcond(2,OH_DIMENSION)
-      integer,intent(inout) :: bounds(:,:,:)
-      integer,intent(in)    :: ftypes(:,:)
-      integer,intent(in)    :: cfields(:)
-      integer,intent(in)    :: ctypes(:,:,:,:)
-      integer,intent(out)   :: fsizes(:,:,:)
+      integer,intent(inout) :: bounds(2,OH_DIMENSION,*)
+      integer,intent(in)    :: ftypes(7,*)
+      integer,intent(in)    :: cfields(*)
+      integer,intent(in)    :: ctypes(3,2,nbound,*)
+      integer,intent(out)   :: fsizes(2,OH_DIMENSION,*)
       integer,intent(in)    :: stats
       integer,intent(in)    :: repiter
       integer,intent(in)    :: verbose
@@ -59,10 +59,10 @@ module ohhelp3
       integer,intent(out)   :: sdid(2)
       integer,intent(in)    :: nspec
       integer,intent(in)    :: maxfrac
-      integer,intent(inout) :: nphgram(:,:,:)
-      integer,intent(out)   :: totalp(:,:)
-      integer,intent(out)   :: rcounts(:,:,:)
-      integer,intent(out)   :: scounts(:,:,:)
+      integer,intent(inout) :: nphgram(*)
+      integer,intent(out)   :: totalp(nspec,2)
+      integer,intent(out)   :: rcounts(*)
+      integer,intent(out)   :: scounts(*)
       type(oh_mycomm),intent(out) :: mycomm
 #if OH_DIMENSION==1
       integer,intent(inout) :: nbor(3)
@@ -74,15 +74,15 @@ module ohhelp3
 #endif
 #endif
       integer,intent(in)    :: pcoord(OH_DIMENSION)
-      integer,intent(inout) :: sdoms(:,:,:)
+      integer,intent(inout) :: sdoms(2,OH_DIMENSION,*)
       integer,intent(in)    :: scoord(2,OH_DIMENSION)
       integer,intent(in)    :: nbound
       integer,intent(in)    :: bcond(2,OH_DIMENSION)
-      integer,intent(inout) :: bounds(:,:,:)
-      integer,intent(in)    :: ftypes(:,:)
-      integer,intent(in)    :: cfields(:)
-      integer,intent(in)    :: ctypes(:,:,:,:)
-      integer,intent(out)   :: fsizes(:,:,:)
+      integer,intent(inout) :: bounds(2,OH_DIMENSION,*)
+      integer,intent(in)    :: ftypes(7,*)
+      integer,intent(in)    :: cfields(*)
+      integer,intent(in)    :: ctypes(3,2,nbound,*)
+      integer,intent(out)   :: fsizes(2,OH_DIMENSION,*)
       integer,intent(in)    :: stats
       integer,intent(in)    :: repiter
       integer,intent(in)    :: verbose

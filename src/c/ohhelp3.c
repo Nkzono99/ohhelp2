@@ -651,8 +651,9 @@ state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N], int *cf,
   int (*fs)[OH_DIMENSION][2];
   int nf, ne;
   int f, e, d, lu;
+  int *tmp;
 #ifndef OH_POS_AWARE
-  int b, i, *tmp;
+  int b, i;
 #endif
 
   state->n_of_boundaries = nb;
@@ -678,7 +679,6 @@ state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N], int *cf,
                                     "FieldDesc");
   state->field_desc = fd;
   if (oh_context_is_default_state(state)) FieldDesc = fd;
-#ifndef OH_POS_AWARE
   state->boundary_comm_types =
     ne ? (int*)mem_alloc(sizeof(int), ne*nb*2*OH_CTYPE_N,
                          "BoundaryCommTypes") : NULL;
@@ -690,10 +690,15 @@ state_init_fields(struct oh_state *state, int (*ft)[OH_FTYPE_N], int *cf,
   }
 
   tmp = ne ? (int*)mem_alloc(sizeof(int), ne, "BoundaryCommFields") : NULL;
-  for (e=0; e<ne; e++)  tmp[e] = cf[e] + cfid;
+  for (e=0; e<ne; e++) {
+#ifdef OH_POS_AWARE
+    tmp[e] = cf[e];
+#else
+    tmp[e] = cf[e] + cfid;
+#endif
+  }
   state->boundary_comm_fields = cf = tmp;
   if (oh_context_is_default_state(state)) BoundaryCommFields = cf;
-#endif
 
   for (f=0; f<nf; f++) {
     int lo=ft[f][OH_FTYPE_LO], up=ft[f][OH_FTYPE_UP];

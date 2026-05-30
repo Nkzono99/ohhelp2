@@ -31,10 +31,10 @@ module ohhelp1
       integer,intent(out)   :: sdid(2)
       integer,intent(in)    :: nspec
       integer,intent(in)    :: maxfrac
-      integer,intent(inout) :: nphgram(:,:,:)
-      integer,intent(out)   :: totalp(:,:)
-      integer,intent(out)   :: rcounts(:,:,:)
-      integer,intent(out)   :: scounts(:,:,:)
+      integer,intent(inout) :: nphgram(*)
+      integer,intent(out)   :: totalp(nspec,2)
+      integer,intent(out)   :: rcounts(*)
+      integer,intent(out)   :: scounts(*)
       type(oh_mycomm),intent(out) :: mycomm
 #if OH_DIMENSION==1
       integer,intent(inout) :: nbor(3)
@@ -64,8 +64,8 @@ module ohhelp1
     end subroutine
     subroutine oh1_families(famindex, members)
       implicit none
-      integer,intent(inout) :: famindex(:)
-      integer,intent(inout) :: members(:)
+      integer,intent(inout) :: famindex(*)
+      integer,intent(inout) :: members(*)
     end subroutine
     integer function oh1_transbound(currmode, stats)
       implicit none

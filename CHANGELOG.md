@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+## v2.3.4 - 2026-05-31
+
+### Changed
+
+- Kept integer-field particle adapter fast-path classification in
+  context-owned internal state rather than mutable public adapter fields,
+  preserving the v2 adapter contract while keeping the Level 2/3 hot path
+  efficient for MPIEMSES3D-style byte-stride layouts.
+- Strengthened the repository issue-response skill so issue fixes are triaged
+  against the long-term v2 responsibility boundary instead of short-term
+  reporter-side workarounds.
+
+### Fixed
+
+- Synchronized default-context custom adapter state before raw Level 3
+  initialization, eliminating the stale adapter window that caused
+  `oh3_init_raw()` crashes after the integer-field adapter optimization.
+- Initialized raw Level 3 active subdomain backing storage and default
+  coordinate/boundary state for caller-owned `sdoms`/`bounds` configurations.
+- Documented that the built-in default particle adapter is only valid for
+  buffers with the exact `struct S_particle` ABI, and that external but similar
+  particle layouts should use explicit byte-stride adapters.
+
+### Verification
+
+- `git diff --check`
+- `bash tests/test_particle_contract_audit.sh`
+- `fpm build --compiler mpifort --c-compiler mpicc`
+- KUDPC `tssrun` `scripts/test.sh` with `MPIRUN_FLAGS=--oversubscribe`
+- GitHub Actions `standard-gate`
+- MPIEMSES3D 32-rank `flatpe32`, `dshield0_32`, `lhole32`, `lsurface`,
+  `secondary32`, `scraft1_32`, `plasma-only`, and `insulator_bt` validation
+  reported status 0 with empty stderr for commit `3f55406`.
+
 ## v2.3.3 - 2026-05-31
 
 ### Fixed

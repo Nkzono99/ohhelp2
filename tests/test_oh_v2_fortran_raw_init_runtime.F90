@@ -44,6 +44,8 @@ program test_oh_v2_fortran_raw_init_runtime
   integer(c_int), target :: pcoord(ndim)
   integer(c_int), target :: scoord(2*ndim)
   integer(c_int), target :: bcond(2*ndim)
+  integer(c_int), allocatable, target :: sdoms(:)
+  integer(c_int), allocatable, target :: bounds(:)
   integer(c_int), target :: ftypes(2*ftype_n)
   integer(c_int), target :: cfields(1)
   integer(c_int), target :: ctypes(2*ctype_n)
@@ -52,6 +54,8 @@ program test_oh_v2_fortran_raw_init_runtime
   type(c_ptr) :: pbase_ptr
   type(c_ptr) :: mycomm_ptr
   type(c_ptr) :: pcoord_ptr
+  type(c_ptr) :: sdoms_ptr
+  type(c_ptr) :: bounds_ptr
   integer(c_size_t) :: region_offset
   integer(c_size_t) :: species_offset
   integer(c_size_t) :: x_offset
@@ -72,6 +76,8 @@ program test_oh_v2_fortran_raw_init_runtime
 
   allocate(particles(8))
   allocate(nphgram(2*nranks))
+  allocate(sdoms(2*ndim*nranks))
+  allocate(bounds(2*ndim*nranks))
 
   call oh_particle_adapter_create_byte(adapter, c_sizeof(particles(1)), ierr)
   if (ierr /= 0_c_int) stop 1
@@ -105,6 +111,10 @@ program test_oh_v2_fortran_raw_init_runtime
   pcoord(1) = int(nranks, c_int)
   scoord = 0_c_int
   bcond = 1_c_int
+  sdoms = 0_c_int
+  sdoms(1) = 0_c_int
+  sdoms(2) = -1_c_int
+  bounds = 0_c_int
   do d = 0, ndim - 1
     scoord(2*d + 1) = 0_c_int
     scoord(2*d + 2) = pcoord(d + 1)
@@ -137,6 +147,13 @@ program test_oh_v2_fortran_raw_init_runtime
 #else
   pcoord_ptr = c_loc(pcoord(1))
 #endif
+#ifdef TEST_OH_RAW_APP_LEVEL3_ARRAYS
+  sdoms_ptr = c_loc(sdoms(1))
+  bounds_ptr = c_loc(bounds(1))
+#else
+  sdoms_ptr = c_null_ptr
+  bounds_ptr = c_null_ptr
+#endif
 
 #if TEST_OH_RAW_LEVEL == 2
   call oh2_init_raw(c_loc(sdid(1)), 1_c_int, 20_c_int, &
@@ -147,8 +164,8 @@ program test_oh_v2_fortran_raw_init_runtime
   call oh3_init_raw(c_loc(sdid(1)), 1_c_int, 20_c_int, &
                     c_loc(nphgram(1)), c_loc(totalp(1)), pbuf, &
                     pbase_ptr, 8_c_int, mycomm_ptr, c_loc(nbor(1)), &
-                    pcoord_ptr, c_null_ptr, c_loc(scoord(1)), &
-                    1_c_int, c_loc(bcond(1)), c_null_ptr, c_loc(ftypes(1)), &
+                    pcoord_ptr, sdoms_ptr, c_loc(scoord(1)), &
+                    1_c_int, c_loc(bcond(1)), bounds_ptr, c_loc(ftypes(1)), &
                     c_loc(cfields(1)), c_loc(ctypes(1)), c_loc(fsizes(1)), &
                     0_c_int, 0_c_int, 0_c_int)
 #endif
@@ -192,6 +209,8 @@ program test_oh_v2_fortran_raw_init_runtime
   call oh_context_unbind_particles(context)
   call oh_context_unbind_particle_accounting(context)
   call oh_set_particle_adapter()
+  deallocate(bounds)
+  deallocate(sdoms)
   deallocate(nphgram)
   deallocate(particles)
 

@@ -161,6 +161,8 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
   int (*bd)[OH_DIMENSION][2]=(int(*)[OH_DIMENSION][2])*bounds;
   int (*ft)[OH_FTYPE_N]=(int(*)[OH_FTYPE_N])ftypes;
   int (*ct)[2][OH_CTYPE_N]=(int(*)[2][OH_CTYPE_N])ctypes;
+  int default_sc[OH_DIMENSION][2];
+  int default_bc[OH_DIMENSION][2];
   int d, n, m;
 
   if (skip2)
@@ -173,6 +175,12 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
   excludeLevel2 = skip2;
   state = oh1_state();
   state->exclude_level2 = excludeLevel2;
+  if (oh_context_is_default_state(state)) {
+    state->grid = Grid;
+    state->adjacent = &Adjacent[0][0];
+  }
+  if (!state->grid)
+    local_errstop("oh3_init_raw requires Level 3 grid storage");
   nn = state->n_of_nodes;
 
   if (!sd) {
@@ -191,10 +199,22 @@ init3(int **sdid, int nspec, int maxfrac, int **nphgram,
     Adjacent[d][OH_LOWER] = nl<0 ? -(nl+1) : nl;
     Adjacent[d][OH_UPPER] = nu<0 ? -(nu+1) : nu;
   }
-  if (sd[0][OH_DIM_X][OH_LOWER]>sd[0][OH_DIM_X][OH_UPPER])
+  if (sd[0][OH_DIM_X][OH_LOWER]>sd[0][OH_DIM_X][OH_UPPER]) {
+    if (!sc) {
+      for (d=0; d<OH_DIMENSION; d++) {
+        default_sc[d][OH_LOWER] = 0;
+        default_sc[d][OH_UPPER] = pcoord[d];
+      }
+      sc = default_sc;
+    }
+    if (!bc) {
+      memset(default_bc, 0, sizeof(default_bc));
+      bc = default_bc;
+    }
     init_subdomain_actively(state, sd, sc, pcoord, bc, bd, nbound, -cfid);
-  else
+  } else {
     init_subdomain_passively(state, sd, bd, nbound, -cfid);
+  }
 
   SubDomains = (int(*)[OH_DIMENSION][2])
                mem_alloc(sizeof(int), nn*OH_DIMENSION*2, "SubDomains");
@@ -252,7 +272,6 @@ oh3_particle_adapter_use_neighbor_position_fields(oh_particle_adapter *adapter,
   oh_particle_adapter_use_position_fields(adapter, x_offset, y_offset,
                                           z_offset);
   adapter->map_to_neighbor = offset_level3_map_particle_to_neighbor;
-  oh_particle_adapter_refresh_fast_flags(adapter);
 }
 
 void
@@ -264,7 +283,6 @@ oh3_particle_adapter_use_subdomain_position_fields(oh_particle_adapter *adapter,
   oh_particle_adapter_use_position_fields(adapter, x_offset, y_offset,
                                           z_offset);
   adapter->map_to_subdomain = offset_level3_map_particle_to_subdomain;
-  oh_particle_adapter_refresh_fast_flags(adapter);
 }
 
 void
@@ -284,7 +302,7 @@ oh3_bind_context_particle_adapter(struct oh_state *state) {
     adapter->user_data = state;
     adapter->map_to_subdomain = context_level3_map_particle_to_subdomain;
   }
-  oh_particle_adapter_refresh_fast_flags(adapter);
+  oh2_refresh_particle_adapter_fast_path(state);
 }
 
 void

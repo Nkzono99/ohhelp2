@@ -90,6 +90,10 @@ struct oh_state {
   oh_particle_adapter owned_custom_particle_adapter;
   int owns_particle_mpi_type;
   int use_custom_particle_adapter;
+  int particle_region_access;
+  int particle_species_access;
+  int particle_map_to_neighbor_access;
+  int particle_map_to_subdomain_access;
   MPI_Request *requests;
   MPI_Status *statuses;
   int exclude_level2;

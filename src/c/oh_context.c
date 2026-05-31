@@ -181,6 +181,7 @@ init_context_particle_adapter(struct oh_state *context, MPI_Datatype type,
   context->use_custom_particle_mpi_type = 0;
   context->use_custom_particle_adapter = 0;
   context->owns_particle_mpi_type = owns_type;
+  oh2_refresh_particle_adapter_fast_path(context);
   return MPI_SUCCESS;
 }
 
@@ -801,13 +802,23 @@ oh1_sync_default_state(void) {
   OhDefaultState.recv_buffer_disps = RecvBufDisps;
   OhDefaultState.n_of_injections = nOfInjections;
   OhDefaultState.spec_base = specBase;
-  OhDefaultState.particle_mpi_type = T_Particle;
+  OhDefaultState.particle_mpi_type =
+    useCustomParticleAdapter ? CustomTParticle : T_Particle;
   OhDefaultState.owns_particle_mpi_type = ownsTParticle;
   OhDefaultState.custom_particle_mpi_type = CustomTParticle;
   OhDefaultState.use_custom_particle_mpi_type = useCustomTParticle;
-  OhDefaultState.particle_adapter = &ParticleAdapter;
+  OhDefaultState.particle_adapter =
+    useCustomParticleAdapter ? &CustomParticleAdapter : &ParticleAdapter;
   OhDefaultState.custom_particle_adapter = &CustomParticleAdapter;
   OhDefaultState.use_custom_particle_adapter = useCustomParticleAdapter;
+  OhDefaultState.particle_region_access =
+    oh_particle_adapter_region_access(OhDefaultState.particle_adapter);
+  OhDefaultState.particle_species_access =
+    oh_particle_adapter_species_access(OhDefaultState.particle_adapter);
+  OhDefaultState.particle_map_to_neighbor_access =
+    oh_particle_adapter_map_to_neighbor_access(OhDefaultState.particle_adapter);
+  OhDefaultState.particle_map_to_subdomain_access =
+    oh_particle_adapter_map_to_subdomain_access(OhDefaultState.particle_adapter);
   OhDefaultState.requests = Requests;
   OhDefaultState.statuses = Statuses;
   OhDefaultState.exclude_level2 = excludeLevel2;

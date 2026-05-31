@@ -1501,14 +1501,24 @@ check_present 'adapter->map_to_neighbor == int_field_map_to_region' \
   src/c/oh_particle_adapter.c
 check_present 'adapter->map_to_subdomain == int_field_map_to_region' \
   src/c/oh_particle_adapter.c
-check_present 'oh_particle_adapter_refresh_fast_flags' \
-  src/c/oh_particle_adapter.c include/oh_particle_adapter.h
+check_present 'oh2_refresh_particle_adapter_fast_path' \
+  src/c/ohhelp2.c src/c/ohhelp2_internal.h
+check_present 'particle_map_to_subdomain_access' \
+  src/c/oh_context_internal.h src/c/ohhelp2.c
+check_present 'useCustomParticleAdapter \? &CustomParticleAdapter : &ParticleAdapter' \
+  src/c/oh_context.c
 check_present 'OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD' \
   src/c/ohhelp2.c include/oh_particle_adapter.h
+check_absent 'int region_access;' include/oh_particle_adapter.h
 check_present 'Those integer-field helpers are also the low-overhead v2 path' \
+  doc/v2/design/particle-adapter.md
+check_present 'internal context state, not extra mutable fields' \
   doc/v2/design/particle-adapter.md
 check_present 'application particle storage is exactly the same ABI' \
   doc/v2/design/particle-adapter.md
+check_present 'TEST_OH_RAW_APP_LEVEL3_ARRAYS=1' scripts/docker-build-test.sh
+check_present 'test_oh_v2_fortran_raw_init_runtime_l3_app_arrays' \
+  scripts/docker-build-test.sh
 check_present 'test_oh_particle_adapter before-init' scripts/docker-build-test.sh
 check_present 'test_oh_particle_adapter after-finalize' scripts/docker-build-test.sh
 check_present 'mpi_active && bx\[e\]\[1\]\[d\]\[lu\]\.send\.deriv' \

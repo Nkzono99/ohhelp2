@@ -52,10 +52,6 @@ struct oh_particle_adapter {
   oh_particle_get_species_fn get_species;
   oh_particle_map_fn map_to_neighbor;
   oh_particle_map_fn map_to_subdomain;
-  int region_access;
-  int species_access;
-  int map_to_neighbor_access;
-  int map_to_subdomain_access;
 };
 
 #define OH_DEFINE_PARTICLE_ADAPTER_ACCESSORS(PREFIX, TYPE, REGION_FIELD, SPECIES_FIELD) \
@@ -127,7 +123,12 @@ struct oh_particle_adapter {
   }
 
 int oh_particle_adapter_validate(const oh_particle_adapter *adapter);
-void oh_particle_adapter_refresh_fast_flags(oh_particle_adapter *adapter);
+int oh_particle_adapter_region_access(const oh_particle_adapter *adapter);
+int oh_particle_adapter_species_access(const oh_particle_adapter *adapter);
+int oh_particle_adapter_map_to_neighbor_access(
+  const oh_particle_adapter *adapter);
+int oh_particle_adapter_map_to_subdomain_access(
+  const oh_particle_adapter *adapter);
 int oh_particle_adapter_make_byte_type(size_t stride, MPI_Datatype *type);
 double *oh_particle_adapter_position(const oh_particle_adapter *adapter,
                                      void *particle, int dim);

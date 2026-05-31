@@ -562,7 +562,6 @@ oh_fortran_particle_adapter_set_callbacks(
   unwrapped->get_species = get_species;
   unwrapped->map_to_neighbor = map_to_neighbor;
   unwrapped->map_to_subdomain = map_to_subdomain;
-  oh_particle_adapter_refresh_fast_flags(unwrapped);
 }
 
 size_t

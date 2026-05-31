@@ -227,6 +227,12 @@ $FC $FC_MPI_COMPILE_FLAGS -cpp -DTEST_OH_RAW_LEVEL=3 \
   -o build/docker/test_oh_v2_fortran_raw_init_runtime_l3
 run_mpi -n 2 build/docker/test_oh_v2_fortran_raw_init_runtime_l3
 $FC $FC_MPI_COMPILE_FLAGS -cpp -DTEST_OH_RAW_LEVEL=3 \
+  -DTEST_OH_RAW_APP_LEVEL3_ARRAYS=1 -Iinclude -Ibuild/docker $FC_MOD_MAIN \
+  tests/test_oh_v2_fortran_raw_init_runtime.F90 \
+  $F_RAW_INIT_OBJS \
+  -o build/docker/test_oh_v2_fortran_raw_init_runtime_l3_app_arrays
+run_mpi -n 2 build/docker/test_oh_v2_fortran_raw_init_runtime_l3_app_arrays
+$FC $FC_MPI_COMPILE_FLAGS -cpp -DTEST_OH_RAW_LEVEL=3 \
   -DTEST_OH_RAW_NULL_PBUF=1 -Iinclude -Ibuild/docker $FC_MOD_MAIN \
   tests/test_oh_v2_fortran_raw_init_runtime.F90 \
   $F_RAW_INIT_OBJS \

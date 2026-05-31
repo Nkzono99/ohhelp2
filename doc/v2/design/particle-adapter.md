@@ -35,6 +35,8 @@ Those integer-field helpers are also the low-overhead v2 path for ABI-compatible
 legacy layouts: OhHelp recognizes them when the adapter is bound and can read
 region/species fields without calling the generic callback function pointers on
 each particle in the Level 2/3 transfer loops.
+That recognition is internal context state, not extra mutable fields in the
+public adapter struct; the adapter remains a layout and callback contract.
 
 Generic coordinate offsets can be recorded with:
 

@@ -61,9 +61,12 @@ main(int argc, char **argv) {
   assert(adapter.position_offset[1] == offsetof(struct S_particle, y));
   assert(adapter.position_offset[2] == offsetof(struct S_particle, z));
   assert(adapter.species_base == 0);
-  assert(adapter.region_access == OH_PARTICLE_ADAPTER_ACCESS_CALLBACK);
-  assert(adapter.species_access == OH_PARTICLE_ADAPTER_ACCESS_CALLBACK);
-  assert(adapter.map_to_subdomain_access == OH_PARTICLE_ADAPTER_MAP_CALLBACK);
+  assert(oh_particle_adapter_region_access(&adapter) ==
+         OH_PARTICLE_ADAPTER_ACCESS_CALLBACK);
+  assert(oh_particle_adapter_species_access(&adapter) ==
+         OH_PARTICLE_ADAPTER_ACCESS_CALLBACK);
+  assert(oh_particle_adapter_map_to_subdomain_access(&adapter) ==
+         OH_PARTICLE_ADAPTER_MAP_CALLBACK);
   assert(oh_particle_adapter_position(&adapter, &particle, 0) == &particle.x);
   assert(oh_particle_adapter_position(&adapter, &particle, 1) == &particle.y);
   assert(oh_particle_adapter_position(&adapter, &particle, 2) == &particle.z);
@@ -122,9 +125,11 @@ main(int argc, char **argv) {
   wide_particle.region = 4000000000LL;
   wide_particle.species = 2;
   assert(oh_particle_adapter_validate(&adapter));
-  assert(adapter.region_access == OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD);
-  assert(adapter.species_access == OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD);
-  assert(adapter.map_to_subdomain_access ==
+  assert(oh_particle_adapter_region_access(&adapter) ==
+         OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD);
+  assert(oh_particle_adapter_species_access(&adapter) ==
+         OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD);
+  assert(oh_particle_adapter_map_to_subdomain_access(&adapter) ==
          OH_PARTICLE_ADAPTER_MAP_REGION_FIELD);
   assert(adapter.get_region(&adapter, &wide_particle, 0) == 4000000000LL);
   assert(adapter.get_species(&adapter, &wide_particle) == 2);
@@ -147,8 +152,10 @@ main(int argc, char **argv) {
     &adapter, offsetof(struct wide_particle, region),
     sizeof(wide_particle.region));
   assert(oh_particle_adapter_validate(&adapter));
-  assert(adapter.region_access == OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD);
-  assert(adapter.species_access == OH_PARTICLE_ADAPTER_ACCESS_SINGLE_SPECIES);
+  assert(oh_particle_adapter_region_access(&adapter) ==
+         OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD);
+  assert(oh_particle_adapter_species_access(&adapter) ==
+         OH_PARTICLE_ADAPTER_ACCESS_SINGLE_SPECIES);
   assert(adapter.get_species(&adapter, &wide_particle) == 0);
   adapter.set_region(&adapter, &wide_particle, 6000000000LL, 0);
   assert(wide_particle.region == 6000000000LL);

@@ -174,6 +174,7 @@ oh2_set_particle_adapter_state(struct oh_state *state,
                                const oh_particle_adapter *adapter) {
   if (!state) state = &OhDefaultState;
   if (state != &OhDefaultState) {
+    oh_particle_adapter normalized_adapter;
     int err;
 
     free_owned_particle_mpi_type_state(state);
@@ -192,12 +193,15 @@ oh2_set_particle_adapter_state(struct oh_state *state,
       state->owns_particle_mpi_type = 1;
       return;
     }
-    if (!oh_particle_adapter_validate(adapter))
+    normalized_adapter = *adapter;
+    oh_particle_adapter_refresh_fast_flags(&normalized_adapter);
+    if (!oh_particle_adapter_validate(&normalized_adapter))
       local_errstop("invalid oh_particle_adapter");
-    err = MPI_Type_dup(adapter->mpi_type, &state->custom_particle_mpi_type);
+    err = MPI_Type_dup(normalized_adapter.mpi_type,
+                       &state->custom_particle_mpi_type);
     if (err != MPI_SUCCESS)
       local_errstop("failed to duplicate custom particle MPI datatype");
-    state->owned_custom_particle_adapter = *adapter;
+    state->owned_custom_particle_adapter = normalized_adapter;
     state->owned_custom_particle_adapter.mpi_type =
       state->custom_particle_mpi_type;
     state->custom_particle_adapter = &state->owned_custom_particle_adapter;
@@ -220,13 +224,18 @@ oh2_set_particle_adapter_state(struct oh_state *state,
     useCustomTParticle = state->use_custom_particle_mpi_type;
     return;
   }
-  if (!oh_particle_adapter_validate(adapter))
-    local_errstop("invalid oh_particle_adapter");
-  free_owned_default_particle_mpi_type();
-  free_owned_default_custom_particle_mpi_type();
-  if (MPI_Type_dup(adapter->mpi_type, &CustomTParticle) != MPI_SUCCESS)
-    local_errstop("failed to duplicate custom particle MPI datatype");
-  CustomParticleAdapter = *adapter;
+  {
+    oh_particle_adapter normalized_adapter = *adapter;
+    oh_particle_adapter_refresh_fast_flags(&normalized_adapter);
+    if (!oh_particle_adapter_validate(&normalized_adapter))
+      local_errstop("invalid oh_particle_adapter");
+    free_owned_default_particle_mpi_type();
+    free_owned_default_custom_particle_mpi_type();
+    if (MPI_Type_dup(normalized_adapter.mpi_type, &CustomTParticle) !=
+        MPI_SUCCESS)
+      local_errstop("failed to duplicate custom particle MPI datatype");
+    CustomParticleAdapter = normalized_adapter;
+  }
   CustomParticleAdapter.mpi_type = CustomTParticle;
   state->custom_particle_adapter = &CustomParticleAdapter;
   state->use_custom_particle_adapter = 1;
@@ -367,6 +376,7 @@ init_particle_adapter(void) {
   }
   if (!useCustomParticleAdapter)
     ParticleAdapter.species_base = specBase;
+  oh_particle_adapter_refresh_fast_flags(&ParticleAdapter);
   if (!oh_particle_adapter_validate(&ParticleAdapter))
     local_errstop("particle MPI datatype extent must match particle stride");
 }
@@ -1170,17 +1180,25 @@ state_update_injected_particle_count(struct oh_state *state, void *part,
 static OH_nid_t
 state_particle_region(struct oh_state *state, const void *part,
                       int primary_or_secondary) {
-  oh_particle_region_t region =
-    state->particle_adapter->get_region(state->particle_adapter, part,
-                                        primary_or_secondary);
+  const oh_particle_adapter *adapter = state->particle_adapter;
+  oh_particle_region_t region;
 
+  if (adapter->region_access == OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD)
+    region = oh_particle_adapter_read_region_field(adapter, part);
+  else
+    region = adapter->get_region(adapter, part, primary_or_secondary);
   return (OH_nid_t)region;
 }
 static void
 state_set_particle_region(struct oh_state *state, void *part,
                           OH_nid_t region, int primary_or_secondary) {
-  state->particle_adapter->set_region(state->particle_adapter, part, region,
-                                      primary_or_secondary);
+  const oh_particle_adapter *adapter = state->particle_adapter;
+
+  if (adapter->region_access == OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD) {
+    oh_particle_adapter_write_region_field(adapter, part, region);
+    return;
+  }
+  adapter->set_region(adapter, part, region, primary_or_secondary);
 }
 static void
 state_mark_particle_removed(struct oh_state *state, void *part,
@@ -1189,12 +1207,22 @@ state_mark_particle_removed(struct oh_state *state, void *part,
 }
 static int
 state_particle_species(struct oh_state *state, const void *part) {
-  int raw_species = state->particle_adapter->get_species(
-    state->particle_adapter, part);
-  int species = raw_species;
-  int species_base = state->particle_adapter->species_base;
+  const oh_particle_adapter *adapter = state->particle_adapter;
+  int raw_species, species;
+  int species_base = adapter->species_base;
 
-  if (!state->particle_adapter->single_species)
+  if (adapter->species_access == OH_PARTICLE_ADAPTER_ACCESS_SINGLE_SPECIES) {
+    raw_species = 0;
+    species = 0;
+  } else if (adapter->species_access ==
+             OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD) {
+    raw_species = species = oh_particle_adapter_read_species_field(adapter,
+                                                                   part);
+  } else {
+    raw_species = species = adapter->get_species(adapter, part);
+  }
+
+  if (!adapter->single_species)
     species -= species_base;
 
 #ifdef OH_HAS_SPEC
@@ -1211,11 +1239,17 @@ state_particle_species(struct oh_state *state, const void *part) {
 static int
 state_particle_subdomain(struct oh_state *state, void *part,
                          int primary_or_secondary) {
+  const oh_particle_adapter *adapter = state->particle_adapter;
   oh_particle_region_t dst;
 
-  if (state->particle_adapter->map_to_subdomain) {
-    dst = state->particle_adapter->map_to_subdomain(
-      state->particle_adapter, part, primary_or_secondary);
+  if (adapter->map_to_subdomain_access ==
+      OH_PARTICLE_ADAPTER_MAP_REGION_FIELD) {
+    dst = oh_particle_adapter_read_region_field(adapter, part);
+    return state_checked_particle_destination(state, dst,
+                                             "particle adapter map_to_subdomain()");
+  }
+  if (adapter->map_to_subdomain) {
+    dst = adapter->map_to_subdomain(adapter, part, primary_or_secondary);
     return state_checked_particle_destination(state, dst,
                                              "particle adapter map_to_subdomain()");
   }
@@ -1226,12 +1260,15 @@ state_particle_subdomain(struct oh_state *state, void *part,
 }
 static int
 state_map_injected_particle_to_subdomain(struct oh_state *state, void *part) {
+  const oh_particle_adapter *adapter = state->particle_adapter;
   oh_particle_region_t dst;
   int used_region_mapping = 0;
 
-  if (state->particle_adapter->map_to_subdomain) {
-    dst = state->particle_adapter->map_to_subdomain(state->particle_adapter,
-                                                    part, 0);
+  if (adapter->map_to_subdomain_access ==
+      OH_PARTICLE_ADAPTER_MAP_REGION_FIELD) {
+    dst = oh_particle_adapter_read_region_field(adapter, part);
+  } else if (adapter->map_to_subdomain) {
+    dst = adapter->map_to_subdomain(adapter, part, 0);
   } else {
     dst = state_region_subdomain(state, state_particle_region(state, part, 0),
                                  0);

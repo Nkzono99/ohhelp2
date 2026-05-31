@@ -54,36 +54,12 @@ field_range_valid(size_t stride, size_t offset, size_t size) {
 
 static oh_particle_region_t
 read_integer_field(const void *field, size_t size) {
-  if (size == sizeof(int)) {
-    int value;
-    memcpy(&value, field, sizeof(value));
-    return value;
-  }
-  if (size == sizeof(long long)) {
-    long long value;
-    memcpy(&value, field, sizeof(value));
-    return value;
-  }
-  if (size == sizeof(long)) {
-    long value;
-    memcpy(&value, field, sizeof(value));
-    return value;
-  }
-  return 0;
+  return oh_particle_adapter_read_integer_value(field, size);
 }
 
 static void
 write_integer_field(void *field, size_t size, oh_particle_region_t value) {
-  if (size == sizeof(int)) {
-    int narrowed = (int)value;
-    memcpy(field, &narrowed, sizeof(narrowed));
-  } else if (size == sizeof(long long)) {
-    long long narrowed = (long long)value;
-    memcpy(field, &narrowed, sizeof(narrowed));
-  } else if (size == sizeof(long)) {
-    long narrowed = (long)value;
-    memcpy(field, &narrowed, sizeof(narrowed));
-  }
+  oh_particle_adapter_write_integer_value(field, size, value);
 }
 
 static oh_particle_region_t
@@ -170,6 +146,28 @@ oh_particle_adapter_validate(const oh_particle_adapter *adapter) {
         return 0;
   }
   return 1;
+}
+
+void
+oh_particle_adapter_refresh_fast_flags(oh_particle_adapter *adapter) {
+  if (!adapter) return;
+
+  adapter->region_access = OH_PARTICLE_ADAPTER_ACCESS_CALLBACK;
+  adapter->species_access = OH_PARTICLE_ADAPTER_ACCESS_CALLBACK;
+  adapter->map_to_neighbor_access = OH_PARTICLE_ADAPTER_MAP_CALLBACK;
+  adapter->map_to_subdomain_access = OH_PARTICLE_ADAPTER_MAP_CALLBACK;
+
+  if (adapter->get_region == int_field_get_region &&
+      adapter->set_region == int_field_set_region)
+    adapter->region_access = OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD;
+  if (adapter->get_species == int_field_get_species)
+    adapter->species_access = adapter->single_species ?
+      OH_PARTICLE_ADAPTER_ACCESS_SINGLE_SPECIES :
+      OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD;
+  if (adapter->map_to_neighbor == int_field_map_to_region)
+    adapter->map_to_neighbor_access = OH_PARTICLE_ADAPTER_MAP_REGION_FIELD;
+  if (adapter->map_to_subdomain == int_field_map_to_region)
+    adapter->map_to_subdomain_access = OH_PARTICLE_ADAPTER_MAP_REGION_FIELD;
 }
 
 int
@@ -268,6 +266,7 @@ oh_particle_adapter_use_integer_fields(oh_particle_adapter *adapter,
   adapter->get_species = int_field_get_species;
   adapter->map_to_neighbor = int_field_map_to_region;
   adapter->map_to_subdomain = int_field_map_to_region;
+  oh_particle_adapter_refresh_fast_flags(adapter);
 }
 
 void
@@ -285,6 +284,7 @@ oh_particle_adapter_use_single_species_integer_region(
   adapter->get_species = int_field_get_species;
   adapter->map_to_neighbor = int_field_map_to_region;
   adapter->map_to_subdomain = int_field_map_to_region;
+  oh_particle_adapter_refresh_fast_flags(adapter);
 }
 
 void
@@ -316,5 +316,9 @@ oh_default_particle_adapter(MPI_Datatype mpi_type) {
   adapter.get_species = default_get_species;
   adapter.map_to_neighbor = 0;
   adapter.map_to_subdomain = 0;
+  adapter.region_access = OH_PARTICLE_ADAPTER_ACCESS_CALLBACK;
+  adapter.species_access = OH_PARTICLE_ADAPTER_ACCESS_CALLBACK;
+  adapter.map_to_neighbor_access = OH_PARTICLE_ADAPTER_MAP_CALLBACK;
+  adapter.map_to_subdomain_access = OH_PARTICLE_ADAPTER_MAP_CALLBACK;
   return adapter;
 }

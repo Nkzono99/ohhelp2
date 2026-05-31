@@ -31,6 +31,10 @@ oh_particle_adapter_set_species_base(&adapter, species_base);
 
 Use `oh_particle_adapter_use_integer_fields()` when the region field may need to
 carry wide ids such as `OH_BIG_SPACE` or future Level 4 packed ids.
+Those integer-field helpers are also the low-overhead v2 path for ABI-compatible
+legacy layouts: OhHelp recognizes them when the adapter is bound and can read
+region/species fields without calling the generic callback function pointers on
+each particle in the Level 2/3 transfer loops.
 
 Generic coordinate offsets can be recorded with:
 
@@ -97,6 +101,18 @@ The old raw Fortran init bridge still applies `specBase = 1` to the default
 `S_particle` adapter for migration compatibility. New v2 context code should
 prefer adapter-level species-base configuration over changing context-wide
 state.
+
+## Default Adapter Safety
+
+Passing `NULL` to `oh_context_set_particle_adapter()` resets the context to the
+compiled-in `struct S_particle` adapter. That path is safe only when the
+application particle storage is exactly the same ABI as this build of
+`struct S_particle`, including `OH_BIG_SPACE`, `OH_PARTICLE_HEADER`,
+`OH_HAS_SPEC`, field order, alignment, and species base expectations. A layout
+that is merely source-level similar should still use an explicit byte-stride
+adapter with integer region/species offsets. For MPIEMSES3D-style migration,
+the default adapter is therefore a compatibility shortcut for true
+`S_particle` buffers, not a general optimization knob.
 
 ## Mapping Callbacks
 

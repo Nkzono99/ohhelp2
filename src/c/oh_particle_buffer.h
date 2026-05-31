@@ -86,12 +86,11 @@ oh_particle_buffer_copy(const oh_particle_adapter *adapter, void *dst,
 static inline void
 oh_particle_buffer_copy_n(const oh_particle_adapter *adapter, void *dst,
                           const void *src, int count) {
-  int i;
+  size_t stride;
 
-  for (i=0; i<count; i++)
-    oh_particle_buffer_copy(adapter,
-                            oh_particle_buffer_at(adapter, dst, i),
-                            oh_particle_buffer_const_at(adapter, src, i));
+  if (count <= 0) return;
+  stride = oh_particle_buffer_stride(adapter);
+  memmove(dst, src, (size_t)count * stride);
 }
 
 #endif

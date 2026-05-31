@@ -252,6 +252,7 @@ oh3_particle_adapter_use_neighbor_position_fields(oh_particle_adapter *adapter,
   oh_particle_adapter_use_position_fields(adapter, x_offset, y_offset,
                                           z_offset);
   adapter->map_to_neighbor = offset_level3_map_particle_to_neighbor;
+  oh_particle_adapter_refresh_fast_flags(adapter);
 }
 
 void
@@ -263,6 +264,7 @@ oh3_particle_adapter_use_subdomain_position_fields(oh_particle_adapter *adapter,
   oh_particle_adapter_use_position_fields(adapter, x_offset, y_offset,
                                           z_offset);
   adapter->map_to_subdomain = offset_level3_map_particle_to_subdomain;
+  oh_particle_adapter_refresh_fast_flags(adapter);
 }
 
 void
@@ -282,6 +284,7 @@ oh3_bind_context_particle_adapter(struct oh_state *state) {
     adapter->user_data = state;
     adapter->map_to_subdomain = context_level3_map_particle_to_subdomain;
   }
+  oh_particle_adapter_refresh_fast_flags(adapter);
 }
 
 void

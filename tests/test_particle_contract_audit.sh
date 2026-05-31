@@ -414,7 +414,7 @@ check_present 'oh_context_exchange_borders' include/oh_context.h
 check_present 'state->use_custom_particle_adapter = 0;' src/c/ohhelp2.c
 check_present 'state->custom_particle_mpi_type = MPI_DATATYPE_NULL;' \
   src/c/ohhelp2.c
-check_present 'MPI_Type_dup(adapter->mpi_type, &state->custom_particle_mpi_type)' \
+check_present 'MPI_Type_dup(normalized_adapter.mpi_type,' \
   src/c/ohhelp2.c
 check_present 'free_owned_particle_mpi_type_state(state)' src/c/ohhelp2.c
 check_present 'ownsTParticle' src/c/ohhelp2_internal.h
@@ -525,7 +525,7 @@ check_present 'context->owned_custom_particle_adapter.mpi_type = MPI_DATATYPE_NU
   src/c/oh_context.c
 check_present 'adapter->owns_mpi_type' src/c/oh_fortran_v2.c
 check_present 'oh2_set_particle_adapter_state' src/c/ohhelp2_internal.h
-check_present 'MPI_Type_dup(adapter->mpi_type, &CustomTParticle)' \
+check_present 'MPI_Type_dup(normalized_adapter.mpi_type, &CustomTParticle)' \
   src/c/ohhelp2.c
 check_present 'oh2_set_particle_mpi_type_state' src/c/ohhelp2_internal.h
 check_present 'oh2_set_particle_adapter_state(context, adapter)' \
@@ -1501,6 +1501,14 @@ check_present 'adapter->map_to_neighbor == int_field_map_to_region' \
   src/c/oh_particle_adapter.c
 check_present 'adapter->map_to_subdomain == int_field_map_to_region' \
   src/c/oh_particle_adapter.c
+check_present 'oh_particle_adapter_refresh_fast_flags' \
+  src/c/oh_particle_adapter.c include/oh_particle_adapter.h
+check_present 'OH_PARTICLE_ADAPTER_ACCESS_INTEGER_FIELD' \
+  src/c/ohhelp2.c include/oh_particle_adapter.h
+check_present 'Those integer-field helpers are also the low-overhead v2 path' \
+  doc/v2/design/particle-adapter.md
+check_present 'application particle storage is exactly the same ABI' \
+  doc/v2/design/particle-adapter.md
 check_present 'test_oh_particle_adapter before-init' scripts/docker-build-test.sh
 check_present 'test_oh_particle_adapter after-finalize' scripts/docker-build-test.sh
 check_present 'mpi_active && bx\[e\]\[1\]\[d\]\[lu\]\.send\.deriv' \

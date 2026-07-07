@@ -11,6 +11,10 @@
 #include "ohhelp3.h"
 #include "ohhelp4p.h"
 
+extern int *InjectedParticles;
+extern int *NOfPLocal;
+extern int nOfInjections;
+
 struct level4_custom_particle {
   double x, y, z;
   long long region;
@@ -42,13 +46,17 @@ configure_custom_particle_adapter(oh_particle_adapter *adapter,
 }
 
 static void
-run_default_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase) {
+run_default_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase,
+                          int *totalp) {
   struct S_particle *particles = (struct S_particle*)pbuf;
   struct S_particle *active_particles;
   struct S_particle injected;
   int injected_index = -1;
+  int injected_before;
+  int local_before;
   int mapped;
   int mode;
+  int pending_before;
 
   particles[0].x = (double)rank + 0.5;
   particles[0].y = 0.5;
@@ -64,10 +72,16 @@ run_default_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase) {
   assert(mapped == rank);
   mode = oh4p_transbound(OH_MODE_NORMAL_PRIMARY, 0);
   assert(mode == OH_MODE_NORMAL_PRIMARY);
+  assert(pbase[0] == 0);
   assert(pbase[1] == 1);
   assert(pbase[2] == 1);
+  assert(totalp[0] == 1);
+  assert(totalp[1] == 0);
 
   active_particles = particles + maxlocalp;
+  local_before = NOfPLocal[rank];
+  injected_before = InjectedParticles[0];
+  pending_before = nOfInjections;
   injected.x = (double)rank + 0.5;
   injected.y = 0.5;
   injected.z = 0.5;
@@ -79,6 +93,9 @@ run_default_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase) {
   injected.spec = 0;
   mapped = oh4p_inject_particle(&injected, 0);
   assert(mapped == rank);
+  assert(nOfInjections == pending_before + 1);
+  assert(NOfPLocal[rank] == local_before + 1);
+  assert(InjectedParticles[0] == injected_before + 1);
   for (int i = 0; i < maxlocalp; i++) {
     if (active_particles[i].pid == 100 + rank &&
         active_particles[i].trace_id == 1000 + rank) {
@@ -91,12 +108,36 @@ run_default_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase) {
   assert(active_particles[injected_index].trace_id == 1000 + rank);
   assert(active_particles[injected_index].nid >= 0);
 
-  oh4p_remove_mapped_particle(&active_particles[injected_index], 0, 0);
-  assert(active_particles[injected_index].nid == -1);
   mapped = oh4p_remap_particle_to_subdomain(
     &active_particles[injected_index], 0, 0);
   assert(mapped == rank);
   assert(active_particles[injected_index].nid >= 0);
+  assert(nOfInjections == pending_before + 1);
+  assert(NOfPLocal[rank] == local_before + 1);
+  assert(InjectedParticles[0] == injected_before + 1);
+
+  oh4p_remove_mapped_particle(&active_particles[injected_index], 0, 0);
+  assert(active_particles[injected_index].nid == -1);
+  assert(nOfInjections == pending_before + 1);
+  assert(NOfPLocal[rank] == local_before);
+  assert(InjectedParticles[0] == injected_before);
+  mapped = oh4p_remap_particle_to_subdomain(
+    &active_particles[injected_index], 0, 0);
+  assert(mapped == rank);
+  assert(active_particles[injected_index].nid >= 0);
+  assert(nOfInjections == pending_before + 1);
+  assert(NOfPLocal[rank] == local_before + 1);
+  assert(InjectedParticles[0] == injected_before + 1);
+
+  mode = oh4p_transbound(OH_MODE_NORMAL_PRIMARY, 0);
+  assert(mode == OH_MODE_NORMAL_PRIMARY);
+  assert(pbase[0] == 0);
+  assert(pbase[1] == 1);
+  assert(pbase[2] == 1);
+  assert(totalp[0] == 1);
+  assert(totalp[1] == 0);
+  assert(nOfInjections == 0);
+  assert(InjectedParticles[0] == 0);
 }
 
 static void
@@ -146,14 +187,18 @@ run_weighted_load_path(void *pbuf, int rank, int *sdid, int *pbase,
 }
 
 static void
-run_custom_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase) {
+run_custom_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase,
+                         int *totalp) {
   struct level4_custom_particle *particles =
     (struct level4_custom_particle*)pbuf;
   struct level4_custom_particle *active_particles;
   struct level4_custom_particle injected;
   int injected_index = -1;
+  int injected_before;
+  int local_before;
   int mapped;
   int mode;
+  int pending_before;
 
   particles[0].x = (double)rank + 0.5;
   particles[0].y = 0.5;
@@ -167,10 +212,16 @@ run_custom_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase) {
   assert(mapped == rank);
   mode = oh4p_transbound(OH_MODE_NORMAL_PRIMARY, 0);
   assert(mode == OH_MODE_NORMAL_PRIMARY);
+  assert(pbase[0] == 0);
   assert(pbase[1] == 1);
   assert(pbase[2] == 1);
+  assert(totalp[0] == 1);
+  assert(totalp[1] == 0);
 
   active_particles = particles + maxlocalp;
+  local_before = NOfPLocal[rank];
+  injected_before = InjectedParticles[0];
+  pending_before = nOfInjections;
   injected.x = (double)rank + 0.5;
   injected.y = 0.5;
   injected.z = 0.5;
@@ -180,6 +231,9 @@ run_custom_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase) {
   injected.species = 0;
   mapped = oh4p_inject_particle(&injected, 0);
   assert(mapped == rank);
+  assert(nOfInjections == pending_before + 1);
+  assert(NOfPLocal[rank] == local_before + 1);
+  assert(InjectedParticles[0] == injected_before + 1);
   for (int i = 0; i < maxlocalp; i++) {
     if (active_particles[i].pid == 100 + rank &&
         active_particles[i].trace_id == 1000 + rank) {
@@ -192,12 +246,36 @@ run_custom_particle_path(void *pbuf, int maxlocalp, int rank, int *pbase) {
   assert(active_particles[injected_index].trace_id == 1000 + rank);
   assert(active_particles[injected_index].region >= 0);
 
-  oh4p_remove_mapped_particle(&active_particles[injected_index], 0, 0);
-  assert(active_particles[injected_index].region == -1);
   mapped = oh4p_remap_particle_to_subdomain(
     &active_particles[injected_index], 0, 0);
   assert(mapped == rank);
   assert(active_particles[injected_index].region >= 0);
+  assert(nOfInjections == pending_before + 1);
+  assert(NOfPLocal[rank] == local_before + 1);
+  assert(InjectedParticles[0] == injected_before + 1);
+
+  oh4p_remove_mapped_particle(&active_particles[injected_index], 0, 0);
+  assert(active_particles[injected_index].region == -1);
+  assert(nOfInjections == pending_before + 1);
+  assert(NOfPLocal[rank] == local_before);
+  assert(InjectedParticles[0] == injected_before);
+  mapped = oh4p_remap_particle_to_subdomain(
+    &active_particles[injected_index], 0, 0);
+  assert(mapped == rank);
+  assert(active_particles[injected_index].region >= 0);
+  assert(nOfInjections == pending_before + 1);
+  assert(NOfPLocal[rank] == local_before + 1);
+  assert(InjectedParticles[0] == injected_before + 1);
+
+  mode = oh4p_transbound(OH_MODE_NORMAL_PRIMARY, 0);
+  assert(mode == OH_MODE_NORMAL_PRIMARY);
+  assert(pbase[0] == 0);
+  assert(pbase[1] == 1);
+  assert(pbase[2] == 1);
+  assert(totalp[0] == 1);
+  assert(totalp[1] == 0);
+  assert(nOfInjections == 0);
+  assert(InjectedParticles[0] == 0);
 }
 
 int
@@ -253,9 +331,9 @@ main(int argc, char **argv) {
     run_weighted_load_path(pbuf, rank, sdid, pbase, totalp,
                            run_weighted_secondary);
   else if (use_custom_adapter)
-    run_custom_particle_path(pbuf, maxlocalp, rank, pbase);
+    run_custom_particle_path(pbuf, maxlocalp, rank, pbase, totalp);
   else
-    run_default_particle_path(pbuf, maxlocalp, rank, pbase);
+    run_default_particle_path(pbuf, maxlocalp, rank, pbase, totalp);
 
   if (use_custom_adapter) {
     oh2_set_particle_adapter(NULL);

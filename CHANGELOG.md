@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## v2.3.5 - 2026-07-07
+
+### Added
+
+- Added semantic particle-contract coverage for single-species adapter context
+  binding, injected-copy accounting, remove/remap ordering, and Level 4p/4s
+  default/custom adapter injection paths.
+- Extended the particle contract audit guardrail so these semantic checks stay
+  present as the v2 adapter boundary evolves.
+
+### Verification
+
+- `git diff --check`
+- `bash tests/test_particle_contract_audit.sh`
+- KUDPC `tssrun` focused C builds for context lifecycle and Level 4p/4s smoke
+  tests.
+- KUDPC `tssrun` runtime coverage for context lifecycle with 1/2/3 ranks and
+  Level 4p/4s default, custom-adapter, weighted-load, and weighted-secondary
+  modes.
+- `scripts/coverage.sh` with GCC-backed MPI wrappers: v2 modernization
+  coverage gate passed at 89% line coverage.
+
 ## v2.3.4 - 2026-05-31
 
 ### Changed

@@ -1813,6 +1813,11 @@ check_present 'OH_MODE_NORMAL_SECONDARY' tests/test_oh_context_lifecycle.c
 check_present 'OH_MODE_NORMAL_PRIMARY' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_bind_particles' tests/test_oh_context_lifecycle.c
 check_present 'oh_context_bind_region_ids' tests/test_oh_context_lifecycle.c
+check_present 'run_single_species_adapter_context_test' tests/test_oh_context_lifecycle.c
+check_present 'oh_particle_adapter_use_single_species_integer_region' \
+  tests/test_oh_context_lifecycle.c
+check_present 'OH_PARTICLE_ADAPTER_ACCESS_SINGLE_SPECIES' \
+  tests/test_oh_context_lifecycle.c
 check_present 'run_weighted_load_rebalance_test' \
   tests/test_oh_context_lifecycle_fortran.F90
 check_present 'oh_context_broadcast(context_x' \
@@ -2080,6 +2085,10 @@ check_present 'oh4p_remap_particle_to_subdomain' \
   tests/test_oh4p_runtime_smoke.c
 check_present 'active_particles\[injected_index\]\.trace_id == 1000 \+ rank' \
   tests/test_oh4p_runtime_smoke.c
+check_present 'NOfPLocal\[rank\] == local_before \+ 1' \
+  tests/test_oh4p_runtime_smoke.c
+check_present 'InjectedParticles\[0\] == injected_before \+ 1' \
+  tests/test_oh4p_runtime_smoke.c
 check_present 'oh4s_particle_buffer(maxlocalp, &pbuf)' \
   tests/test_oh4s_runtime_smoke.c
 check_present 'oh4s_per_grid_histogram(&pghgram, &pgindex)' \
@@ -2097,6 +2106,10 @@ check_present 'oh4s_remove_mapped_particle(&active_particles\[injected_index\], 
 check_present 'oh4s_remap_particle_to_subdomain' \
   tests/test_oh4s_runtime_smoke.c
 check_present 'active_particles\[injected_index\]\.trace_id == 1000 \+ rank' \
+  tests/test_oh4s_runtime_smoke.c
+check_present 'NOfPLocal\[rank\] == local_before \+ 1' \
+  tests/test_oh4s_runtime_smoke.c
+check_present 'InjectedParticles\[0\] == injected_before \+ 1' \
   tests/test_oh4s_runtime_smoke.c
 check_present 'bcond\[6\].*1, 1, 1, 1, 1, 1' \
   tests/test_oh4s_runtime_smoke.c

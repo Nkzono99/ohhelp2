@@ -21,6 +21,14 @@ struct pic_particle {
   int species;
 };
 
+struct single_species_particle {
+  double x;
+  double y;
+  double z;
+  long long region;
+  int marker;
+};
+
 struct callback_particle {
   double marker;
   long long logical_region;
@@ -826,6 +834,109 @@ run_injected_accounting_contract_test(int rank, int n, MPI_Datatype pic_type,
 }
 
 static void
+run_single_species_adapter_context_test(int rank, int n) {
+  oh_context *context = 0;
+  MPI_Datatype particle_type = MPI_DATATYPE_NULL;
+  oh_particle_adapter adapter;
+  struct single_species_particle particles[8] = {{0}};
+  struct single_species_particle injected_particle = {0};
+  struct single_species_particle *copy;
+  int *nphgram = (int*)calloc((size_t)2*n, sizeof(*nphgram));
+  int totalp[2] = {0, 0};
+  int pbase[3] = {0, 0, 0};
+  int sdid[2] = {rank, -1};
+  int *nphgram_ptr = nphgram;
+  int *totalp_ptr = totalp;
+  int *pbase_ptr = pbase;
+  int err;
+
+  assert(nphgram);
+  err = oh_context_create(MPI_COMM_WORLD, &context);
+  assert(err == MPI_SUCCESS);
+  configure_level3_context_with_maxfrac(context, n, OH_DIM_X, 10000);
+
+  err = oh_particle_adapter_make_byte_type(sizeof(particles[0]), &particle_type);
+  assert(err == MPI_SUCCESS);
+  adapter = oh_default_particle_adapter(particle_type);
+  adapter.stride = sizeof(particles[0]);
+  oh_particle_adapter_use_single_species_integer_region(
+    &adapter, offsetof(struct single_species_particle, region),
+    sizeof(particles[0].region));
+  oh3_particle_adapter_use_position_fields(
+    &adapter,
+    offsetof(struct single_species_particle, x),
+    offsetof(struct single_species_particle, y),
+    offsetof(struct single_species_particle, z));
+  set_custom_adapter(context, &adapter);
+  assert(context->particle_species_access ==
+         OH_PARTICLE_ADAPTER_ACCESS_SINGLE_SPECIES);
+  assert(context->particle_adapter->get_species(context->particle_adapter,
+                                                &particles[0]) == 0);
+
+  particles[0].x = ((double)rank + 0.5) / (double)n;
+  particles[0].y = 0.5;
+  particles[0].z = 0.5;
+  particles[0].region = rank;
+  particles[0].marker = 100 + rank;
+  nphgram[rank] = 1;
+
+  oh_context_bind_region_ids(context, sdid, OH_PARTICLES_BORROWED);
+  oh_context_bind_particles(context, particles, 8, OH_PARTICLES_BORROWED);
+  oh_context_bind_particle_accounting(context, &nphgram_ptr, &totalp_ptr,
+                                      &pbase_ptr, OH_PARTICLES_BORROWED);
+  oh_context_set_total_particles(context);
+  assert(context->n_of_injections == 0);
+  assert(context->injected_particles[0] == 0);
+  assert(nphgram[rank] == 1);
+  assert(pbase[0] == 0);
+  assert(pbase[1] == 1);
+  assert(pbase[2] == 1);
+
+  injected_particle.x = ((double)rank + 0.5) / (double)n;
+  injected_particle.y = 0.5;
+  injected_particle.z = 0.5;
+  injected_particle.region = rank;
+  injected_particle.marker = 200 + rank;
+  copy = (struct single_species_particle*)oh_context_inject_particle_get(
+    context, &injected_particle);
+  assert(copy != &injected_particle);
+  assert(copy->marker == 200 + rank);
+  assert(copy->region == rank);
+  assert(context->n_of_injections == 1);
+  assert(context->injected_particles[0] == 1);
+  assert(nphgram[rank] == 2);
+
+  oh_context_remove_injected_particle(context, copy);
+  assert(context->n_of_injections == 1);
+  assert(context->injected_particles[0] == 0);
+  assert(nphgram[rank] == 1);
+  assert(copy->region == -1);
+
+  copy->region = rank;
+  oh_context_remap_injected_particle(context, copy);
+  assert(context->n_of_injections == 1);
+  assert(context->injected_particles[0] == 1);
+  assert(nphgram[rank] == 2);
+
+  oh_context_set_total_particles(context);
+  assert(context->n_of_injections == 0);
+  assert(context->injected_particles[0] == 0);
+  assert(nphgram[rank] == 2);
+  assert(pbase[0] == 0);
+  assert(pbase[1] == 2);
+  assert(pbase[2] == 2);
+  assert(oh_context_transbound2(context, OH_MODE_NORMAL_PRIMARY, 0) ==
+         OH_MODE_NORMAL_PRIMARY);
+
+  oh_context_unbind_region_ids(context);
+  oh_context_unbind_particle_accounting(context);
+  oh_context_unbind_particles(context);
+  oh_context_destroy(context);
+  MPI_Type_free(&particle_type);
+  free(nphgram);
+}
+
+static void
 run_particle_adapter_reset_rebind_test(int rank, int n, MPI_Datatype pic_type,
                                        const oh_particle_adapter *adapter) {
   oh_context *context = 0;
@@ -1421,6 +1532,7 @@ main(int argc, char **argv) {
                                                    &adapter);
   run_injected_position_routing_test(rank, n, pic_type, &adapter);
   run_injected_accounting_contract_test(rank, n, pic_type, &adapter);
+  run_single_species_adapter_context_test(rank, n);
   run_particle_adapter_reset_rebind_test(rank, n, pic_type, &adapter);
   run_position_only_adapter_context_mapping_test(rank, n, &adapter);
   run_weighted_load_rebalance_test(rank, n, pic_type, &adapter);

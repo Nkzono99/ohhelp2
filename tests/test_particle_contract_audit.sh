@@ -197,7 +197,7 @@ check_present 'extern "C"' include/ohhelp4p.h
 check_present 'extern "C"' include/ohhelp4s.h
 
 for executable_script in scripts/test.sh scripts/check-v1-markdown.sh \
-                         scripts/fpm-build-test.sh; do
+                         scripts/fpm-build-test.sh scripts/coverage.sh; do
   if [ ! -x "$executable_script" ]; then
     fail "$executable_script must be executable"
   fi
@@ -207,6 +207,7 @@ check_present 'set -euo pipefail' scripts/test.sh
 check_present 'set -euo pipefail' scripts/check-v1-markdown.sh
 check_present 'set -euo pipefail' scripts/fpm-build-test.sh
 check_present 'set -euo pipefail' scripts/docker-build-test.sh
+check_present 'set -euo pipefail' scripts/coverage.sh
 check_present 'set -euo pipefail' tests/test_particle_contract_audit.sh
 check_present 'BASH_SOURCE\[0\]' scripts/test.sh
 check_present 'cd "\$REPO_ROOT"' scripts/test.sh
@@ -216,7 +217,22 @@ check_present 'BASH_SOURCE\[0\]' scripts/fpm-build-test.sh
 check_present 'cd "\$REPO_ROOT"' scripts/fpm-build-test.sh
 check_present 'BASH_SOURCE\[0\]' scripts/docker-build-test.sh
 check_present 'cd "\$REPO_ROOT"' scripts/docker-build-test.sh
+check_present 'BASH_SOURCE\[0\]' scripts/coverage.sh
+check_present 'cd "\$REPO_ROOT"' scripts/coverage.sh
 check_present 'build/docker/negative/\$suite' scripts/docker-build-test.sh
+check_present 'COVERAGE=\$\{COVERAGE:-0\}' scripts/docker-build-test.sh
+check_present 'COVERAGE_FLAGS=\$\{COVERAGE_FLAGS:---coverage -O0 -g\}' \
+  scripts/docker-build-test.sh
+check_present 'coverage requires GNU-compatible MPI compiler wrappers' \
+  scripts/docker-build-test.sh
+check_present 'COVERAGE=1' scripts/coverage.sh
+check_present '"\$GCOVR" --root' scripts/coverage.sh
+check_present 'REPORT_DIR=\$\{REPORT_DIR:-build/coverage\}' scripts/coverage.sh
+check_present '\$REPORT_DIR/coverage.xml' scripts/coverage.sh
+check_present '\$REPORT_DIR/index.html' scripts/coverage.sh
+check_present 'scripts/coverage.sh' README.md
+check_present 'COVERAGE=1 bash scripts/docker-build-test.sh' README.md
+check_present 'Fortran and C coverage' README.md
 
 check_present '#include "ohhelp1.h"' include/ohhelp2.h
 check_present '#include "ohhelp2.h"' include/ohhelp3.h
@@ -294,6 +310,10 @@ check_present 'run_nondefault_init1_state_test' \
   tests/test_oh_context_lifecycle.c
 check_present 'run_nondefault_init1_rebalance_test' \
   tests/test_oh_context_lifecycle.c
+check_present 'run_collective_value_contract_test' \
+  tests/test_oh_context_lifecycle.c
+check_present 'oh_context_all_reduce(context' tests/test_oh_context_lifecycle.c
+check_present 'oh_context_reduce(context' tests/test_oh_context_lifecycle.c
 check_present 'run_nondefault_legacy_side_channel_isolation_test' \
   tests/test_oh_context_lifecycle.c
 check_present 'oh_context_is_default_state(state) && Mode_PS(currmode) && FamIndex' \

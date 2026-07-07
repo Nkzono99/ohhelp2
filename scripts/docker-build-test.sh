@@ -15,6 +15,58 @@ mkdir -p build/docker/dim2f
 MPIRUN=${MPIRUN:-mpirun}
 MPIRUN_FLAGS=${MPIRUN_FLAGS:-}
 TEST_TIMEOUT=${TEST_TIMEOUT:-60s}
+COVERAGE=${COVERAGE:-0}
+COVERAGE_FLAGS=${COVERAGE_FLAGS:---coverage -O0 -g}
+
+coverage_compiler_is_gnu() {
+  local compiler=$1
+  local shown
+  shown=$("$compiler" --showme:command 2>/dev/null || true)
+  if printf '%s\n' "$shown" | grep -Eq '(^|/)(gcc|gfortran|g\+\+)( |$)'; then
+    return 0
+  fi
+  "$compiler" --version 2>/dev/null | grep -Eiq 'gcc|gfortran|gnu'
+}
+
+enable_coverage_wrappers() {
+  local wrapper_dir="build/coverage/wrappers"
+
+  if ! coverage_compiler_is_gnu "$MPICC" ||
+     ! coverage_compiler_is_gnu "$MPIFC" ||
+     ! coverage_compiler_is_gnu "$MPICXX"; then
+    echo "coverage requires GNU-compatible MPI compiler wrappers" >&2
+    echo "Set MPICC/MPIFC/MPICXX to wrappers backed by gcc/gfortran/g++." >&2
+    exit 1
+  fi
+
+  mkdir -p "$wrapper_dir"
+  export OH_COVERAGE_REAL_MPICC=$MPICC
+  export OH_COVERAGE_REAL_MPIFC=$MPIFC
+  export OH_COVERAGE_REAL_MPICXX=$MPICXX
+  export OH_COVERAGE_FLAGS=$COVERAGE_FLAGS
+
+  write_coverage_wrapper "$wrapper_dir/mpicc" OH_COVERAGE_REAL_MPICC
+  write_coverage_wrapper "$wrapper_dir/mpifort" OH_COVERAGE_REAL_MPIFC
+  write_coverage_wrapper "$wrapper_dir/mpicxx" OH_COVERAGE_REAL_MPICXX
+
+  MPICC="$REPO_ROOT/$wrapper_dir/mpicc"
+  MPIFC="$REPO_ROOT/$wrapper_dir/mpifort"
+  MPICXX="$REPO_ROOT/$wrapper_dir/mpicxx"
+}
+
+write_coverage_wrapper() {
+  local path=$1
+  local compiler_env=$2
+
+  cat >"$path" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+compiler=\${$compiler_env}
+flags=\${OH_COVERAGE_FLAGS}
+exec "\$compiler" \$flags "\$@"
+EOF
+  chmod +x "$path"
+}
 
 run_mpi() {
   timeout "$TEST_TIMEOUT" "$MPIRUN" $MPIRUN_FLAGS "$@"
@@ -112,6 +164,9 @@ $dimdir/ohhelp2.o $dimdir/ohhelp3.o"
 MPIFC=${MPIFC:-mpifort}
 MPICC=${MPICC:-mpicc}
 MPICXX=${MPICXX:-mpic++}
+if [ "$COVERAGE" = "1" ]; then
+  enable_coverage_wrappers
+fi
 FC=$MPIFC
 FC_VERSION=$($FC --version 2>/dev/null || true)
 FC_MPI_COMPILE_FLAGS=$($FC -showme:compile 2>/dev/null || true)

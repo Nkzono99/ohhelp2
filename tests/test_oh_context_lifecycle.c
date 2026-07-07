@@ -525,6 +525,40 @@ run_nondefault_init1_state_test(int n, int rank) {
 }
 
 static void
+run_collective_value_contract_test(oh_context *context, int rank) {
+  double primary_value;
+  double secondary_value;
+
+  primary_value = rank == 0 ? 11.0 : -1.0;
+  secondary_value = rank == 0 ? -2.0 : -3.0;
+  oh_context_broadcast(context, &primary_value, &secondary_value, 1, 1,
+                       MPI_DOUBLE, MPI_DOUBLE);
+  if (rank == 0) {
+    assert(primary_value == 11.0);
+  } else {
+    assert(secondary_value == 11.0);
+  }
+
+  primary_value = rank == 0 ? 2.0 : -20.0;
+  secondary_value = rank == 0 ? -30.0 : 5.0;
+  oh_context_all_reduce(context, &primary_value, &secondary_value, 1, 1,
+                        MPI_DOUBLE, MPI_DOUBLE, MPI_SUM, MPI_SUM);
+  if (rank == 0) {
+    assert(primary_value == 7.0);
+  } else {
+    assert(secondary_value == 7.0);
+  }
+
+  primary_value = rank == 0 ? 3.0 : -20.0;
+  secondary_value = rank == 0 ? -30.0 : 4.0;
+  oh_context_reduce(context, &primary_value, &secondary_value, 1, 1,
+                    MPI_DOUBLE, MPI_DOUBLE, MPI_SUM, MPI_SUM);
+  if (rank == 0) {
+    assert(primary_value == 7.0);
+  }
+}
+
+static void
 run_nondefault_init1_rebalance_test(int n, int rank) {
   oh_context *context = 0;
   int *sdid = 0;
@@ -560,6 +594,7 @@ run_nondefault_init1_rebalance_test(int n, int rank) {
     assert(sdid[1] == 0);
     assert(recv_total > 0);
   }
+  run_collective_value_contract_test(context, rank);
 
   oh_context_destroy(context);
 }

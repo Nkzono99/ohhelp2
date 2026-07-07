@@ -35,3 +35,30 @@ jobs:
           OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: "1"
           MPIRUN_FLAGS: "--oversubscribe"
         run: bash scripts/test.sh
+
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install MPI coverage toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates g++ gfortran gcovr openmpi-bin libopenmpi-dev
+
+      - name: Run coverage gate
+        env:
+          OMPI_ALLOW_RUN_AS_ROOT: "1"
+          OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: "1"
+          MPIRUN_FLAGS: "--oversubscribe"
+          COVERAGE_MIN_LINE: "85"
+        run: bash scripts/coverage.sh
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: build/coverage

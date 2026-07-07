@@ -169,7 +169,7 @@ if [ "$COVERAGE" = "1" ]; then
 fi
 FC=$MPIFC
 FC_VERSION=$($FC --version 2>/dev/null || true)
-FC_MPI_COMPILE_FLAGS=$($FC -showme:compile 2>/dev/null || true)
+FC_MPI_COMPILE_FLAGS=${FC_MPI_COMPILE_FLAGS:-$($FC -showme:compile 2>/dev/null || true)}
 case "$FC_VERSION" in
   *nvfortran*|*NVFORTRAN*|*NVIDIA*)
     FC_MOD_MAIN="-module build/docker"

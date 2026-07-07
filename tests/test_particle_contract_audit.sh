@@ -225,12 +225,34 @@ check_present 'COVERAGE_FLAGS=\$\{COVERAGE_FLAGS:---coverage -O0 -g\}' \
   scripts/docker-build-test.sh
 check_present 'coverage requires GNU-compatible MPI compiler wrappers' \
   scripts/docker-build-test.sh
+check_present 'FC_MPI_COMPILE_FLAGS=\$\{FC_MPI_COMPILE_FLAGS:-\$' \
+  scripts/docker-build-test.sh
 check_present 'COVERAGE=1' scripts/coverage.sh
-check_present '"\$GCOVR" --root' scripts/coverage.sh
+check_present '"\$GCOVR" "\$\{COMMON_GCOVR_ARGS\[@\]\}"' scripts/coverage.sh
 check_present 'REPORT_DIR=\$\{REPORT_DIR:-build/coverage\}' scripts/coverage.sh
+check_present 'COVERAGE_MIN_LINE=\$\{COVERAGE_MIN_LINE:-85\}' \
+  scripts/coverage.sh
+check_present 'rm -rf "\$REPORT_DIR" build/docker' scripts/coverage.sh
+check_present 'rm -f \./\*\.mod \./\*\.smod' scripts/coverage.sh
+check_present 'COMMON_GCOVR_ARGS=' scripts/coverage.sh
+check_present 'Full legacy-inclusive coverage report:' scripts/coverage.sh
+check_present '\$REPORT_DIR/full/coverage.xml' scripts/coverage.sh
+check_present '\$REPORT_DIR/full/index.html' scripts/coverage.sh
+check_present '--merge-mode-functions merge-use-line-min' scripts/coverage.sh
+check_present '--filter "\$REPO_ROOT/src/c/oh_\.\*"' scripts/coverage.sh
+check_present '--filter "\$REPO_ROOT/src/fortran/oh_v2.F90"' \
+  scripts/coverage.sh
+check_present '--filter "\$REPO_ROOT/include/oh_particle_adapter.h"' \
+  scripts/coverage.sh
+check_present '--fail-under-line "\$COVERAGE_MIN_LINE"' scripts/coverage.sh
 check_present '\$REPORT_DIR/coverage.xml' scripts/coverage.sh
 check_present '\$REPORT_DIR/index.html' scripts/coverage.sh
 check_present 'scripts/coverage.sh' README.md
+check_present 'legacy-inclusive source report' README.md
+check_present 'v2 modernization surface' README.md
+check_present 'Run coverage gate' .github/workflows/ci.yml
+check_present 'COVERAGE_MIN_LINE: "85"' .github/workflows/ci.yml
+check_present 'actions/upload-artifact@v4' .github/workflows/ci.yml
 check_present 'COVERAGE=1 bash scripts/docker-build-test.sh' README.md
 check_present 'Fortran and C coverage' README.md
 
@@ -1799,6 +1821,10 @@ check_present 'oh_context_all_reduce(context_x' \
   tests/test_oh_context_lifecycle_fortran.F90
 check_present 'oh_context_reduce(context_x' \
   tests/test_oh_context_lifecycle_fortran.F90
+check_present 'run_context_collective_value_test' \
+  tests/test_oh_context_lifecycle_fortran.F90
+check_present 'raw_sbuf\(1\) /= 7\.0_c_double' \
+  tests/test_oh_context_lifecycle_fortran.F90
 check_present 'oh_context_set_region_weights(context, weights)' \
   tests/test_oh_context_lifecycle_fortran.F90
 check_present 'run_region_weight_reset_behavior_test' \
@@ -1978,6 +2004,12 @@ check_present 'oh4p_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
   tests/test_oh4p_runtime_smoke.c
 check_present 'oh4p_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
   tests/test_oh4p_fortran_runtime.F90
+check_present 'oh4p_inject_particle\(injected' \
+  tests/test_oh4p_fortran_runtime.F90
+check_present 'call oh4p_remove_mapped_particle\(parts\(injected_slot\), 0, 1\)' \
+  tests/test_oh4p_fortran_runtime.F90
+check_present 'oh4p_remap_particle_to_subdomain\(parts\(injected_slot\)' \
+  tests/test_oh4p_fortran_runtime.F90
 check_present 'call oh4p_per_grid_histogram\(pghgram\)' \
   tests/test_oh4p_fortran_runtime.F90
 check_present 'int\* allocated = NULL' src/c/ohhelp4p.c
@@ -2008,6 +2040,12 @@ check_present 'totalp\[1\] == 2' tests/test_oh4s_runtime_smoke.c
 check_present 'oh4s_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
   tests/test_oh4s_runtime_smoke.c
 check_present 'oh4s_transbound\(OH_MODE_REBALANCE_SECONDARY, 0\)' \
+  tests/test_oh4s_fortran_runtime.F90
+check_present 'oh4s_inject_particle\(injected' \
+  tests/test_oh4s_fortran_runtime.F90
+check_present 'call oh4s_remove_mapped_particle\(parts\(injected_slot\), 0, 1\)' \
+  tests/test_oh4s_fortran_runtime.F90
+check_present 'oh4s_remap_particle_to_subdomain\(parts\(injected_slot\)' \
   tests/test_oh4s_fortran_runtime.F90
 check_present 'call oh4s_per_grid_histogram\(pghgram, pgindex\)' \
   tests/test_oh4s_fortran_runtime.F90

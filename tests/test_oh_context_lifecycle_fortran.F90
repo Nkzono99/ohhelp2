@@ -215,6 +215,7 @@ program test_oh_context_lifecycle_fortran
     call oh_context_set_total_particles(context_x)
     mode = oh_context_transbound3(context_x, OH_MODE_NORMAL_PRIMARY, 0_c_int)
     if (mode /= OH_MODE_REBALANCE_SECONDARY) stop 29
+    call run_context_collective_value_test(context_x, rank)
     call oh_context_get_region_ids(context_x, c_loc(copied_sdid(1)))
     call c_f_pointer(pbase_x, pbase_x_values, [3])
     if (rank == 0) then
@@ -288,6 +289,47 @@ contains
     call oh_context_unbind_region_ids(context)
     call oh_context_destroy(context)
     deallocate(nphgram)
+  end subroutine
+
+  subroutine run_context_collective_value_test(context, rank_value)
+    type(oh_context_handle), intent(in) :: context
+    integer, intent(in) :: rank_value
+    real(c_double), target :: raw_pbuf(1)
+    real(c_double), target :: raw_sbuf(1)
+
+    raw_pbuf(1) = merge(11.0_c_double, -1.0_c_double, rank_value == 0)
+    raw_sbuf(1) = merge(-2.0_c_double, -3.0_c_double, rank_value == 0)
+    call oh_context_broadcast(context, c_loc(raw_pbuf(1)), &
+                              c_loc(raw_sbuf(1)), 1_c_int, 1_c_int, &
+                              int(MPI_DOUBLE, c_int), int(MPI_DOUBLE, c_int))
+    if (rank_value == 0) then
+      if (raw_pbuf(1) /= 11.0_c_double) stop 80
+    else
+      if (raw_sbuf(1) /= 11.0_c_double) stop 81
+    end if
+
+    raw_pbuf(1) = merge(2.0_c_double, -20.0_c_double, rank_value == 0)
+    raw_sbuf(1) = merge(-30.0_c_double, 5.0_c_double, rank_value == 0)
+    call oh_context_all_reduce(context, c_loc(raw_pbuf(1)), &
+                               c_loc(raw_sbuf(1)), 1_c_int, 1_c_int, &
+                               int(MPI_DOUBLE, c_int), &
+                               int(MPI_DOUBLE, c_int), int(MPI_SUM, c_int), &
+                               int(MPI_SUM, c_int))
+    if (rank_value == 0) then
+      if (raw_pbuf(1) /= 7.0_c_double) stop 82
+    else
+      if (raw_sbuf(1) /= 7.0_c_double) stop 83
+    end if
+
+    raw_pbuf(1) = merge(3.0_c_double, -20.0_c_double, rank_value == 0)
+    raw_sbuf(1) = merge(-30.0_c_double, 4.0_c_double, rank_value == 0)
+    call oh_context_reduce(context, c_loc(raw_pbuf(1)), c_loc(raw_sbuf(1)), &
+                           1_c_int, 1_c_int, int(MPI_DOUBLE, c_int), &
+                           int(MPI_DOUBLE, c_int), int(MPI_SUM, c_int), &
+                           int(MPI_SUM, c_int))
+    if (rank_value == 0) then
+      if (raw_pbuf(1) /= 7.0_c_double) stop 84
+    end if
   end subroutine
 
   subroutine configure_context(context, nranks_value, axis, legacy_level3)

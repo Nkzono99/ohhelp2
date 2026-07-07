@@ -59,8 +59,8 @@ environments that do not have fpm installed.
 If OpenMPI reports too few slots in a constrained CI runner, set
 `MPIRUN_FLAGS=--oversubscribe`.
 
-Fortran and C coverage can be collected as an opt-in metric for the hand-wired
-MPI runtime suite when the MPI compiler wrappers are backed by GCC/GFortran:
+Fortran and C coverage can be collected for the hand-wired MPI runtime suite
+when the MPI compiler wrappers are backed by GCC/GFortran:
 
 ```sh
 bash scripts/coverage.sh
@@ -72,12 +72,18 @@ The coverage script runs:
 COVERAGE=1 bash scripts/docker-build-test.sh
 ```
 
-and then writes `build/coverage/coverage.xml` plus
-`build/coverage/index.html` with `gcovr`. Treat this as a directional
-C/Fortran runtime metric, not as a merge-blocking percentage by itself. MPI
-ranks and expected-failure cases can make coverage counters noisy, and
-non-GNU compiler stacks such as NVIDIA HPC SDK or Intel require their own
-coverage tooling or a GCC-backed MPI module.
+and then writes two `gcovr` reports. `build/coverage/full/` is the
+legacy-inclusive source report across `src/` and `include/`. The default
+85% line coverage gate applies to the v2 modernization surface in
+`build/coverage/coverage.xml` and `build/coverage/index.html`: context
+objects, particle adapter support, load balancing helpers, and the Fortran v2
+facade. Override the gate with `COVERAGE_MIN_LINE` only when intentionally
+measuring a different threshold. MPI ranks and expected-failure cases can make
+coverage counters noisy, and non-GNU compiler stacks such as NVIDIA HPC SDK or
+Intel require their own coverage tooling or a GCC-backed MPI module. If an MPI
+wrapper does not support OpenMPI-style `-showme:compile`, set
+`FC_MPI_COMPILE_FLAGS` to the Fortran MPI module include flags for that
+compiler.
 
 Historical v1 Markdown is generated from PDFs with Python 3.10 or newer. Check
 reproducibility separately after installing `requirements-doc.txt`:

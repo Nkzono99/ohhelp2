@@ -116,10 +116,53 @@ program test_oh4s_fortran_runtime
     if (mode /= OH_MODE_NORMAL_PRIMARY) stop 15
     if (pbase(1) /= 0 .or. pbase(2) /= 2 .or. pbase(3) /= 2) stop 16
     if (totalp(1,1) /= 2 .or. totalp(1,2) /= 0) stop 17
+    call run_particle_mutation_path(pbuf, maxlocalp, rank)
   end if
 
   call MPI_Finalize(ierr)
 contains
+  subroutine run_particle_mutation_path(parts, maxlocalp_value, rank_value)
+    type(oh_particle), intent(inout) :: parts(:)
+    integer, intent(in) :: maxlocalp_value
+    integer, intent(in) :: rank_value
+    type(oh_particle) :: injected
+    integer :: injected_slot
+    integer :: i
+    integer :: mapped_value
+
+    injected%x = real(rank_value, 8) + 0.5d0
+    injected%y = 0.5d0
+    injected%z = 0.5d0
+    injected%vx = 0.0d0
+    injected%vy = 0.0d0
+    injected%vz = 0.0d0
+    injected%pid = 100 + rank_value
+    injected%preside = OH_PCL_ALIVE
+    injected%trace_id = int(1000 + rank_value, 8)
+    injected%nid = rank_value
+    injected%spec = 1
+
+    mapped_value = oh4s_inject_particle(injected, 0)
+    if (mapped_value /= rank_value) stop 18
+    injected_slot = 0
+    do i = maxlocalp_value + 1, maxlocalp_value * 2
+      if (parts(i)%pid == 100 + rank_value .and. &
+          parts(i)%trace_id == int(1000 + rank_value, 8)) then
+        injected_slot = i
+        exit
+      end if
+    end do
+    if (injected_slot == 0) stop 19
+    if (parts(injected_slot)%nid < 0) stop 20
+
+    call oh4s_remove_mapped_particle(parts(injected_slot), 0, 1)
+    if (parts(injected_slot)%nid /= -1) stop 21
+    mapped_value = oh4s_remap_particle_to_subdomain(parts(injected_slot), &
+                                                    0, 1)
+    if (mapped_value /= rank_value) stop 22
+    if (parts(injected_slot)%nid < 0) stop 23
+  end subroutine
+
   subroutine clear_particles(parts)
     type(oh_particle), intent(inout) :: parts(:)
 

@@ -53,8 +53,14 @@ v2 must not require the application to store particles as `S_particle` or
 - species getter,
 - optional position fields or mapping callbacks.
 
-The adapter is the only supported boundary for user particle layout semantics.
+The adapter is the supported boundary for AoS particle layout semantics.
 See [Particle Adapter](particle-adapter.md).
+
+The [AoS/SoA storage backends](particle-storage-backends.md) keep AoS as the
+default and add indexed local movement with staged communication for SoA.
+Native SoA supports heap-context Level 2/3 and default-context Level 4p/4s.
+Level 4 uses column banks for sorting and MPI datatypes over column slices. See the
+[SoA usage guide](../usage/soa-particles.md) for the implemented API.
 
 ## Load Boundary
 

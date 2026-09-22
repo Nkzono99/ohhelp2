@@ -1617,3 +1617,28 @@ state_exchange_borders(struct oh_state *state, void *pfld, void *sfld,
     }
   }
 }
+
+/* Indexed Level 3 column mapping. Mapping and accounting remain separate. */
+int oh_context_map_soa_particle_to_neighbor(oh_context *state, int index, int ps) {
+  double *xyz[3] = {NULL, NULL, NULL};
+  int dst;
+  if (!state || !state->grid || !state->soa || !state->particle_buffer_bound ||
+      oh_soa_is_level4(state) ||
+      state->particle_storage != OH_PARTICLE_STORAGE_SOA || ps < 0 || ps > 1 ||
+      state->region_id[ps] < 0) return -1;
+  for (int d=0; d<OH_DIMENSION; ++d) xyz[d]=oh_soa_position(state,index,d);
+  dst=oh3_map_particle_to_neighbor_state(state,xyz[0],xyz[1],xyz[2],ps);
+  oh_soa_set_region(state->soa,index,dst);
+  return dst;
+}
+int oh_context_map_soa_particle_to_subdomain(oh_context *state, int index) {
+  double xyz[3] = {0, 0, 0};
+  int dst;
+  if (!state || !state->grid || !state->soa || !state->particle_buffer_bound ||
+      oh_soa_is_level4(state) ||
+      state->particle_storage != OH_PARTICLE_STORAGE_SOA) return -1;
+  for (int d=0; d<OH_DIMENSION; ++d) xyz[d]=*oh_soa_position(state,index,d);
+  dst=oh3_map_particle_to_subdomain_state(state,xyz[0],xyz[1],xyz[2]);
+  oh_soa_set_region(state->soa,index,dst);
+  return dst;
+}

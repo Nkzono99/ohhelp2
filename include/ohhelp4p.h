@@ -12,6 +12,8 @@
 #define OH_PGRID_EXT 1
 #define OH_NBR_SELF (OH_NEIGHBORS>>1)
 
+#include "oh_particle_storage.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -62,6 +64,16 @@ int  oh4p_remap_particle_to_neighbor_(struct S_particle* part, const int* ps,
     const int* s);
 int  oh4p_remap_particle_to_subdomain_(struct S_particle* part, const int* ps,
     const int* s);
+
+
+/* Zero-based SoA indices and normalized species; mapping updates Level 4 histograms. */
+int oh4p_map_soa_particle_to_neighbor(int index, int ps, int species);
+int oh4p_map_soa_particle_to_subdomain(int index, int ps, int species);
+void oh4p_remove_mapped_soa_particle(int index, int ps, int species);
+int oh4p_remap_soa_particle_to_neighbor(int index, int ps, int species);
+int oh4p_remap_soa_particle_to_subdomain(int index, int ps, int species);
+int oh4p_inject_soa_particle(const void *const *values, int nfields, int ps,
+                                oh_particle_ref *ref, int *destination);
 
 #ifdef __cplusplus
 }

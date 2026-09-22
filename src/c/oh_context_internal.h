@@ -6,6 +6,7 @@
 
 #include "ohhelp1.h"
 #include "oh_particle_adapter.h"
+#include "oh_particle_storage_internal.h"
 
 struct oh_state {
   MPI_Comm comm;
@@ -65,6 +66,10 @@ struct oh_state {
   struct S_mycommc *my_comm_c;
   struct S_mycommf *my_comm_f;
   int n_of_local_particles_limit;
+  int particle_storage;
+  int storage_schema_dirty;
+  long long particle_generation;
+  struct oh_soa_storage *soa;
   void *particles;
   int particle_buffer_bound;
   int particle_buffer_ownership;

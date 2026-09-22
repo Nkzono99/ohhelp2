@@ -22,6 +22,12 @@
 #include "ohhelp4s_internal.h"
 #include "ohhelp4s_state.h"
 
+static int map_particle_to_neighbor4s(void*, int, int);
+static int map_particle_to_subdomain4s(void*, int, int);
+static void remove_mapped_particle4s(void*, int, int);
+static int remap_particle_to_neighbor4s(void*, int, int);
+static int remap_particle_to_subdomain4s(void*, int, int);
+
 static struct oh_state* oh4s_state(void);
 static void init4s(int** sdid, const int nspec, const int maxfrac,
                    const dint npmax, const int minmargin, const int maxdensity,
@@ -256,6 +262,12 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
         errstop("maximum particle density (%d) should be greater than 0",
                 maxdensity);
 
+    if (OhDefaultState.particle_storage == OH_PARTICLE_STORAGE_SOA) {
+        if (!OhDefaultState.soa ||
+            (nspec > 1 && OhDefaultState.soa->species_field < 0))
+            local_errstop("Level 4 SoA schema requires a species column");
+        oh_soa_level4_init(&OhDefaultState, 5);
+    }
     MPI_Comm_size(MCW, &nn);  nnns = nn * nspec;  nnns2 = nnns << 1;
     TempArray = (int*)mem_alloc(sizeof(int), nn << 2, "TempArray");
 
@@ -273,7 +285,10 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     memcpy(BoundaryCommTypes, ct, sizeof(int) * ne * nbound * 2 * OH_CTYPE_N);
     ft = FieldTypes;  ct = BoundaryCommTypes + ne * nbound;
     ft[nf][OH_FTYPE_ES] = 1;
-    ft[nf][OH_FTYPE_LO] = 0;  ft[nf][OH_FTYPE_UP] = 0;
+    /* The histogram has 3 halo layers, including receive scratch.
+       Its field/MPI stride must match GridDesc and each species plane. */
+    ft[nf][OH_FTYPE_LO] = -OH_PGRID_EXT * 3;
+    ft[nf][OH_FTYPE_UP] = OH_PGRID_EXT * 3;
     ft[nf][OH_FTYPE_BL] = -ext;  ft[nf][OH_FTYPE_BU] = ext;
     ft[nf][OH_FTYPE_RL] = -ext;  ft[nf][OH_FTYPE_RU] = ext;
     ft[nf + 1][OH_FTYPE_ES] = -1;
@@ -319,6 +334,7 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
     if (npl > INT_MAX) mem_alloc_error("BoundarySendBuf", 0);
     size = (int)npl;
     state->level4_boundary_send_buffer = BoundarySendBuf =
+        oh_soa_is_level4(state) ? oh_soa_level4_bank(state, 2, size) :
         mem_alloc(oh_particle_buffer_stride(state->particle_adapter), size,
                   "BoundarySendBuf");
     size = grid[OH_DIM_X].size + ext2;
@@ -356,6 +372,11 @@ static void init4s(int** sdid, const int nspec, const int maxfrac, const dint np
                 GridDesc[0].d - ext6, ext6,
                 GridDesc[0].h - ext6, ext6, nn);
     }
+
+    if (oh_soa_is_level4(state) &&
+        state->soa->fields[state->soa->region_field].type == OH_PARTICLE_FIELD_INT &&
+        idmax + ((1LL << loggrid) - 1) > INT_MAX)
+        local_errstop("Level 4 packed region requires a long long SoA column");
 
     logGrid = loggrid;  gridMask = (1 << loggrid) - 1;
     state->log_grid = loggrid;  state->grid_mask = gridMask;
@@ -495,6 +516,14 @@ void oh4s_particle_buffer(const int maxlocalp, void** pbuf) {
         local_errstop("oh4s_particle_buffer() requires a particle pointer slot");
     if (maxlocalp < 0 || maxlocalp > INT_MAX / 2)
         mem_alloc_error("Particles", 0);
+    if (oh_soa_is_level4(state)) {
+        if (*pbuf) local_errstop("SoA buffer requires a NULL AoS buffer slot");
+        state->particles = Particles = oh_soa_level4_bank(state, 0, maxlocalp);
+        state->send_buffer = SendBuf = oh_soa_level4_bank(state, 1, maxlocalp);
+        nOfLocalPLimit = state->n_of_local_particles_limit = maxlocalp;
+        totalParts = state->total_parts = maxlocalp;
+        return;
+    }
     if (*pbuf)
         state->particles = Particles = *pbuf;
     else
@@ -549,6 +578,7 @@ static int transbound4s(int currmode, int stats, const int level) {
     Decl_For_All_Grid();
 
     state = oh4s_state();
+    oh_storage_preflight(state, 5);
     stats = stats && state->stats_mode;
     currmode = transbound1_state(state, currmode, stats, level);
     state = oh4s_state();
@@ -588,9 +618,12 @@ static int transbound4s(int currmode, int stats, const int level) {
     }
     if (state->level4_z_bound_shadow)
         memcpy(state->level4_z_bound_shadow, z_bound, sizeof(int) * 2 * 2);
-    tmp = state->particles;
-    Particles = state->particles = state->send_buffer;
-    SendBuf = state->send_buffer = tmp;
+    if (oh_soa_is_level4(state)) oh_soa_level4_finish(state);
+    else {
+        tmp = state->particles;
+        Particles = state->particles = state->send_buffer;
+        SendBuf = state->send_buffer = tmp;
+    }
     currMode = state->curr_mode = ret < 0 ? -ret : ret;
     return(ret);
 }
@@ -1974,7 +2007,7 @@ static void sort_received_particles(struct oh_state* state, const int nextmode,
         for (s = 0; s < ns; s++, rbb++) {
             dint* npg = state->level4_particle_grid[ps][s];
             dint* npgt = state->level4_particle_grid_total[ps][s];
-            const int rbtail = level4_particle_index(state, *rbb);
+            const int rbtail = level4_cursor_index(state, *rbb);
             for (; pidx < rbtail; pidx++) {
                 void* p = level4_particle_at(state, pidx);
                 Sort_Particle(p);
@@ -2022,7 +2055,7 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
                 const int nid = nbor[i];
                 const int nrecv = nofr[nid];
                 if (nrecv) {
-                    MPI_Irecv(rbuf, nrecv, state->particle_mpi_type, nid, t,
+                    oh_storage_irecv(state, rbuf, nrecv, state->particle_mpi_type, nid, t,
                               state->comm, state->requests + req++);
                     rbuf = oh_particle_buffer_at(state->particle_adapter,
                                                  rbuf, nrecv);
@@ -2046,7 +2079,7 @@ static void state_xfer_particles4s(struct oh_state* state, const int trans,
                                   "displacement");
                 nofs[nid] = 0;
                 if (nsend) {
-                    MPI_Isend(oh_particle_buffer_at(state->particle_adapter,
+                    oh_storage_isend(state, oh_particle_buffer_at(state->particle_adapter,
                                                     sbuf, sdisp),
                               nsend, state->particle_mpi_type, nid, t,
                               state->comm, state->requests + req++);
@@ -2077,14 +2110,14 @@ static void xfer_boundary_particles_v(struct oh_state* state, const int psnew,
     for (i = vphead, vp = vplanes + vphead; i < vptail; i++, vp++) {
         const int nrecv = vp->nrecv;
         if (nrecv)
-            MPI_Irecv(level4_particle_at(state, vp->rbuf), nrecv,
+            oh_storage_irecv(state, level4_particle_at(state, vp->rbuf), nrecv,
                       state->particle_mpi_type, vp->nbor, vp->rtag,
                       state->comm, state->requests + req++);
     }
     for (i = vphead, vp = vplanes + vphead; i < vptail; i++, vp++) {
         const int nsend = vp->nsend;
         if (nsend)
-            MPI_Isend(oh_particle_buffer_at(state->particle_adapter,
+            oh_storage_isend(state, oh_particle_buffer_at(state->particle_adapter,
                                             boundary_send_buffer, vp->sbuf),
                       nsend,
                       state->particle_mpi_type, vp->nbor, vp->stag,
@@ -2161,7 +2194,7 @@ static void xfer_boundary_particles_h(struct oh_state* state, const int psnew) {
             if (nbor != MPI_PROC_NULL) {
                 for (s = 0; s < ns; s++) {
                     if (nrecv[s])
-                        MPI_Irecv(oh_particle_buffer_at(state->particle_adapter,
+                        oh_storage_irecv(state, oh_particle_buffer_at(state->particle_adapter,
                                                         state->send_buffer,
                                                         rbuf[s]),
                                   nrecv[s],
@@ -2179,7 +2212,7 @@ static void xfer_boundary_particles_h(struct oh_state* state, const int psnew) {
             if (nbor != MPI_PROC_NULL) {
                 for (s = 0; s < ns; s++) {
                     if (nsend[s])
-                        MPI_Isend(oh_particle_buffer_at(state->particle_adapter,
+                        oh_storage_isend(state, oh_particle_buffer_at(state->particle_adapter,
                                                         state->send_buffer,
                                                         sbuf[s]),
                                   nsend[s],
@@ -2436,7 +2469,7 @@ int oh4s_map_particle_to_neighbor_(struct S_particle* part, const int* ps,
     return(oh4s_map_particle_to_neighbor(part, *ps, *s - 1));
 }
 
-int oh4s_map_particle_to_neighbor(void* particle, const int ps,
+static int map_particle_to_neighbor4s(void* particle, const int ps,
                                   const int s) {
     struct oh_state* state = oh4s_state();
     void* part = particle;
@@ -2481,7 +2514,7 @@ int oh4s_map_particle_to_neighbor(void* particle, const int ps,
         }
         return(mysd);
     } else if (k < 0)
-        return(oh4s_map_particle_to_subdomain(part, ps, s));
+        return(map_particle_to_subdomain4s(part, ps, s));
     sd = abs_neighbors[ps][k];
     if (sd >= nn) {
         level4_mark_particle_removed(state, part, ps);
@@ -2572,7 +2605,7 @@ int oh4s_map_particle_to_subdomain_(struct S_particle* part, const int* ps,
     return(oh4s_map_particle_to_subdomain(part, *ps, *s - 1));
 }
 
-int oh4s_map_particle_to_subdomain(void* particle, const int ps,
+static int map_particle_to_subdomain4s(void* particle, const int ps,
                                    const int s) {
     struct oh_state* state = oh4s_state();
     void* part = particle;
@@ -2646,6 +2679,7 @@ int oh4s_inject_particle_(const struct S_particle* part, const int* ps) {
 
 int oh4s_inject_particle(const void* particle, const int ps) {
     struct oh_state* state = oh4s_state();
+    oh_storage_require_aos(state, "oh4s_inject_particle()");
     const void* part = particle;
     dint inj = (dint)state->total_parts + state->n_of_injections;
     void* p;
@@ -2667,7 +2701,7 @@ int oh4s_inject_particle(const void* particle, const int ps) {
     nOfInjections = state->n_of_injections;
     p = level4_particle_at(state, (int)inj);
     level4_copy_particle(state, p, part);
-    sd = oh4s_map_particle_to_neighbor(p, ps, s);
+    sd = map_particle_to_neighbor4s(p, ps, s);
     if (sd < 0) {
         state->n_of_injections--;
         nOfInjections = state->n_of_injections;
@@ -2678,7 +2712,7 @@ void oh4s_remove_mapped_particle_(struct S_particle* part, const int* ps,
                                   const int* s) {
     oh4s_remove_mapped_particle(part, *ps, *s - 1);
 }
-void oh4s_remove_mapped_particle(void* particle, const int ps,
+static void remove_mapped_particle4s(void* particle, const int ps,
                                  const int s) {
     struct oh_state* state = oh4s_state();
     void* part = particle;
@@ -2709,17 +2743,81 @@ int oh4s_remap_particle_to_neighbor_(struct S_particle* part, const int* ps, con
     return(oh4s_remap_particle_to_neighbor(part, *ps, *s - 1));
 }
 
-int oh4s_remap_particle_to_neighbor(void* part, const int ps, const int s) {
-    oh4s_remove_mapped_particle(part, ps, s);
-    return(oh4s_map_particle_to_neighbor(part, ps, s));
+static int remap_particle_to_neighbor4s(void* part, const int ps, const int s) {
+    remove_mapped_particle4s(part, ps, s);
+    return(map_particle_to_neighbor4s(part, ps, s));
 }
 
 int oh4s_remap_particle_to_subdomain_(struct S_particle* part, const int* ps, const int* s) {
     return(oh4s_remap_particle_to_subdomain(part, *ps, *s - 1));
 }
 
-int oh4s_remap_particle_to_subdomain(void* part, const int ps, const int s) {
-    oh4s_remove_mapped_particle(part, ps, s);
-    return(oh4s_map_particle_to_subdomain(part, ps, s));
+static int remap_particle_to_subdomain4s(void* part, const int ps, const int s) {
+    remove_mapped_particle4s(part, ps, s);
+    return(map_particle_to_subdomain4s(part, ps, s));
+}
+
+/* Pointer entry points are AoS-only; ordinal entry points address native columns. */
+int oh4s_map_particle_to_neighbor(void *part, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    oh_storage_require_aos(state,"oh4s_map_particle_to_neighbor()");
+    return map_particle_to_neighbor4s(part,ps,species);
+}
+int oh4s_map_soa_particle_to_neighbor(int index, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    return map_particle_to_neighbor4s(oh_soa_level4_slot(state,index),ps,species);
+}
+int oh4s_map_particle_to_subdomain(void *part, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    oh_storage_require_aos(state,"oh4s_map_particle_to_subdomain()");
+    return map_particle_to_subdomain4s(part,ps,species);
+}
+int oh4s_map_soa_particle_to_subdomain(int index, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    return map_particle_to_subdomain4s(oh_soa_level4_slot(state,index),ps,species);
+}
+void oh4s_remove_mapped_particle(void *part, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    oh_storage_require_aos(state,"oh4s_remove_mapped_particle()");
+    remove_mapped_particle4s(part,ps,species);
+}
+void oh4s_remove_mapped_soa_particle(int index, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    remove_mapped_particle4s(oh_soa_level4_slot(state,index),ps,species);
+}
+int oh4s_remap_particle_to_neighbor(void *part, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    oh_storage_require_aos(state,"oh4s_remap_particle_to_neighbor()");
+    return remap_particle_to_neighbor4s(part,ps,species);
+}
+int oh4s_remap_soa_particle_to_neighbor(int index, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    return remap_particle_to_neighbor4s(oh_soa_level4_slot(state,index),ps,species);
+}
+int oh4s_remap_particle_to_subdomain(void *part, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    oh_storage_require_aos(state,"oh4s_remap_particle_to_subdomain()");
+    return remap_particle_to_subdomain4s(part,ps,species);
+}
+int oh4s_remap_soa_particle_to_subdomain(int index, int ps, int species) {
+    struct oh_state *state=oh4s_state();
+    return remap_particle_to_subdomain4s(oh_soa_level4_slot(state,index),ps,species);
+}
+int oh4s_inject_soa_particle(const void *const *values, int nfields, int ps,
+                                  oh_particle_ref *ref, int *destination) {
+    struct oh_state *state=oh4s_state();
+    int err, dst;
+    if (!oh_soa_is_level4(state) || !state->particle_buffer_bound || !destination ||
+        !ref || ps<0 || ps>1 || state->region_id[ps]<0) return MPI_ERR_ARG;
+    err=oh_soa_append(state,values,nfields,ref);
+    if (err!=MPI_SUCCESS) return err;
+    dst=map_particle_to_neighbor4s(oh_soa_level4_slot(state,ref->index),ps,
+                                       oh_soa_species(state,ref->index));
+    if (dst<0) {
+        nOfInjections=--state->n_of_injections;
+        ref->context=NULL; ref->index=-1;
+    }
+    *destination=dst;
+    return MPI_SUCCESS;
 }
 #endif

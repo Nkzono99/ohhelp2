@@ -38,6 +38,269 @@ module ohhelp_v2
     integer(c_int) :: black
   end type
 
+
+  integer(c_int), parameter, public :: OH_PARTICLE_STORAGE_AOS = 0_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_STORAGE_SOA = 1_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_FIELD_INT = 1_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_FIELD_LONG_LONG = 2_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_FIELD_DOUBLE = 3_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_FIELD_BYTES = 4_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_ROLE_PAYLOAD = 0_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_ROLE_REGION = 1_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_ROLE_SPECIES = 2_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_ROLE_X = 4_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_ROLE_Y = 8_c_int
+  integer(c_int), parameter, public :: OH_PARTICLE_ROLE_Z = 16_c_int
+
+  type, bind(C), public :: oh_particle_field
+    integer(c_int) :: key, field_type, role
+    integer(c_size_t) :: size
+  end type
+
+  type, bind(C), public :: oh_particle_ref
+    type(c_ptr) :: context = c_null_ptr
+    integer(c_long_long) :: generation = 0_c_long_long
+    integer(c_int) :: index = -1_c_int
+  end type
+
+  public :: oh_context_set_particle_storage, oh_context_get_particle_storage
+  public :: oh_context_configure_soa, oh_context_bind_soa_particles
+  public :: oh_context_soa_field, oh_context_inject_soa_particle
+  public :: oh_context_remap_injected_particle_ref
+  public :: oh_context_remove_injected_particle_ref, oh_soa_column
+
+  ! POINTER, INTENT(IN) dummies preserve the actual array descriptor. TARGET
+  ! assumed-shape dummies can be copied by NVFortran before contiguity checks.
+  ! The generic helper takes associated POINTER actual arguments; their
+  ! target storage must remain alive throughout the binding.
+  interface oh_soa_column
+    module procedure soa_int_column, soa_long_long_column, soa_double_column
+  end interface
+
+  public :: oh_context_map_soa_particle_to_neighbor, oh_context_map_soa_particle_to_subdomain
+  public :: oh4p_map_soa_particle_to_neighbor
+  public :: oh4p_map_soa_particle_to_subdomain
+  public :: oh4p_remove_mapped_soa_particle
+  public :: oh4p_remap_soa_particle_to_neighbor
+  public :: oh4p_remap_soa_particle_to_subdomain
+  public :: oh4p_inject_soa_particle, oh4p_init_raw
+  public :: oh4s_map_soa_particle_to_neighbor
+  public :: oh4s_map_soa_particle_to_subdomain
+  public :: oh4s_remove_mapped_soa_particle
+  public :: oh4s_remap_soa_particle_to_neighbor
+  public :: oh4s_remap_soa_particle_to_subdomain
+  public :: oh4s_inject_soa_particle, oh4s_init_raw
+  public :: oh4p_transbound_raw, oh4s_transbound_raw, oh4s_particle_buffer_raw
+  public :: oh4p_max_local_particles_raw, oh4p_per_grid_histogram_raw, oh4s_per_grid_histogram_raw
+  public :: oh_context_particle_ref_valid
+  interface
+    function oh4p_max_local_particles_raw(npmax, maxfrac, minmargin, threshold) &
+        bind(C,name="oh4p_max_local_particles") result(capacity)
+      import :: c_int, c_long_long
+      integer(c_long_long), value :: npmax
+      integer(c_int), value :: maxfrac, minmargin, threshold
+      integer(c_int) :: capacity
+    end function
+    subroutine oh4p_per_grid_histogram_raw(hist) bind(C,name="oh4p_per_grid_histogram")
+      import :: c_ptr
+      type(c_ptr) :: hist
+    end subroutine
+    subroutine oh4s_per_grid_histogram_raw(hist, indices) bind(C,name="oh4s_per_grid_histogram")
+      import :: c_ptr
+      type(c_ptr) :: hist, indices
+    end subroutine
+    function c_particle_ref_valid(ctx, ref) bind(C,name="oh_context_particle_ref_valid") result(valid)
+      import :: c_ptr, c_int, oh_particle_ref
+      type(c_ptr), value :: ctx
+      type(oh_particle_ref), value :: ref
+      integer(c_int) :: valid
+    end function
+    function c_map_soa_neighbor(ctx, index, ps) &
+        bind(C,name="oh_context_map_soa_particle_to_neighbor") result(dst)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: ctx
+      integer(c_int), value :: index, ps
+      integer(c_int) :: dst
+    end function
+    function c_map_soa_subdomain(ctx, index) &
+        bind(C,name="oh_context_map_soa_particle_to_subdomain") result(dst)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: ctx
+      integer(c_int), value :: index
+      integer(c_int) :: dst
+    end function
+    function oh4p_map_soa_particle_to_neighbor(index, ps, species) &
+        bind(C,name="oh4p_map_soa_particle_to_neighbor") result(dst)
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+      integer(c_int) :: dst
+    end function
+    function oh4p_map_soa_particle_to_subdomain(index, ps, species) &
+        bind(C,name="oh4p_map_soa_particle_to_subdomain") result(dst)
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+      integer(c_int) :: dst
+    end function
+    subroutine oh4p_remove_mapped_soa_particle(index, ps, species) &
+        bind(C,name="oh4p_remove_mapped_soa_particle")
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+    end subroutine
+    function oh4p_remap_soa_particle_to_neighbor(index, ps, species) &
+        bind(C,name="oh4p_remap_soa_particle_to_neighbor") result(dst)
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+      integer(c_int) :: dst
+    end function
+    function oh4p_remap_soa_particle_to_subdomain(index, ps, species) &
+        bind(C,name="oh4p_remap_soa_particle_to_subdomain") result(dst)
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+      integer(c_int) :: dst
+    end function
+    function oh4p_inject_soa_particle(values, nfields, ps, ref, destination) &
+        bind(C,name="oh4p_inject_soa_particle") result(ierr)
+      import :: c_ptr, c_int, oh_particle_ref
+      type(c_ptr), intent(in) :: values(*)
+      integer(c_int), value :: nfields, ps
+      type(oh_particle_ref), intent(out) :: ref
+      integer(c_int), intent(out) :: destination
+      integer(c_int) :: ierr
+    end function
+    subroutine oh4p_init_raw(sdid, nspec, maxfrac, totalp, pbuf, pbase, capacity, &
+        mycomm, nbor, pcoord, sdoms, scoord, nbound, bcond, bounds, ftypes, &
+        cfields, ctypes, fsizes, stats, repiter, verbose) bind(C,name="oh4p_init")
+      import :: c_ptr, c_int
+      type(c_ptr) :: sdid, totalp, pbuf, pbase, nbor, sdoms, bounds, fsizes
+      type(c_ptr), value :: mycomm
+      integer(c_int), value :: nspec, maxfrac, capacity, nbound, stats, repiter, verbose
+      integer(c_int) :: pcoord(*), scoord(*), bcond(*), ftypes(*), cfields(*), ctypes(*)
+    end subroutine
+    function oh4s_map_soa_particle_to_neighbor(index, ps, species) &
+        bind(C,name="oh4s_map_soa_particle_to_neighbor") result(dst)
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+      integer(c_int) :: dst
+    end function
+    function oh4s_map_soa_particle_to_subdomain(index, ps, species) &
+        bind(C,name="oh4s_map_soa_particle_to_subdomain") result(dst)
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+      integer(c_int) :: dst
+    end function
+    subroutine oh4s_remove_mapped_soa_particle(index, ps, species) &
+        bind(C,name="oh4s_remove_mapped_soa_particle")
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+    end subroutine
+    function oh4s_remap_soa_particle_to_neighbor(index, ps, species) &
+        bind(C,name="oh4s_remap_soa_particle_to_neighbor") result(dst)
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+      integer(c_int) :: dst
+    end function
+    function oh4s_remap_soa_particle_to_subdomain(index, ps, species) &
+        bind(C,name="oh4s_remap_soa_particle_to_subdomain") result(dst)
+      import :: c_int
+      integer(c_int), value :: index, ps, species
+      integer(c_int) :: dst
+    end function
+    function oh4s_inject_soa_particle(values, nfields, ps, ref, destination) &
+        bind(C,name="oh4s_inject_soa_particle") result(ierr)
+      import :: c_ptr, c_int, oh_particle_ref
+      type(c_ptr), intent(in) :: values(*)
+      integer(c_int), value :: nfields, ps
+      type(oh_particle_ref), intent(out) :: ref
+      integer(c_int), intent(out) :: destination
+      integer(c_int) :: ierr
+    end function
+    subroutine oh4s_init_raw(sdid, nspec, maxfrac, npmax, minmargin, maxdensity, &
+        totalp, pbase, capacity, cbufsize, mycomm, nbor, pcoord, sdoms, scoord, &
+        nbound, bcond, bounds, ftypes, cfields, ctypes, fsizes, zbound, stats, &
+        repiter, verbose) bind(C,name="oh4s_init")
+      import :: c_ptr, c_int, c_long_long
+      type(c_ptr) :: sdid, totalp, pbase, nbor, sdoms, bounds, fsizes, zbound
+      type(c_ptr), value :: mycomm
+      integer(c_long_long), value :: npmax
+      integer(c_int), value :: nspec, maxfrac, minmargin, maxdensity, nbound, stats, repiter, verbose
+      integer(c_int) :: capacity, cbufsize
+      integer(c_int) :: pcoord(*), scoord(*), bcond(*), ftypes(*), cfields(*), ctypes(*)
+    end subroutine
+    function oh4p_transbound_raw(mode, stats) bind(C,name="oh4p_transbound") result(next)
+      import :: c_int
+      integer(c_int), value :: mode, stats
+      integer(c_int) :: next
+    end function
+    function oh4s_transbound_raw(mode, stats) bind(C,name="oh4s_transbound") result(next)
+      import :: c_int
+      integer(c_int), value :: mode, stats
+      integer(c_int) :: next
+    end function
+    subroutine oh4s_particle_buffer_raw(capacity, buffer) bind(C,name="oh4s_particle_buffer")
+      import :: c_int, c_ptr
+      integer(c_int), value :: capacity
+      type(c_ptr) :: buffer
+    end subroutine
+    function c_oh_context_set_particle_storage(ctx, backend) &
+        bind(C, name="oh_context_set_particle_storage") result(ierr)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: ctx
+      integer(c_int), value :: backend
+      integer(c_int) :: ierr
+    end function
+    function c_oh_context_get_particle_storage(ctx) &
+        bind(C, name="oh_context_get_particle_storage") result(backend)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: ctx
+      integer(c_int) :: backend
+    end function
+    function c_oh_context_configure_soa(ctx, fields, nfields, species_base) &
+        bind(C, name="oh_context_configure_soa") result(ierr)
+      import :: c_ptr, c_int, oh_particle_field
+      type(c_ptr), value :: ctx
+      type(oh_particle_field), intent(in) :: fields(*)
+      integer(c_int), value :: nfields, species_base
+      integer(c_int) :: ierr
+    end function
+    function c_oh_context_bind_soa_particles(ctx, bases, nfields, capacity, ownership) &
+        bind(C, name="oh_context_bind_soa_particles") result(ierr)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: ctx, bases
+      integer(c_int), value :: nfields, capacity, ownership
+      integer(c_int) :: ierr
+    end function
+    function c_oh_context_soa_field(ctx, key) &
+        bind(C, name="oh_context_soa_field") result(base)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: ctx
+      integer(c_int), value :: key
+      type(c_ptr) :: base
+    end function
+    function c_oh_context_inject_soa_particle(ctx, values, nfields, ref) &
+        bind(C, name="oh_context_inject_soa_particle") result(ierr)
+      import :: c_ptr, c_int, oh_particle_ref
+      type(c_ptr), value :: ctx
+      type(c_ptr), intent(in) :: values(*)
+      type(oh_particle_ref), intent(out) :: ref
+      integer(c_int), value :: nfields
+      integer(c_int) :: ierr
+    end function
+    function c_oh_context_remap_injected_particle_ref(ctx, ref) &
+        bind(C, name="oh_context_remap_injected_particle_ref") result(ierr)
+      import :: c_ptr, c_int, oh_particle_ref
+      type(c_ptr), value :: ctx
+      type(oh_particle_ref), value :: ref
+      integer(c_int) :: ierr
+    end function
+    function c_oh_context_remove_injected_particle_ref(ctx, ref) &
+        bind(C, name="oh_context_remove_injected_particle_ref") result(ierr)
+      import :: c_ptr, c_int, oh_particle_ref
+      type(c_ptr), value :: ctx
+      type(oh_particle_ref), value :: ref
+      integer(c_int) :: ierr
+    end function
+  end interface
+
   abstract interface
     function oh_particle_get_region_callback(adapter, particle, &
                                              primary_or_secondary) &
@@ -668,6 +931,104 @@ module ohhelp_v2
 
 contains
 
+  subroutine oh_context_set_particle_storage(context, backend, ierr)
+    type(oh_context_handle), intent(in) :: context
+    integer(c_int), intent(in) :: backend
+    integer(c_int), intent(out) :: ierr
+    ierr = c_oh_context_set_particle_storage(context%ptr, backend)
+  end subroutine
+
+  function oh_context_get_particle_storage(context) result(backend)
+    type(oh_context_handle), intent(in) :: context
+    integer(c_int) :: backend
+    backend = c_oh_context_get_particle_storage(context%ptr)
+  end function
+
+  subroutine oh_context_configure_soa(context, fields, ierr, species_base)
+    type(oh_context_handle), intent(in) :: context
+    type(oh_particle_field), intent(in) :: fields(:)
+    integer(c_int), intent(out) :: ierr
+    integer(c_int), intent(in), optional :: species_base
+    integer(c_int) :: base
+    base = 1_c_int
+    if (present(species_base)) base = species_base
+    ierr = c_oh_context_configure_soa(context%ptr, fields, &
+                                      int(size(fields),c_int), base)
+  end subroutine
+
+  subroutine oh_context_bind_soa_particles(context, capacity, ownership, ierr, bases)
+    type(oh_context_handle), intent(in) :: context
+    integer(c_int), intent(in) :: capacity, ownership
+    integer(c_int), intent(out) :: ierr
+    type(c_ptr), target, intent(in), optional :: bases(:)
+    type(c_ptr) :: ptr
+    type(c_ptr), allocatable, target :: columns(:)
+    integer(c_int) :: nfields
+    ptr = c_null_ptr
+    nfields = 0_c_int
+    if (present(bases)) then
+      nfields = int(size(bases),c_int)
+      if (nfields > 0) then
+        columns = bases
+        ptr = c_loc(columns(1))
+      end if
+    end if
+    ierr = c_oh_context_bind_soa_particles(context%ptr, ptr, nfields, capacity, ownership)
+  end subroutine
+
+  function oh_context_soa_field(context, key) result(base)
+    type(oh_context_handle), intent(in) :: context
+    integer(c_int), intent(in) :: key
+    type(c_ptr) :: base
+    base = c_oh_context_soa_field(context%ptr, key)
+  end function
+
+  subroutine oh_context_inject_soa_particle(context, values, ref, ierr)
+    type(oh_context_handle), intent(in) :: context
+    type(c_ptr), intent(in) :: values(:)
+    type(oh_particle_ref), intent(out) :: ref
+    integer(c_int), intent(out) :: ierr
+    ierr = c_oh_context_inject_soa_particle(context%ptr, values, int(size(values),c_int), ref)
+  end subroutine
+
+  subroutine oh_context_remap_injected_particle_ref(context, ref, ierr)
+    type(oh_context_handle), intent(in) :: context
+    type(oh_particle_ref), intent(in) :: ref
+    integer(c_int), intent(out) :: ierr
+    ierr = c_oh_context_remap_injected_particle_ref(context%ptr, ref)
+  end subroutine
+
+  subroutine oh_context_remove_injected_particle_ref(context, ref, ierr)
+    type(oh_context_handle), intent(in) :: context
+    type(oh_particle_ref), intent(in) :: ref
+    integer(c_int), intent(out) :: ierr
+    ierr = c_oh_context_remove_injected_particle_ref(context%ptr, ref)
+  end subroutine
+
+  function soa_int_column(values) result(base)
+    integer(c_int), pointer, intent(in) :: values(:)
+    type(c_ptr) :: base
+    base = c_null_ptr
+    if (.not. is_contiguous(values)) return
+    if (size(values) > 0) base = c_loc(values(1))
+  end function
+
+  function soa_long_long_column(values) result(base)
+    integer(c_long_long), pointer, intent(in) :: values(:)
+    type(c_ptr) :: base
+    base = c_null_ptr
+    if (.not. is_contiguous(values)) return
+    if (size(values) > 0) base = c_loc(values(1))
+  end function
+
+  function soa_double_column(values) result(base)
+    real(c_double), pointer, intent(in) :: values(:)
+    type(c_ptr) :: base
+    base = c_null_ptr
+    if (.not. is_contiguous(values)) return
+    if (size(values) > 0) base = c_loc(values(1))
+  end function
+
   subroutine oh_context_create(context, fortran_comm, ierr)
     type(oh_context_handle), intent(out) :: context
     integer(c_int), intent(in) :: fortran_comm
@@ -1216,4 +1577,23 @@ contains
       call oh_context_set_particle_adapter(context)
     end if
   end subroutine
+  function oh_context_map_soa_particle_to_neighbor(context, index, ps) result(dst)
+    type(oh_context_handle), intent(in) :: context
+    integer(c_int), intent(in) :: index, ps
+    integer(c_int) :: dst
+    dst=c_map_soa_neighbor(context%ptr, index, ps)
+  end function
+  function oh_context_map_soa_particle_to_subdomain(context, index) result(dst)
+    type(oh_context_handle), intent(in) :: context
+    integer(c_int), intent(in) :: index
+    integer(c_int) :: dst
+    dst=c_map_soa_subdomain(context%ptr, index)
+  end function
+
+  logical function oh_context_particle_ref_valid(context,ref) result(valid)
+    type(oh_context_handle), intent(in) :: context
+    type(oh_particle_ref), intent(in) :: ref
+    valid=c_particle_ref_valid(context%ptr,ref)/=0
+  end function
+
 end module

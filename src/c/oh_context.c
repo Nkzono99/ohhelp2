@@ -307,7 +307,8 @@ ensure_context_level2_storage(struct oh_state *context, int maxlocalp) {
   if (!context->particle_adapter)
     local_errstop("particle adapter is not configured");
 
-  stride = context->particle_adapter->stride;
+  stride = context->particle_storage == OH_PARTICLE_STORAGE_SOA
+             ? context->soa->record_size : context->particle_adapter->stride;
   slots = maxlocalp > 0 ? (size_t)maxlocalp : 1;
   context->send_buffer = context_calloc(slots, stride, "SendBuf");
   context->recv_buffer_bases =
@@ -322,6 +323,9 @@ ensure_context_level2_storage(struct oh_state *context, int maxlocalp) {
   context->statuses =
     (MPI_Status*)context_calloc((size_t)nnns*4+OH_NEIGHBORS*2,
                                 sizeof(MPI_Status), "Statuses");
+  if (context->particle_storage == OH_PARTICLE_STORAGE_SOA)
+    context->soa->receive_starts =
+      context_calloc((size_t)2*ns+1, sizeof(void*), "SoAReceiveStarts");
   context->n_of_injections = 0;
   context->owns_level2_storage = 1;
 }
@@ -724,6 +728,8 @@ void
 oh_context_destroy(struct oh_state *context) {
   if (!context || context_is_default(context)) return;
   oh_context_unbind_particles(context);
+  oh_soa_destroy(context->soa);
+  context->soa = NULL;
   oh_context_unbind_particle_accounting_state(context);
   oh3_free_context_state(context);
   free_context_level2_storage(context);
@@ -898,6 +904,7 @@ oh_context_configure_particles(struct oh_state *context, int nspec,
     context->owns_subdomain_id = 1;
   }
 
+  context->storage_schema_dirty = 1;
   context->n_of_species = nspec;
   context->max_fraction = maxfrac;
   context->region_id[0] = context->my_rank;
@@ -953,6 +960,7 @@ void
 oh_context_set_particle_adapter(struct oh_state *context,
                                 const oh_particle_adapter *adapter) {
   context = context_or_default(context);
+  oh_storage_require_aos(context, "oh_context_set_particle_adapter()");
   require_particle_buffer_unbound(context, "oh_context_set_particle_adapter()");
   oh2_set_particle_adapter_state(context, adapter);
   oh3_bind_context_particle_adapter(context);
@@ -962,6 +970,7 @@ oh_context_set_particle_adapter(struct oh_state *context,
 void
 oh_context_set_particle_mpi_type(struct oh_state *context, MPI_Datatype type) {
   context = context_or_default(context);
+  oh_storage_require_aos(context, "oh_context_set_particle_mpi_type()");
   require_particle_buffer_unbound(context, "oh_context_set_particle_mpi_type()");
   oh2_set_particle_mpi_type_state(context, type);
   oh3_bind_context_particle_adapter(context);
@@ -973,6 +982,7 @@ oh_context_bind_particles(struct oh_state *context, void *particles,
                           int maxlocalp, int ownership) {
   void *bound;
   context = context_or_default(context);
+  oh_storage_require_aos(context, "oh_context_bind_particles()");
   if (!context_is_default(context) && context->n_of_species<=0)
     local_errstop("particle binding requires configured particles");
   free_context_level2_storage(context);
@@ -987,8 +997,40 @@ void
 oh_context_unbind_particles(struct oh_state *context) {
   context = context_or_default(context);
   free_context_level2_storage(context);
+  if (context->particle_storage == OH_PARTICLE_STORAGE_SOA) {
+    int level4 = oh_soa_is_level4(context);
+    oh_soa_unbind(context->soa);
+    if (level4 && context_is_default(context)) {
+      SendBuf = NULL;
+      oh_soa_level4_restore_adapter(context);
+    }
+  }
+  oh_storage_advance_generation(context);
   oh2_unbind_particle_buffer_state(context);
   if (context_is_default(context)) oh1_sync_default_state();
+}
+
+int
+oh_context_bind_soa_particles(struct oh_state *context, void *const *bases,
+                              int nfields, int capacity, int ownership) {
+  int err;
+  if (!context || context->particle_buffer_bound ||
+      context->particle_storage != OH_PARTICLE_STORAGE_SOA || !context->soa ||
+      (context->n_of_species <= 0 && !context_is_default(context)) ||
+      (bases ? nfields != context->soa->nfields : nfields != 0) ||
+      (context->soa->species_field < 0 && context->n_of_species > 1))
+    return MPI_ERR_ARG;
+  context->storage_schema_dirty = 1;
+  err = oh_soa_bind(context->soa, bases, capacity, ownership);
+  if (err != MPI_SUCCESS) return err;
+  context->particles = NULL;
+  context->n_of_local_particles_limit = capacity;
+  context->total_parts = context->primary_parts = 0;
+  context->particle_buffer_bound = 1;
+  context->particle_buffer_ownership = OH_PARTICLES_BORROWED;
+  if (!context_is_default(context)) ensure_context_level2_storage(context, capacity);
+  oh_storage_advance_generation(context);
+  return MPI_SUCCESS;
 }
 
 int *

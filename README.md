@@ -14,6 +14,11 @@ The v2 line intentionally changes APIs and implementation boundaries where that
 is useful for cleaner context handling, external particle layouts, and weighted
 load balancing.
 
+AoS remains the default particle storage backend. Native SoA supports
+heap-owned Level 2/3 contexts and the Level 4p/4s default-context bridge, with
+borrowed or owned columns, indexed mapping, sorting, boundary exchange, and
+weighted primary/secondary transfers in C and Fortran.
+
 The current v2 line supports Level 1-4. Level 4p/4s are available through the
 Level 4 C/Fortran API with the v2 particle adapter and weighted-load
 scheduling support.
@@ -38,6 +43,8 @@ ohhelp2 = { git = "https://github.com/Nkzono99/ohhelp2" }
 
 - [OhHelp v2 Usage Guide](doc/v2/usage/README.md)
 - [OhHelp v2 Design Guide](doc/v2/design/README.md)
+- [SoA particle storage (C/Fortran Levels 2–4)](doc/v2/usage/soa-particles.md)
+- [AoS/SoA particle storage backend design](doc/v2/design/particle-storage-backends.md)
 - PIC integration lifecycle: [C](doc/v2/usage/pic-lifecycle.md), [Fortran](doc/v2/usage/pic-lifecycle-fortran.md)
 - API by OhHelp level: [C](doc/v2/usage/api-by-level.md), [Fortran](doc/v2/usage/api-by-level-fortran.md)
 - v2 particle layout and weighted load: [C](doc/v2/usage/v2-particle-and-weight.md), [Fortran](doc/v2/usage/v2-particle-and-weight-fortran.md)

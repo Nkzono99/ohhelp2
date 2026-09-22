@@ -12,6 +12,7 @@
 #include <mpi.h>
 #include "oh_context.h"
 #include "oh_particle_adapter.h"
+#include "oh_particle_storage.h"
 #include "ohhelp1.h"
 #include "oh_config.h"
 #if OH_LIB_LEVEL >= 2

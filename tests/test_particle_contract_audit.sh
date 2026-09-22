@@ -410,16 +410,16 @@ check_signature_exact 'state_copy_particle' src/c/ohhelp2.c \
   'static void state_copy_particle(struct oh_state *state, void *dst, const void *src)'
 check_signature_exact 'state_copy_particles' src/c/ohhelp2.c \
   'static void state_copy_particles(struct oh_state *state, void *dst, const void *src, int count)'
-check_signature_exact 'state_injected_particle_region_kind' src/c/ohhelp2.c \
-  'static int state_injected_particle_region_kind(struct oh_state *state, void *part)'
+check_signature_exact 'state_local_injected_destination' src/c/ohhelp2.c \
+  'static int state_local_injected_destination(struct oh_state *state, int index)'
 check_absent 'static struct S_particle \*state_particle_at' src/c/ohhelp2.c
 check_absent 'state_copy_particle\(struct oh_state \*state, struct S_particle \*dst' \
   src/c/ohhelp2.c
 check_absent '^[[:space:]]+struct S_particle \*(particles|sendbuf|rbb|rb|part|pbuf|rbuf|sbuf)(=|;)' \
   src/c/ohhelp2.c
-check_present_literal 'void *particles=state->particles' src/c/ohhelp2.c
+check_present_literal 'state_local_subdomain(state, part, ps)' src/c/ohhelp2.c
 check_present_literal 'void *sendbuf=state->send_buffer' src/c/ohhelp2.c
-check_present_literal 'void *part=state_particle_at' src/c/ohhelp2.c
+check_present_literal 'state_pack_send(state, sbd[dst]++, part)' src/c/ohhelp2.c
 check_present 'state_mark_particle_removed' src/c/ohhelp2.c
 check_present 'state_update_injected_particle_count' src/c/ohhelp2.c
 check_present 'state_map_injected_particle_to_subdomain' src/c/ohhelp2.c
@@ -2196,13 +2196,13 @@ check_function_absent 'move_to_sendbuf_dw4p' src/c/ohhelp4p.c 'struct S_particle
 check_function_absent 'move_and_sort_secondary' src/c/ohhelp4p.c 'struct S_particle'
 check_function_absent 'check_particle_location4p' src/c/ohhelp4p.c \
   'struct S_particle'
-check_function_absent 'oh4p_map_particle_to_neighbor' src/c/ohhelp4p.c \
+check_function_absent 'map_particle_to_neighbor4p' src/c/ohhelp4p.c \
   'struct S_particle'
-check_function_absent 'oh4p_map_particle_to_subdomain' src/c/ohhelp4p.c \
+check_function_absent 'map_particle_to_subdomain4p' src/c/ohhelp4p.c \
   'struct S_particle'
 check_function_absent 'oh4p_inject_particle' src/c/ohhelp4p.c \
   'struct S_particle'
-check_function_absent 'oh4p_remove_mapped_particle' src/c/ohhelp4p.c \
+check_function_absent 'remove_mapped_particle4p' src/c/ohhelp4p.c \
   'struct S_particle'
 check_function_absent 'count_population' src/c/ohhelp4s.c 'struct S_particle'
 check_function_absent 'rebalance4s' src/c/ohhelp4s.c 'struct S_particle'
@@ -2216,13 +2216,13 @@ check_function_absent 'xfer_boundary_particles_v' src/c/ohhelp4s.c \
   'struct S_particle'
 check_function_absent 'check_particle_location4s' src/c/ohhelp4s.c \
   'struct S_particle'
-check_function_absent 'oh4s_map_particle_to_neighbor' src/c/ohhelp4s.c \
+check_function_absent 'map_particle_to_neighbor4s' src/c/ohhelp4s.c \
   'struct S_particle'
-check_function_absent 'oh4s_map_particle_to_subdomain' src/c/ohhelp4s.c \
+check_function_absent 'map_particle_to_subdomain4s' src/c/ohhelp4s.c \
   'struct S_particle'
 check_function_absent 'oh4s_inject_particle' src/c/ohhelp4s.c \
   'struct S_particle'
-check_function_absent 'oh4s_remove_mapped_particle' src/c/ohhelp4s.c \
+check_function_absent 'remove_mapped_particle4s' src/c/ohhelp4s.c \
   'struct S_particle'
 check_absent '\((const )?struct S_particle\*\)particle' \
   src/c/ohhelp4p.c src/c/ohhelp4s.c
@@ -2458,6 +2458,33 @@ check_absent '\bp\.nid\s*=' doc/v2/usage/api-by-level.md doc/v2/usage/pic-lifecy
 check_present 'level4_secondary_injected' src/c/ohhelp4_particle.h
 check_present 'state->field_types =' src/c/ohhelp3.c
 check_present 'FieldTypes = ft' src/c/ohhelp3.c
+
+# SoA movement must use indices; legacy pointer contracts stay in AoS shims.
+check_present 'OH_PARTICLE_STORAGE_AOS 0' include/oh_particle_storage.h
+check_present 'oh_storage_require_aos' src/c/oh_context.c
+check_present 'oh_storage_require_aos' src/c/ohhelp2.c
+check_function_absent 'move_to_sendbuf_uw' src/c/ohhelp2.c 'state_particle_at|state_particle_subdomain|state_copy_particle'
+check_function_absent 'move_to_sendbuf_dw' src/c/ohhelp2.c 'state_particle_at|state_particle_subdomain|state_copy_particle'
+check_function_absent 'move_injected_to_sendbuf' src/c/ohhelp2.c 'state_particle_at|state_copy_particle'
+check_present 'Level 2' doc/v2/design/particle-storage-backends.md
+
+
+# Level 4 cursors contain only bank/index metadata. Never send their bytes.
+check_present 'struct oh_soa_cursor.*struct oh_soa_bank' src/c/oh_particle_storage.c
+check_present 'MPI_Type_create_hindexed' src/c/oh_particle_storage.c
+check_present 'oh_soa_cursor_copy' src/c/ohhelp4_particle.h
+check_present 'oh_soa_cursor_position' src/c/ohhelp4_particle.h
+check_function_absent 'state_xfer_particles4p' src/c/ohhelp4p.c 'MPI_Isend|MPI_Irecv'
+check_function_absent 'state_xfer_particles4s' src/c/ohhelp4s.c 'MPI_Isend|MPI_Irecv'
+check_function_absent 'xfer_boundary_particles_v' src/c/ohhelp4s.c 'MPI_Isend|MPI_Irecv'
+check_function_absent 'xfer_boundary_particles_h' src/c/ohhelp4s.c 'MPI_Isend|MPI_Irecv'
+check_present 'oh_storage_isend' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_present 'oh_storage_irecv' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_present 'oh_storage_preflight' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_present 'oh_soa_level4_finish' src/c/ohhelp4p.c src/c/ohhelp4s.c
+check_present 'oh4p_map_soa_particle_to_neighbor' include/ohhelp4p.h
+check_present 'oh4s_map_soa_particle_to_neighbor' include/ohhelp4s.h
+check_present 'oh_context_map_soa_particle_to_neighbor' src/fortran/oh_v2.F90
 
 if [ "$failures" -ne 0 ]; then
   exit 1

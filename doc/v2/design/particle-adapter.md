@@ -4,6 +4,30 @@ The particle adapter is the v2 contract between OhHelp and application-owned
 particle storage. It replaces the old assumption that all users store particles
 as `S_particle` or `type(oh_particle)`.
 
+This adapter describes fixed-stride AoS storage; callbacks do not by themselves
+support SoA arrays. The [storage backends](particle-storage-backends.md) retain
+it for AoS and use indexed operations for native SoA in Levels 2–4.
+AoS remains the default. The implemented SoA API is described in the
+[SoA usage guide](../usage/soa-particles.md).
+
+Level 2 local compaction and send gathering now use indexed helpers in
+`src/c/ohhelp2.c`. Pointer helpers remain inside the AoS branches and the
+contiguous transport boundary. `src/c/oh_particle_storage.c` owns SoA column
+access, copies, field-by-field gathering, pack/unpack, and schema validation.
+The public `oh_particle_adapter` struct and its pointer callbacks are unchanged.
+
+For the default-context Level 4 bridge, an internal adapter addresses metadata
+cursors containing only `(bank,index)`. The registered payload stays in native
+column banks, and public pointer APIs reject SoA. `level4_copy_particle` copies
+columns; `oh_storage_*` particle MPI calls select column slices with per-message
+datatypes. Neither cursor bytes nor an AoS mirror are transferred. Both storage
+backends share packed-grid semantics, the scheduler, and histogram accounting.
+
+The internal Level 4 histogram field descriptor explicitly reserves two halo
+layers for 4p and three for 4s, matching `GridDesc`. The communication stride and
+species reduction stride must use those physical extents, including receive
+scratch. This is covered by multi-species cross-rank and weighted transfers.
+
 For the historical v1 particle layout, see [`../../v1/`](../../v1/).
 
 ## Adapter Contract

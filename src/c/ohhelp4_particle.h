@@ -23,6 +23,16 @@ level4_particle_index(struct oh_state* state, const void* part) {
                                             part);
 }
 
+/* Receive tails may be one-past-capacity; particle arguments may not. */
+static inline int
+level4_cursor_index(struct oh_state* state, const void* cursor) {
+    int index = oh_particle_buffer_index(state->particle_adapter,
+                                         state->particles, cursor);
+    if (index < 0 || index > state->n_of_local_particles_limit)
+        local_errstop("Level 4 receive cursor exceeds particle capacity");
+    return index;
+}
+
 static inline int
 level4_particle_is_injected(struct oh_state* state,
                             const void* part) {
@@ -39,6 +49,7 @@ level4_particle_region(struct oh_state* state, const void* part,
 static inline double*
 level4_particle_position(struct oh_state* state, void* part,
                          int dim) {
+    if (oh_soa_is_level4(state)) return oh_soa_cursor_position(state,part,dim);
     return oh_particle_adapter_position(state->particle_adapter, part, dim);
 }
 
@@ -87,7 +98,8 @@ level4_mark_boundary_exchange_particle(struct oh_state* state,
 
 static inline void
 level4_copy_particle(struct oh_state* state, void* dst, const void* src) {
-    oh_particle_buffer_copy(state->particle_adapter, dst, src);
+    if (oh_soa_is_level4(state)) oh_soa_cursor_copy(state,dst,src,1);
+    else oh_particle_buffer_copy(state->particle_adapter, dst, src);
 }
 
 static inline void

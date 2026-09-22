@@ -19,6 +19,7 @@ Fortran からも Level 1-4 は利用対象です。v2 の Fortran 利用では
 3. v2 particle layout and weighted load
    - [C](v2-particle-and-weight.md)
    - [Fortran](v2-particle-and-weight-fortran.md)
+4. [Native SoA particle storage (C/Fortran Levels 2–4)](soa-particles.md)
 
 Fortran migration code should also read
 [`../design/index-conventions.md`](../design/index-conventions.md). The v2
@@ -46,7 +47,8 @@ bridge には `oh2_init_raw()` / `oh3_init_raw()` があります。
 | Level 1-3 context transbound | supported | `ohhelp_v2` から supported |
 | Level 3 geometry / field facade | supported | `ohhelp_v2` から supported |
 | region weight | supported | `ohhelp_v2` から supported |
-| custom particle adapter | supported | `ohhelp_v2` から supported |
+| custom AoS particle adapter | supported | `ohhelp_v2` から supported |
+| native SoA storage | heap-context Level 2/3、default-context Level 4 | `ohhelp_v2` の Level 2–4 |
 | 任意 layout の粒子配列を init に渡す経路 | supported | `oh2_init_raw()` / `oh3_init_raw()` |
 | Level 4p/4s | supported | Level 4 module から supported |
 

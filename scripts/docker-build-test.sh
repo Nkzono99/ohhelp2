@@ -140,6 +140,8 @@ build_fortran_dimension_guard() {
     -o "$dimdir/oh_load_balance.o"
   $MPICC -DOH_DIMENSION="$dim" -Iinclude -c src/c/oh_particle_adapter.c \
     -o "$dimdir/oh_particle_adapter.o"
+  $MPICC -DOH_DIMENSION="$dim" -Iinclude -c src/c/oh_particle_storage.c \
+    -o "$dimdir/oh_particle_storage.o"
   $MPICC -DOH_DIMENSION="$dim" -Iinclude -c src/c/oh_context.c \
     -o "$dimdir/oh_context.o"
   $MPICC -DOH_DIMENSION="$dim" -Iinclude -c src/c/oh_fortran_v2.c \
@@ -152,7 +154,7 @@ build_fortran_dimension_guard() {
     -o "$dimdir/ohhelp3.o"
   $FC $FC_MPI_COMPILE_FLAGS -DOH_DIMENSION="$dim" -cpp -Iinclude \
     $mod_flag -c src/fortran/oh_v2.F90 -o "$dimdir/oh_v2.o"
-  dim_objs="$dimdir/oh_v2.o $dimdir/oh_context.o \
+  dim_objs="$dimdir/oh_v2.o $dimdir/oh_context.o $dimdir/oh_particle_storage.o \
 $dimdir/oh_fortran_v2.o $dimdir/oh_particle_adapter.o \
 $dimdir/oh_load_balance.o $dimdir/ohhelp1.o \
 $dimdir/ohhelp2.o $dimdir/ohhelp3.o"
@@ -189,13 +191,14 @@ esac
 
 $MPICC -Iinclude -c src/c/oh_load_balance.c -o build/docker/oh_load_balance.o
 $MPICC -Iinclude -c src/c/oh_particle_adapter.c -o build/docker/oh_particle_adapter.o
+$MPICC -Iinclude -c src/c/oh_particle_storage.c -o build/docker/oh_particle_storage.o
 $MPICC -Iinclude -c src/c/oh_context.c -o build/docker/oh_context.o
 $MPICC -Iinclude -c src/c/oh_fortran_v2.c -o build/docker/oh_fortran_v2.o
 $MPICC -Iinclude -c src/c/ohhelp1.c -o build/docker/ohhelp1.o
 $MPICC -Iinclude -c src/c/ohhelp2.c -o build/docker/ohhelp2.o
 $MPICC -Iinclude -c src/c/ohhelp3.c -o build/docker/ohhelp3.o
 C_CORE_OBJS="build/docker/oh_load_balance.o \
-build/docker/oh_particle_adapter.o build/docker/oh_context.o \
+build/docker/oh_particle_adapter.o build/docker/oh_context.o build/docker/oh_particle_storage.o \
 build/docker/ohhelp1.o build/docker/ohhelp2.o build/docker/ohhelp3.o"
 $MPICC -Iinclude -DOH_LIB_LEVEL_4P -c src/c/ohhelp4p.c \
   -o build/docker/ohhelp4p.o
@@ -217,14 +220,53 @@ $FC $FC_MPI_COMPILE_FLAGS -cpp -Iinclude $FC_MOD_MAIN -c src/fortran/oh_mod4s.F9
 $FC $FC_MPI_COMPILE_FLAGS -cpp -Iinclude $FC_MOD_MAIN -c src/fortran/oh_v2.F90 \
   -o build/docker/oh_v2.o
 F_V2_CORE_OBJS="build/docker/oh_v2.o build/docker/oh_type.o \
-build/docker/oh_context.o build/docker/oh_fortran_v2.o \
+build/docker/oh_context.o build/docker/oh_particle_storage.o build/docker/oh_fortran_v2.o \
 build/docker/oh_particle_adapter.o build/docker/oh_load_balance.o \
 build/docker/ohhelp1.o build/docker/ohhelp2.o build/docker/ohhelp3.o"
 F_RAW_INIT_OBJS="build/docker/oh_v2.o build/docker/oh_type.o \
-build/docker/oh_mod1.o build/docker/oh_context.o \
+build/docker/oh_mod1.o build/docker/oh_context.o build/docker/oh_particle_storage.o \
 build/docker/oh_fortran_v2.o build/docker/oh_particle_adapter.o \
 build/docker/oh_load_balance.o build/docker/ohhelp1.o \
 build/docker/ohhelp2.o build/docker/ohhelp3.o"
+
+# Native SoA storage, C/Fortran Level-2 parity, and collective contract guards.
+$MPICC -Iinclude -Isrc/c tests/test_oh_soa_storage.c $C_CORE_OBJS \
+  -o build/docker/test_oh_soa_storage
+$MPICC -Iinclude -Isrc/c tests/test_oh_soa_runtime.c $C_CORE_OBJS \
+  -o build/docker/test_oh_soa_runtime
+$MPICC -Iinclude tests/test_oh_soa_guard.c $C_CORE_OBJS \
+  -o build/docker/test_oh_soa_guard
+$FC $FC_MPI_COMPILE_FLAGS -cpp -Iinclude -Ibuild/docker $FC_MOD_MAIN \
+  tests/test_oh_soa_fortran.F90 $F_V2_CORE_OBJS \
+  -o build/docker/test_oh_soa_fortran
+run_mpi -n 1 build/docker/test_oh_soa_storage
+run_mpi -n 1 build/docker/test_oh_soa_runtime
+run_mpi -n 2 build/docker/test_oh_soa_runtime
+run_mpi -n 3 build/docker/test_oh_soa_runtime
+run_mpi -n 2 build/docker/test_oh_soa_fortran
+
+$MPICC -Iinclude tests/test_oh_soa_level3.c $C_CORE_OBJS -o build/docker/test_oh_soa_level3
+$FC $FC_MPI_COMPILE_FLAGS -cpp -Iinclude -Ibuild/docker $FC_MOD_MAIN \
+  tests/test_oh_soa_level34_fortran.F90 $F_V2_CORE_OBJS -o build/docker/test_oh_soa_level3_fortran
+for soa_ranks in 1 2 3; do
+  run_mpi -n "$soa_ranks" build/docker/test_oh_soa_level3
+  run_mpi -n "$soa_ranks" build/docker/test_oh_soa_level3_fortran
+done
+
+for scenario in backend schema capacity pointer-api level3; do
+  case "$scenario" in
+    backend) diagnostic="backend/species mismatch" ;;
+    schema) diagnostic="SoA schema mismatch" ;;
+    capacity) diagnostic="SoA transfer exceeds particle capacity" ;;
+    pointer-api) diagnostic="requires AoS particle storage" ;;
+    level3) diagnostic="unsupported SoA level/binding" ;;
+  esac
+  expect_mpi_failure_log_contains \
+    "expected SoA $scenario rejection" "build/docker/soa-$scenario.err" \
+    "$diagnostic" "missing SoA $scenario diagnostic" \
+    -n 2 build/docker/test_oh_soa_guard "$scenario"
+done
+
 $FC $FC_MPI_COMPILE_FLAGS -cpp -w $FC_FREE_LINE_FLAGS -Iinclude -Ibuild/docker \
   $FC_MOD_MAIN -c sample/sample.F90 \
   -o build/docker/sample_f.o
@@ -401,13 +443,13 @@ expect_mpi_failure_log_cases build/docker/test_oh2_init_guard \
   "expected Level 3 raw init with negative maxfrac to fail" \
   raw-oh3-negative-maxfrac "oh_init() requires maxfrac >= 0"
 $MPICC -DOH_DIMENSION=1 -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
-  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
+  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c src/c/oh_particle_storage.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c \
   -o build/docker/test_oh_context_lifecycle_1d
 run_mpi -n 1 build/docker/test_oh_context_lifecycle_1d
 run_mpi -n 2 build/docker/test_oh_context_lifecycle_1d
 $MPICC -DOH_DIMENSION=2 -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
-  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
+  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c src/c/oh_particle_storage.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c \
   -o build/docker/test_oh_context_lifecycle_2d
 run_mpi -n 1 build/docker/test_oh_context_lifecycle_2d
@@ -781,7 +823,7 @@ expect_mpi_failure_log_contains \
   -n 1 build/docker/dim2f/test_oh_context_particle_layout_guard_fortran \
   missing-y
 $MPICC -DOH_LIB_LEVEL_4P -Iinclude tests/test_oh4p_capacity_guard.c \
-  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
+  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c src/c/oh_particle_storage.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c src/c/ohhelp4p.c \
   -o build/docker/test_oh4p_capacity_guard
 run_mpi -n 1 build/docker/test_oh4p_capacity_guard
@@ -804,7 +846,7 @@ expect_mpi_failure_log_contains \
   "expected Level 4p doubled particle capacity failure message" \
   -n 1 build/docker/test_oh4p_capacity_guard overflow-doubled-capacity
 $MPICC -DOH_LIB_LEVEL_4S -Iinclude tests/test_oh4s_capacity_guard.c \
-  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
+  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c src/c/oh_particle_storage.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c src/c/ohhelp4s.c \
   -o build/docker/test_oh4s_capacity_guard
 run_mpi -n 1 build/docker/test_oh4s_capacity_guard
@@ -821,7 +863,7 @@ expect_mpi_failure_log_contains \
   "expected Level 4s oversized maxlocalp failure message" \
   -n 1 build/docker/test_oh4s_capacity_guard overflow-maxlocalp
 $MPICC -DOH_LIB_LEVEL_4P -Iinclude tests/test_oh4p_runtime_smoke.c \
-  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
+  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c src/c/oh_particle_storage.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c src/c/ohhelp4p.c \
   -o build/docker/test_oh4p_runtime_smoke
 run_mpi -n 2 build/docker/test_oh4p_runtime_smoke
@@ -834,6 +876,8 @@ $MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/oh_load_balance.c \
   -o build/docker/oh4p-fortran/oh_load_balance.o
 $MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/oh_particle_adapter.c \
   -o build/docker/oh4p-fortran/oh_particle_adapter.o
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/oh_particle_storage.c \
+  -o build/docker/oh4p-fortran/oh_particle_storage.o
 $MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/oh_context.c \
   -o build/docker/oh4p-fortran/oh_context.o
 $MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/ohhelp1.c \
@@ -849,7 +893,7 @@ $FC $FC_MPI_COMPILE_FLAGS -cpp -DOH_LIB_LEVEL_4P -Iinclude -Ibuild/docker \
   build/docker/oh4p-fortran/test_oh4_runtime_globals.o \
   build/docker/oh_type.o build/docker/oh_mod1.o build/docker/oh_mod2.o \
   build/docker/oh_mod3.o build/docker/oh_mod4p.o \
-  build/docker/oh4p-fortran/oh_context.o \
+  build/docker/oh4p-fortran/oh_context.o build/docker/oh4p-fortran/oh_particle_storage.o \
   build/docker/oh4p-fortran/oh_particle_adapter.o \
   build/docker/oh4p-fortran/oh_load_balance.o \
   build/docker/oh4p-fortran/ohhelp1.o \
@@ -859,8 +903,32 @@ $FC $FC_MPI_COMPILE_FLAGS -cpp -DOH_LIB_LEVEL_4P -Iinclude -Ibuild/docker \
   -o build/docker/test_oh4p_fortran_runtime
 run_mpi -n 2 build/docker/test_oh4p_fortran_runtime
 run_mpi -n 2 build/docker/test_oh4p_fortran_runtime weighted-secondary
+
+# Native column storage shares every Level 4 sorting/scheduling path with AoS.
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude -c src/c/oh_fortran_v2.c \
+  -o build/docker/oh4p-fortran/oh_fortran_v2.o
+SOA4_OBJS="build/docker/oh4p-fortran/oh_load_balance.o build/docker/oh4p-fortran/oh_particle_adapter.o \
+build/docker/oh4p-fortran/oh_particle_storage.o build/docker/oh4p-fortran/oh_context.o \
+build/docker/oh4p-fortran/oh_fortran_v2.o build/docker/oh4p-fortran/ohhelp1.o build/docker/oh4p-fortran/ohhelp2.o \
+build/docker/oh4p-fortran/ohhelp3.o build/docker/oh4p-fortran/ohhelp4p.o"
+$MPICC -DOH_LIB_LEVEL_4P -Iinclude tests/test_oh_soa_level4.c $SOA4_OBJS \
+  -o build/docker/test_oh_soa_level4p
+$FC $FC_MPI_COMPILE_FLAGS -cpp -DOH_LIB_LEVEL_4P -Iinclude -Ibuild/docker \
+  $FC_MOD_MAIN tests/test_oh_soa_level34_fortran.F90 build/docker/oh_v2.o $SOA4_OBJS \
+  -o build/docker/test_oh_soa_level4p_fortran
+for soa_ranks in 1 2 3; do
+  for soa_backend in aos soa borrowed; do
+    run_mpi -n "$soa_ranks" build/docker/test_oh_soa_level4p "$soa_backend" primary
+    run_mpi -n "$soa_ranks" build/docker/test_oh_soa_level4p "$soa_backend" weighted
+  done
+  run_mpi -n "$soa_ranks" build/docker/test_oh_soa_level4p_fortran
+done
+
+for soa_backend in aos soa; do
+  run_mpi -n 2 build/docker/test_oh_soa_level4p "$soa_backend" full-receive
+done
 $MPICC -DOH_LIB_LEVEL_4S -Iinclude tests/test_oh4s_runtime_smoke.c \
-  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
+  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c src/c/oh_particle_storage.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c src/c/ohhelp4s.c \
   -o build/docker/test_oh4s_runtime_smoke
 run_mpi -n 2 build/docker/test_oh4s_runtime_smoke
@@ -873,6 +941,8 @@ $MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/oh_load_balance.c \
   -o build/docker/oh4s-fortran/oh_load_balance.o
 $MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/oh_particle_adapter.c \
   -o build/docker/oh4s-fortran/oh_particle_adapter.o
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/oh_particle_storage.c \
+  -o build/docker/oh4s-fortran/oh_particle_storage.o
 $MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/oh_context.c \
   -o build/docker/oh4s-fortran/oh_context.o
 $MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/ohhelp1.c \
@@ -888,7 +958,7 @@ $FC $FC_MPI_COMPILE_FLAGS -cpp -DOH_LIB_LEVEL_4S -Iinclude -Ibuild/docker \
   build/docker/oh4s-fortran/test_oh4_runtime_globals.o \
   build/docker/oh_type.o build/docker/oh_mod1.o build/docker/oh_mod2.o \
   build/docker/oh_mod3.o build/docker/oh_mod4s.o \
-  build/docker/oh4s-fortran/oh_context.o \
+  build/docker/oh4s-fortran/oh_context.o build/docker/oh4s-fortran/oh_particle_storage.o \
   build/docker/oh4s-fortran/oh_particle_adapter.o \
   build/docker/oh4s-fortran/oh_load_balance.o \
   build/docker/oh4s-fortran/ohhelp1.o \
@@ -898,8 +968,62 @@ $FC $FC_MPI_COMPILE_FLAGS -cpp -DOH_LIB_LEVEL_4S -Iinclude -Ibuild/docker \
   -o build/docker/test_oh4s_fortran_runtime
 run_mpi -n 2 build/docker/test_oh4s_fortran_runtime
 run_mpi -n 2 build/docker/test_oh4s_fortran_runtime weighted-secondary
+
+# Native column storage shares every Level 4 sorting/scheduling path with AoS.
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude -c src/c/oh_fortran_v2.c \
+  -o build/docker/oh4s-fortran/oh_fortran_v2.o
+SOA4_OBJS="build/docker/oh4s-fortran/oh_load_balance.o build/docker/oh4s-fortran/oh_particle_adapter.o \
+build/docker/oh4s-fortran/oh_particle_storage.o build/docker/oh4s-fortran/oh_context.o \
+build/docker/oh4s-fortran/oh_fortran_v2.o build/docker/oh4s-fortran/ohhelp1.o build/docker/oh4s-fortran/ohhelp2.o \
+build/docker/oh4s-fortran/ohhelp3.o build/docker/oh4s-fortran/ohhelp4s.o"
+$MPICC -DOH_LIB_LEVEL_4S -Iinclude tests/test_oh_soa_level4.c $SOA4_OBJS \
+  -o build/docker/test_oh_soa_level4s
+$FC $FC_MPI_COMPILE_FLAGS -cpp -DOH_LIB_LEVEL_4S -Iinclude -Ibuild/docker \
+  $FC_MOD_MAIN tests/test_oh_soa_level34_fortran.F90 build/docker/oh_v2.o $SOA4_OBJS \
+  -o build/docker/test_oh_soa_level4s_fortran
+for soa_ranks in 1 2 3; do
+  for soa_backend in aos soa borrowed; do
+    run_mpi -n "$soa_ranks" build/docker/test_oh_soa_level4s "$soa_backend" primary
+    run_mpi -n "$soa_ranks" build/docker/test_oh_soa_level4s "$soa_backend" weighted
+  done
+  run_mpi -n "$soa_ranks" build/docker/test_oh_soa_level4s_fortran
+done
+
+# Dimensional and wide packed-id builds use the same end-to-end fixture.
+for soa_variant in dim1 dim2 wide4p wide4s; do
+  soa_dir="build/docker/soa-$soa_variant"
+  mkdir -p "$soa_dir"
+  case "$soa_variant" in
+    dim1) soa_flags="-DOH_DIMENSION=1 -DOH_LIB_LEVEL_4P"; soa_level=4p ;;
+    dim2) soa_flags="-DOH_DIMENSION=2 -DOH_LIB_LEVEL_4P"; soa_level=4p ;;
+    wide4p) soa_flags="-DOH_BIG_SPACE -DOH_LIB_LEVEL_4P"; soa_level=4p ;;
+    wide4s) soa_flags="-DOH_BIG_SPACE -DOH_LIB_LEVEL_4S"; soa_level=4s ;;
+  esac
+  soa_objects=""
+  for soa_source in oh_load_balance oh_particle_adapter oh_particle_storage oh_context \
+                    ohhelp1 ohhelp2 ohhelp3 "ohhelp$soa_level"; do
+    $MPICC $soa_flags -Iinclude -c "src/c/$soa_source.c" -o "$soa_dir/$soa_source.o"
+    soa_objects="$soa_objects $soa_dir/$soa_source.o"
+  done
+  $MPICC $soa_flags -Iinclude tests/test_oh_soa_level4.c $soa_objects -o "$soa_dir/test"
+  for soa_backend in aos soa borrowed; do
+    run_mpi -n 3 "$soa_dir/test" "$soa_backend" weighted
+  done
+  run_mpi -n 1 "$soa_dir/test" soa saved-type
+  case "$soa_variant" in
+    dim*)
+      $MPICC $soa_flags -Iinclude tests/test_oh_soa_level3.c $soa_objects -o "$soa_dir/test3"
+      run_mpi -n 2 "$soa_dir/test3" ;;
+  esac
+  expect_mpi_failure_log_contains "expected Level 4 SoA pointer API rejection" \
+    "$soa_dir/pointer-api.err" "requires AoS particle storage" "missing AoS-only diagnostic" \
+    -n 2 "$soa_dir/test" soa pointer-api
+  expect_mpi_failure_log_contains "expected Level 4 SoA invalid index rejection" \
+    "$soa_dir/index.err" "invalid Level 4 SoA particle index" "missing index diagnostic" \
+    -n 2 "$soa_dir/test" soa bad-index
+done
 $MPICC -DOH_POS_AWARE -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
-  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c \
+  src/c/oh_load_balance.c src/c/oh_particle_adapter.c src/c/oh_context.c src/c/oh_particle_storage.c \
   src/c/ohhelp1.c src/c/ohhelp2.c src/c/ohhelp3.c \
   -o build/docker/test_oh_context_lifecycle_posaware
 run_mpi -n 2 build/docker/test_oh_context_lifecycle_posaware
@@ -907,6 +1031,8 @@ $MPICC -DOH_POS_AWARE -Iinclude -c src/c/oh_load_balance.c \
   -o build/docker/posaware/oh_load_balance.o
 $MPICC -DOH_POS_AWARE -Iinclude -c src/c/oh_particle_adapter.c \
   -o build/docker/posaware/oh_particle_adapter.o
+$MPICC -DOH_POS_AWARE -Iinclude -c src/c/oh_particle_storage.c \
+  -o build/docker/posaware/oh_particle_storage.o
 $MPICC -DOH_POS_AWARE -Iinclude -c src/c/oh_context.c \
   -o build/docker/posaware/oh_context.o
 $MPICC -DOH_POS_AWARE -Iinclude -c src/c/oh_fortran_v2.c \
@@ -921,7 +1047,7 @@ $FC $FC_MPI_COMPILE_FLAGS -cpp -Iinclude $FC_MOD_POSAWARE -c src/fortran/oh_v2.F
   -o build/docker/posaware/oh_v2.o
 $FC $FC_MPI_COMPILE_FLAGS -cpp -Iinclude -Ibuild/docker/posaware $FC_MOD_POSAWARE \
   tests/test_oh_context_lifecycle_fortran.F90 \
-  build/docker/posaware/oh_v2.o build/docker/posaware/oh_context.o \
+  build/docker/posaware/oh_v2.o build/docker/posaware/oh_context.o build/docker/posaware/oh_particle_storage.o \
   build/docker/posaware/oh_fortran_v2.o \
   build/docker/posaware/oh_particle_adapter.o \
   build/docker/posaware/oh_load_balance.o build/docker/posaware/ohhelp1.o \
@@ -937,7 +1063,7 @@ run_mpi -n 2 build/docker/test_oh_context_lifecycle_fortran
 $FC $FC_MPI_COMPILE_FLAGS -cpp -Iinclude -Ibuild/docker $FC_MOD_MAIN \
   tests/test_oh_legacy_fortran_runtime.F90 \
   build/docker/oh_type.o build/docker/oh_mod1.o build/docker/oh_mod2.o \
-  build/docker/oh_mod3.o build/docker/oh_context.o \
+  build/docker/oh_mod3.o build/docker/oh_context.o build/docker/oh_particle_storage.o \
   build/docker/oh_particle_adapter.o build/docker/oh_load_balance.o \
   build/docker/ohhelp1.o build/docker/ohhelp2.o build/docker/ohhelp3.o \
   -o build/docker/test_oh_legacy_fortran_runtime

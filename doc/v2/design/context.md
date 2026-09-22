@@ -73,7 +73,11 @@ rebinding freed storage.
 
 ## Particle Buffer Ownership
 
-Particle storage is attached to a context with bind/unbind calls.
+Particle storage is attached to a context with bind/unbind calls. The examples
+below use the default AoS backend. Heap-context Level 2/3 also supports explicit
+[SoA field-array binding](../usage/soa-particles.md) with the same accounting
+and region-id state. Level 4p/4s also support SoA through the default-context
+bridge; they retain the Level 4 initialization and packed-region contracts.
 
 ```c
 void *bound = oh_context_bind_particles(ctx, particles, maxlocalp,

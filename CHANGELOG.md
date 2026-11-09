@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+## v2.3.6 - 2026-11-09
+
+### Fixed
+
+- Reuse an old count-equivalent rebalance donor only when it can supply the
+  receiver's full secondary assignment, and reject particle-count underflow
+  before updating the donor.
+- Repair indexed heaps upwards or downwards after arbitrary removal,
+  preserving donor ordering for both particle counts and weighted loads.
+- Validate transfer-scheduler sender indices before accessing node and
+  particle-count arrays.
+
+### Added
+
+- Added regressions against the actual scheduler for 1,024,000 deterministic
+  count/weighted min/max heap removals and 10,000 rebalance trees, including
+  particle conservation, nonnegative donor remainders, empty/sparse systems,
+  and floor/ceiling process totals.
+- Documented integer donor assignment and shared heap ordering semantics.
+
+### Verification
+
+- `git diff --check`
+- GitHub Actions `standard-gate`, including the particle-contract audit,
+  fpm package build, and C/Fortran MPI runtime tests.
+- GitHub Actions `coverage`: v2 modernization line coverage passed at 90%
+  against the 85% gate.
+- KUDPC compute-node fpm build and particle-contract audit with GNU 8.5 /
+  OpenMPI 4.0.5.
+- Both new regressions fail against the pre-fix scheduler and pass with the
+  fix on a KUDPC compute node.
+- Focused regression tests pass with AddressSanitizer and UndefinedBehaviorSanitizer
+  using GNU 12.2 / OpenMPI 4.0.5 (MPI leak detection disabled).
+
 ## v2.3.5 - 2026-07-07
 
 ### Added

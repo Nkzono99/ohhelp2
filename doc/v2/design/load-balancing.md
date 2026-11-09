@@ -67,3 +67,24 @@ check avoids rebuilding a weighted rebalance schedule on repeated `transbound`
 calls with unchanged particle ownership. If weighted particles have crossed out
 of the existing family, the migration path still falls back to weighted
 rebalance instead of applying the count-based stable shortcut.
+
+## Integer Donor Assignments and Heap Ordering
+
+The count-equivalent compatibility path rounds per-process targets to the
+floor or ceiling of the global average. An old parent is eligible for reuse
+only when its remaining primary particles can supply the receiver's entire
+secondary assignment. Otherwise the scheduler selects the largest remaining
+donor. A floor-average donor must not be overdrawn to satisfy a ceil-average
+receiver; no particle counts are clipped or invented to repair a schedule.
+Non-uniform weighted mode keeps its existing weighted transfer calculation
+and its cap on the donor's available integer particles.
+
+Both paths share indexed heaps. Removing an arbitrary old parent from a heap
+must repair the replacement item upwards when it outranks its new parent,
+or downwards otherwise. This preserves ordering for both particle-count keys
+and weighted-load keys.
+
+The standard test gate exercises the actual scheduler implementation with
+arbitrary heap removals and checks primary/secondary particle conservation,
+non-negative donor remainders, and floor/ceiling process totals across
+deterministic count-based rebalance trees.

@@ -1004,6 +1004,17 @@ $MPICC -Iinclude tests/test_oh_load_balance.c src/c/oh_load_balance.c \
   -o build/docker/test_oh_load_balance
 build/docker/test_oh_load_balance
 
+# White-box tests compile the actual scheduler implementation in their own
+# translation unit; link its dependencies without a second ohhelp1.o.
+TRANSFER_TEST_OBJS="build/docker/oh_load_balance.o \
+build/docker/oh_particle_adapter.o build/docker/oh_context.o \
+build/docker/ohhelp2.o build/docker/ohhelp3.o"
+for transfer_test in test_transfer_heap test_transfer_rebalance; do
+  $MPICC -Iinclude "tests/$transfer_test.c" $TRANSFER_TEST_OBJS -lm \
+    -o "build/docker/$transfer_test"
+  run_mpi -n 1 "build/docker/$transfer_test"
+done
+
 $MPICC -Iinclude tests/test_oh_particle_adapter.c src/c/oh_particle_adapter.c \
   -o build/docker/test_oh_particle_adapter
 run_mpi -n 1 build/docker/test_oh_particle_adapter

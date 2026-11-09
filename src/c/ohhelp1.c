@@ -919,12 +919,13 @@ sched_comm_state(struct oh_state *state, int toget, int rid, int tag, int reb,
   int i=nn*s+sid;                       /* [0][s][sid] */
 
   while (toget>0) {
+    if (sid<0 || sid>=nn)
+      local_errstop("PARTICLE TRANSFER SCHEDULING ERROR");
     struct S_node *snoden=nodesnext+sid;
     int npp = nofprimaries[i], nps = nofprimaries[i+nnns];
                                                         /* [0/1][s][sid] */
     int toput, hdninc = 0;
     int next=1;
-    if (sid<0)  local_errstop("PARTICLE TRANSFER SCHEDULING ERROR");
     if (sid==me) {
       int nput = snoden->get.prime + havedonen;
       nput = nput<0 ? -nput : 0;
@@ -1268,10 +1269,16 @@ rebalance1_state(struct oh_state *state, int currmode, int level, int stats) {
     node = nodes_next + j;
     get = npaveout - totalp_global[j];
     if (--npfracout==0) npaveout--;
-    if ((k=node->parentid)>=0 && (h=greater_heap->index[k]))
+    /* A floor-average donor can be in this heap while the receiver still
+       needs ceil-average particles. Reuse its old parent only if it can
+       supply the entire secondary assignment. */
+    if ((k=node->parentid)>=0 && (h=greater_heap->index[k]) &&
+        totalp_global[k]>=get)
       remove_heap(greater_heap, 1, h, &heap_key);
     else
       k = pop_heap(greater_heap, 1, &heap_key);
+    if (totalp_global[k]<get)
+      local_errstop("REBALANCE DONOR PARTICLE COUNT UNDERFLOW");
     node->get.sec = get;
     parent = nodes_next + k;
     node->parentid = k;  node->parent = parent;
@@ -1439,6 +1446,17 @@ remove_heap(struct S_heap* heap, int greater, int rem,
 
   heap->n = --n;  index[hnode[rem]] = 0;
   if (rem>n) return;
+  /* Replacing an arbitrary removed node with the last item can violate
+     either its parent or its children. Repair upwards first when needed. */
+  if (rem>1 && heap_key_greater(key, id, hnode[rem>>1])==greater) {
+    for (i=rem; i>1; i>>=1) {
+      int parent=i>>1, parent_id=hnode[parent];
+      if (heap_key_greater(key, id, parent_id)!=greater) break;
+      hnode[i]=parent_id; index[parent_id]=i;
+    }
+    hnode[i]=id; index[id]=i;
+    return;
+  }
   for (i=rem; ; ) {
     int left=(i<<1), right=left+1;
     if (right<=n) {

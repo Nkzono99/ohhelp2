@@ -336,6 +336,7 @@ $MPICC -Iinclude -Isrc/c tests/test_oh_context_lifecycle.c \
 run_mpi -n 1 build/docker/test_oh_context_lifecycle
 run_mpi -n 2 build/docker/test_oh_context_lifecycle
 run_mpi -n 3 build/docker/test_oh_context_lifecycle
+run_mpi -n 5 build/docker/test_oh_context_lifecycle
 run_mpi -n 1 build/docker/test_oh_context_lifecycle \
   destroy-border-after-finalize
 $MPICC -Iinclude -Isrc/c tests/test_oh_context_default_region_ids.c \

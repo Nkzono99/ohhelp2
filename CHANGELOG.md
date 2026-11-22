@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Changed
+
+- Build the secondary-mode family communicators with two `MPI_Comm_split`
+  calls (one per black/red colour of the family root) instead of one
+  `MPI_Comm_create` per family. Families whose roots share a colour are
+  disjoint, so each split gives every rank at most one new communicator, with
+  the same members and rank order as before. A rebalance on `N` ranks now costs
+  two collectives instead of up to `N`; in a 1000-rank MPIEMSES3D run with
+  terrain, `MPI_Comm_create` alone took about 0.08 s per step (7%).
+
+### Verification
+
+- `tests/test_oh_context_lifecycle.c` checks after two rebalances that every
+  rank's primary and secondary family communicators are `MPI_IDENT` to
+  `{root, children in sibling order}` and that the ranks match; KUDPC Intel MPI
+  2023.2 with 1-6 ranks. Reversing the child order makes the test fail with 3
+  and 4 ranks.
+
 ## v2.3.6 - 2026-11-09
 
 ### Fixed

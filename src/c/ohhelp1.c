@@ -1318,7 +1318,6 @@ void
 build_new_comm_state(struct oh_state *state, int currmode, int level,
                      int nbridx, int stats) {
   int nn=state->n_of_nodes, bot=nn-1, me=state->my_rank;
-  int *temp=state->temp_array;
   int *region_id=state->region_id, *subdomain_id=state->subdomain_id;
   struct S_node *nodes=state->nodes, *nodes_next=state->nodes_next;
   struct S_node **node_queue=state->node_queue;
@@ -1329,8 +1328,7 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
   struct S_node *node, *ch;
   struct S_node *mynode=nodes_next+me, *root=node_queue[bot];
   int oldparent=Mode_PS(currmode) ? nodes[me].parentid : -1;
-  int i, j;
-  MPI_Group grpw=state->world_group, grp;
+  int i, j, c, mykey=0;
 
   node = nodes;
   state->nodes = nodes_next;
@@ -1349,26 +1347,41 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
   }
   root->comm.black = 0;  root->comm.sec = -1;
   for (i=0; bot>=0; bot--) {
-    int black, rid;
+    int black;
     node = node_queue[bot];
     if (!(ch=node->child))  continue;   /* a leaf may reside below some non-
                                            leaves in NodeQueue when its number
                                            of primaries is equal to the
                                            average */
     node->comm.prime = i;
-    rid = temp[0] = node->id;
+    node->comm.rank = 0;                /* the family root is listed first */
     black = 1 - node->comm.black;
     for (j=1; ch; ch=ch->sibling, j++) {
-      temp[j] = ch->id;
       ch->comm.prime = -1;  ch->comm.sec = i;  ch->comm.black = black;
+      if (ch->id==me)  mykey = j;       /* my rank in the parent's family */
     }
-    MPI_Group_incl(grpw, j, temp, &grp);
-    MPI_Group_translate_ranks(grpw, 1, &rid, grp, &(node->comm.rank));
-    MPI_Comm_create(state->comm, grp, comms->body+i);
-    MPI_Group_free(&grp);
     i++;
   }
   comms->n = i;
+
+  /* Every family is {root, children in sibling order}. Children have the
+     opposite black of their root, so two families whose roots share the same
+     black are disjoint: a rank is the root of at most one family (its own,
+     with its own black) and a child in at most one (its parent's, with the
+     other black). One MPI_Comm_split per black therefore creates all the
+     family communicators, with the same members and rank order as one
+     MPI_Comm_create per family, in two collectives instead of comms->n. */
+  for (c=0; c<2; c++) {
+    int color=MPI_UNDEFINED, key=0;
+    MPI_Comm newcomm;
+    if (mynode->comm.prime>=0 && mynode->comm.black==c) {
+      color = mynode->comm.prime;  key = 0;
+    } else if (mynode->comm.sec>=0 && mynode->comm.black!=c) {
+      color = mynode->comm.sec;  key = mykey;
+    }
+    MPI_Comm_split(state->comm, color, key, &newcomm);
+    if (color!=MPI_UNDEFINED)  comms->body[color] = newcomm;
+  }
 
   if (oh_context_is_default_state(state) && FamIndex) {
     int *fidx = FamIndex,  *fmem = FamMembers;

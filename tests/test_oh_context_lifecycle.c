@@ -607,6 +607,105 @@ run_nondefault_init1_rebalance_test(int n, int rank) {
   oh_context_destroy(context);
 }
 
+/* Every family communicator must hold {root, children in sibling order}
+   (the order MPI_Comm_create with MPI_Group_incl gave): the root has rank 0,
+   my_comm->root names it from the children's side, and leaves have no
+   primary communicator. */
+static void
+assert_family_communicators_match_tree(oh_context *context, int rank) {
+  struct S_node *nodes = context->nodes;
+  struct S_node *mynode = nodes + rank;
+  struct S_mycommc *mycomm = context->my_comm;
+  int nn = context->n_of_nodes;
+  int *members = (int*)calloc((size_t)nn, sizeof(int));
+  int m, cmp, myrank;
+  MPI_Group expected, actual;
+  struct S_node *ch;
+
+  assert(members);
+  if (mynode->child) {
+    m = 0;
+    members[m++] = rank;
+    for (ch = mynode->child; ch; ch = ch->sibling) members[m++] = ch->id;
+    assert(mycomm->prime != MPI_COMM_NULL);
+    assert(mycomm->rank == 0);
+    MPI_Group_incl(context->world_group, m, members, &expected);
+    MPI_Comm_group(mycomm->prime, &actual);
+    MPI_Group_compare(expected, actual, &cmp);
+    assert(cmp == MPI_IDENT);
+    MPI_Comm_rank(mycomm->prime, &myrank);
+    assert(myrank == 0);
+    MPI_Group_free(&expected);
+    MPI_Group_free(&actual);
+  } else {
+    assert(mycomm->prime == MPI_COMM_NULL);
+    assert(mycomm->rank == -1);
+  }
+  if (mynode->parent) {
+    struct S_node *parent = mynode->parent;
+    int mypos = -1;
+    m = 0;
+    members[m++] = parent->id;
+    for (ch = parent->child; ch; ch = ch->sibling) {
+      if (ch->id == rank) mypos = m;
+      members[m++] = ch->id;
+    }
+    assert(mypos > 0);
+    assert(mycomm->sec != MPI_COMM_NULL);
+    assert(mycomm->root == 0);
+    assert(mycomm->black == 1 - parent->comm.black);
+    MPI_Group_incl(context->world_group, m, members, &expected);
+    MPI_Comm_group(mycomm->sec, &actual);
+    MPI_Group_compare(expected, actual, &cmp);
+    assert(cmp == MPI_IDENT);
+    MPI_Comm_rank(mycomm->sec, &myrank);
+    assert(myrank == mypos);
+    MPI_Group_free(&expected);
+    MPI_Group_free(&actual);
+  } else {
+    assert(mycomm->sec == MPI_COMM_NULL);
+    assert(mycomm->root == -1);
+  }
+  free(members);
+}
+
+static void
+run_family_communicator_layout_test(int n, int rank) {
+  oh_context *context = 0;
+  int *sdid = 0;
+  int *nphgram = 0;
+  int *totalp = 0;
+  int *rcounts = 0;
+  int *scounts = 0;
+  int *nbor = 0;
+  int pcoord[3] = {n, 1, 1};
+  int err;
+  int mode;
+
+  if (n < 2) return;
+
+  err = oh_context_create(MPI_COMM_WORLD, &context);
+  assert(err == MPI_SUCCESS);
+  init1_state(context, &sdid, 1, 20, &nphgram, &totalp, &rcounts, &scounts,
+              0, 0, &nbor, pcoord, 0, 0, 0);
+
+  /* Region 0 overloaded: everyone else becomes a helper. */
+  if (rank == 0) nphgram[0] = 10 * n;
+  mode = oh_context_transbound1(context, OH_MODE_NORMAL_PRIMARY, 0);
+  assert(mode == OH_MODE_REBALANCE_SECONDARY);
+  assert_family_communicators_match_tree(context, rank);
+  if (n == 2) run_collective_value_contract_test(context, rank);
+
+  /* Move the load to the last region and rebuild the families again. */
+  if (rank == n - 1) nphgram[n - 1] = 10 * n + 3;
+  if (rank == 0 && n > 2) nphgram[0] = 5;
+  mode = oh_context_transbound1(context, mode, 0);
+  (void)mode;
+  assert_family_communicators_match_tree(context, rank);
+
+  oh_context_destroy(context);
+}
+
 static void
 run_nondefault_legacy_side_channel_isolation_test(int n, int rank) {
   oh_context *context = 0;
@@ -1428,6 +1527,7 @@ main(int argc, char **argv) {
 
   run_nondefault_init1_state_test(n, rank);
   run_nondefault_init1_rebalance_test(n, rank);
+  run_family_communicator_layout_test(n, rank);
   run_nondefault_legacy_side_channel_isolation_test(n, rank);
   run_region_weights_context_isolation_test(n);
   run_context_create_invalid_comm_test();

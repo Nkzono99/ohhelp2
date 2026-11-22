@@ -1370,7 +1370,12 @@ build_new_comm_state(struct oh_state *state, int currmode, int level,
      with its own black) and a child in at most one (its parent's, with the
      other black). One MPI_Comm_split per black therefore creates all the
      family communicators, with the same members and rank order as one
-     MPI_Comm_create per family, in two collectives instead of comms->n. */
+     MPI_Comm_create per family, in two collectives instead of comms->n.
+     MPI_Comm_create also returned MPI_COMM_NULL to the ranks outside a
+     family; MPI_Comm_split only hands out the two families a rank is in, so
+     clear the other entries here. The next rebalance frees every non-null
+     entry, and the default state allocates body[] without initialising it. */
+  for (j=0; j<comms->n; j++)  comms->body[j] = MPI_COMM_NULL;
   for (c=0; c<2; c++) {
     int color=MPI_UNDEFINED, key=0;
     MPI_Comm newcomm;

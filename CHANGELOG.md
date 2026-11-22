@@ -19,6 +19,12 @@
   `{root, children in sibling order}` and that the ranks match; KUDPC Intel MPI
   2023.2 with 1-6 ranks. Reversing the child order makes the test fail with 3
   and 4 ranks.
+- `tests/test_oh_default_family_comms.c` uses the default (legacy `oh1_init`)
+  state, whose `Comms.body[]` is allocated without initialisation, and checks
+  that after each rebalance every entry is `MPI_COMM_NULL` unless it is one of
+  the rank's two families (the next rebalance frees every non-null entry).
+  Without the reset the test fails on 4 ranks; in MPIEMSES3D the second
+  rebalance aborted in `MPI_Comm_free` ("Invalid communicator").
 
 ## v2.3.6 - 2026-11-09
 

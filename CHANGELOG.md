@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v2.3.7 - 2026-11-22
+
 ### Changed
 
 - Build the secondary-mode family communicators with two `MPI_Comm_split`
